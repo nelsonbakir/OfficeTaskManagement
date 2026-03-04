@@ -9,6 +9,8 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models.Enums;
 using OfficeTaskManagement.ViewModels.Analytics;
 
+using TaskStatus = OfficeTaskManagement.Models.Enums.TaskStatus;
+
 namespace OfficeTaskManagement.Controllers
 {
     [Authorize(Roles = "Manager,Project Lead,Project Coordinator")]
@@ -58,18 +60,18 @@ namespace OfficeTaskManagement.Controllers
                 // Simple daily distribution: assume 8 hours per day
                 int daysRequired = (int)Math.Ceiling(task.EstimatedHours / 8.0m);
                 decimal hoursLeft = task.EstimatedHours;
-
+                
                 for (int i = 0; i < daysRequired; i++)
                 {
                     decimal hoursToday = Math.Min(8.0m, hoursLeft);
-
+                    
                     vm.Engagements.Add(new DailyEngagement
                     {
                         AssigneeName = task.Assignee!.Email,
                         TaskTitle = task.Title,
                         Date = task.StartDate!.Value.Date.AddDays(i),
                         Hours = hoursToday,
-                        IsToDo = task.Status == TaskStatus.ToDo
+                        IsToDo = task.Status == Models.Enums.TaskStatus.ToDo
                     });
 
                     hoursLeft -= hoursToday;
@@ -94,9 +96,9 @@ namespace OfficeTaskManagement.Controllers
                         // Hours remaining on this date
                         // For simplicity MVP, assume tasks marked Done before/on this date decrease the remaining hours
                         // Proper burndown would use TaskHistory to see when status changed to Done
-                        var completedTasksBeforeDate = sprintTasks.Where(t => t.Status == TaskStatus.Done && (t.DueDate <= date || t.CreatedAt <= date)).Sum(t => t.EstimatedHours);
+                        var completedTasksBeforeDate = sprintTasks.Where(t => t.Status == Models.Enums.TaskStatus.Done && (t.DueDate <= date || t.CreatedAt <= date)).Sum(t => t.EstimatedHours);
                         // Approximation without full historical playback:
-
+                        
                         // Fallback: simple line drawing for MVP
                         decimal remaining = totalEstimated - (totalEstimated / totalDays) * i;
                         if(remaining < 0) remaining = 0;
@@ -109,7 +111,7 @@ namespace OfficeTaskManagement.Controllers
                         });
                     }
                 }
-
+                
                 // Calculate Velocity
                 var completedHours = sprint.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours);
                 vm.Velocities.Add(new SprintVelocity

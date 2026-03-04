@@ -16,7 +16,7 @@ namespace OfficeTaskManagement.Models
 
         public string? Description { get; set; }
 
-        public TaskStatus Status { get; set; } = TaskStatus.ToDo;
+        public Enums.TaskStatus Status { get; set; } = Enums.TaskStatus.ToDo;
 
         // Efforts required in hours
         public decimal EstimatedHours { get; set; }

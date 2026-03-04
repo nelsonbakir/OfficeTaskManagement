@@ -13,7 +13,7 @@
         <form asp-action="Edit" enctype="multipart/form-data">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="TaskItem.Id" />
-
+            
             <div class="form-group">
                 <label asp-for="TaskItem.Title" class="control-label"></label>
                 <input asp-for="TaskItem.Title" class="form-control" />

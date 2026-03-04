@@ -103,7 +103,7 @@ namespace OfficeTaskManagement.Controllers
 
                     var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt" };
                     var extension = Path.GetExtension(vm.Attachment.FileName).ToLowerInvariant();
-
+                    
                     if (allowedExtensions.Contains(extension))
                     {
                         string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(vm.Attachment.FileName);
@@ -135,7 +135,7 @@ namespace OfficeTaskManagement.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
-
+            
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
@@ -155,7 +155,7 @@ namespace OfficeTaskManagement.Controllers
             {
                 return NotFound();
             }
-
+            
             var vm = new TaskItemViewModel
             {
                 TaskItem = taskItem,
@@ -185,7 +185,7 @@ namespace OfficeTaskManagement.Controllers
 
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     var userRole = User.IsInRole("Project Lead") || User.IsInRole("Manager");
-
+                    
                     // Logic to enforce who can mark as done
                     if (vm.TaskItem.Status == TaskStatus.Done)
                     {
@@ -206,7 +206,7 @@ namespace OfficeTaskManagement.Controllers
                     if (existingTask.AssigneeId != vm.TaskItem.AssigneeId) changes.Add("Assignee changed.");
                     if (existingTask.EstimatedHours != vm.TaskItem.EstimatedHours) changes.Add("Estimated Hours changed.");
                     if (existingTask.StartDate != vm.TaskItem.StartDate) changes.Add("Start Date changed.");
-
+                    
                     if (changes.Any())
                     {
                         _context.TaskHistories.Add(new TaskHistory
@@ -240,7 +240,7 @@ namespace OfficeTaskManagement.Controllers
 
                         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt" };
                         var extension = Path.GetExtension(vm.Attachment.FileName).ToLowerInvariant();
-
+                        
                         if (allowedExtensions.Contains(extension))
                         {
                             string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(vm.Attachment.FileName);
@@ -258,7 +258,7 @@ namespace OfficeTaskManagement.Controllers
                                 FilePath = "/uploads/" + uniqueFileName,
                                 UploadedById = userId
                             });
-
+                            
                             _context.TaskHistories.Add(new TaskHistory
                             {
                                 TaskItemId = vm.TaskItem.Id,

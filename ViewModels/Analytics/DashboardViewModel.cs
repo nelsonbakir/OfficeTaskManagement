@@ -12,7 +12,7 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         // Filters
         public string? SelectedAssigneeId { get; set; }
         public int? SelectedProjectId { get; set; }
-
+        
         public Microsoft.AspNetCore.Mvc.Rendering.SelectList? Assignees { get; set; }
         public Microsoft.AspNetCore.Mvc.Rendering.SelectList? Projects { get; set; }
     }
