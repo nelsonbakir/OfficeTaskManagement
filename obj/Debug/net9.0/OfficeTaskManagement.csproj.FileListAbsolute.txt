@@ -1,0 +1,11 @@
+/app/obj/Debug/net9.0/OfficeTaskManagement.csproj.AssemblyReference.cache
+/app/obj/Debug/net9.0/rpswa.dswa.cache.json
+/app/obj/Debug/net9.0/OfficeTaskManagement.GeneratedMSBuildEditorConfig.editorconfig
+/app/obj/Debug/net9.0/OfficeTaskManagement.AssemblyInfoInputs.cache
+/app/obj/Debug/net9.0/OfficeTaskManagement.AssemblyInfo.cs
+/app/obj/Debug/net9.0/OfficeTaskManagement.csproj.CoreCompileInputs.cache
+/app/obj/Debug/net9.0/OfficeTaskManagement.MvcApplicationPartsAssemblyInfo.cs
+/app/obj/Debug/net9.0/OfficeTaskManagement.MvcApplicationPartsAssemblyInfo.cache
+/app/obj/Debug/net9.0/OfficeTaskManagement.RazorAssemblyInfo.cache
+/app/obj/Debug/net9.0/OfficeTaskManagement.RazorAssemblyInfo.cs
+/app/obj/Debug/net9.0/OfficeTaskManagement.sourcelink.json
