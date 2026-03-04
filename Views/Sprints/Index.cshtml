@@ -1,0 +1,38 @@
+@model IEnumerable<OfficeTaskManagement.Models.Sprint>
+@{ ViewData["Title"] = "Sprints"; }
+<h1>Sprints</h1>
+<p>
+    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+        <a asp-action="Create" class="btn btn-primary">Create New Sprint</a>
+    }
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>@Html.DisplayNameFor(model => model.Name)</th>
+            <th>Project</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Active</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model) {
+        <tr>
+            <td>@Html.DisplayFor(modelItem => item.Name)</td>
+            <td>@Html.DisplayFor(modelItem => item.Project.Name)</td>
+            <td>@item.StartDate.ToShortDateString()</td>
+            <td>@item.EndDate.ToShortDateString()</td>
+            <td>@Html.DisplayFor(modelItem => item.IsActive)</td>
+            <td>
+                @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> <span>|</span>
+                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a> <span>|</span>
+                }
+                <a asp-action="Details" asp-route-id="@item.Id">Details</a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
