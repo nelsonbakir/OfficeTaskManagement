@@ -1,0 +1,160 @@
+@model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Analytics Dashboard";
+
+    // Prepare data for charts
+    var velocityLabels = Model.Velocities.Select(v => v.SprintName).ToList();
+    var velocityData = Model.Velocities.Select(v => v.CompletedHours).ToList();
+
+    var burndownSprints = Model.Burndowns.Select(b => b.SprintName).Distinct().ToList();
+    var burndownDatasets = new List<object>();
+
+    foreach (var sprint in burndownSprints)
+    {
+        var dataPoints = Model.Burndowns.Where(b => b.SprintName == sprint).OrderBy(b => b.Date).ToList();
+        burndownDatasets.Add(new
+        {
+            label = sprint,
+            data = dataPoints.Select(d => d.RemainingHours).ToList(),
+            borderColor = "#" + Guid.NewGuid().ToString().Substring(0, 6),
+            fill = false
+        });
+    }
+
+    var sprintDates = Model.Burndowns.OrderBy(b => b.Date).Select(b => b.Date.ToShortDateString()).Distinct().ToList();
+}
+
+<h1>Project Analytics</h1>
+<hr />
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <form asp-action="Index" method="get" class="form-inline">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label for="assigneeId">Employee</label>
+                    <select name="assigneeId" class="form-control" asp-items="Model.Assignees">
+                        <option value="">-- All Employees --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="projectId">Project</label>
+                    <select name="projectId" class="form-control" asp-items="Model.Projects">
+                        <option value="">-- All Projects --</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    <a asp-action="Index" class="btn btn-secondary">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Employee Engagement Table -->
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4>Employee Engagement Timetable</h4>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th>Assignee</th>
+                            <th>Task</th>
+                            <th>Date</th>
+                            <th>Hours Allocated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var eng in Model.Engagements.OrderBy(e => e.Date).ThenBy(e => e.AssigneeName))
+                        {
+                            <tr style="@(eng.IsToDo ? "background-color: #e9ecef; color: #6c757d;" : "")">
+                                <td>@eng.AssigneeName</td>
+                                <td>@eng.TaskTitle @(eng.IsToDo ? "(ToDo - Not Active)" : "")</td>
+                                <td>@eng.Date.ToShortDateString()</td>
+                                <td>@eng.Hours.ToString("0.0") hrs</td>
+                            </tr>
+                        }
+                        @if (!Model.Engagements.Any())
+                        {
+                            <tr><td colspan="4" class="text-center">No active tasks found for engagement analysis.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Burndown Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4>Sprint Burndown (Ideal)</h4>
+            </div>
+            <div class="card-body">
+                <canvas id="burndownChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Velocity Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h4>Team Velocity</h4>
+            </div>
+            <div class="card-body">
+                <canvas id="velocityChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Data for Velocity Chart
+        const velocityCtx = document.getElementById('velocityChart').getContext('2d');
+        const velocityChart = new Chart(velocityCtx, {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(velocityLabels)),
+                datasets: [{
+                    label: 'Completed Hours',
+                    data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Data for Burndown Chart
+        const burndownCtx = document.getElementById('burndownChart').getContext('2d');
+        const burndownChart = new Chart(burndownCtx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
+                datasets: @Html.Raw(JsonSerializer.Serialize(burndownDatasets))
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+}

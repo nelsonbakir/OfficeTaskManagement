@@ -1,0 +1,64 @@
+@model OfficeTaskManagement.Models.TaskItem
+
+@{
+    ViewData["Title"] = "Task Details";
+}
+
+<h1>Details</h1>
+
+<div>
+    <h4>TaskItem</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">Title</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Title)</dd>
+
+        <dt class="col-sm-2">Description</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Description)</dd>
+
+        <dt class="col-sm-2">Status</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Status)</dd>
+
+        <dt class="col-sm-2">Estimated Hours</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.EstimatedHours)</dd>
+
+        <dt class="col-sm-2">Start Date</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.StartDate)</dd>
+
+        <dt class="col-sm-2">Due Date</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.DueDate)</dd>
+
+        <dt class="col-sm-2">Assignee</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Assignee.Email)</dd>
+        
+        <dt class="col-sm-2">Created By</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.CreatedBy.Email)</dd>
+        
+        <dt class="col-sm-2">Project</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Project.Name)</dd>
+
+        <dt class="col-sm-2">Sprint</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Sprint.Name)</dd>
+    </dl>
+</div>
+
+<h4>Attachments</h4>
+<ul>
+    @foreach(var attachment in Model.Attachments)
+    {
+        <li><a href="@attachment.FilePath" target="_blank">@attachment.FileName</a></li>
+    }
+</ul>
+
+<h4>History</h4>
+<ul>
+    @foreach(var history in Model.History.OrderByDescending(h => h.Timestamp))
+    {
+        <li>[@history.Timestamp.ToLocalTime()] @history.ChangedBy?.Email: @history.ChangeDescription</li>
+    }
+</ul>
+
+<div>
+    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
+    <a asp-action="Index">Back to List</a>
+</div>

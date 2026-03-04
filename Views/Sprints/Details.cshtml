@@ -1,0 +1,25 @@
+@model OfficeTaskManagement.Models.Sprint
+@{ ViewData["Title"] = "Sprint Details"; }
+<h1>Details</h1>
+<div>
+    <h4>Sprint</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">Name</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Name)</dd>
+        <dt class="col-sm-2">Project</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.Project.Name)</dd>
+        <dt class="col-sm-2">Start Date</dt>
+        <dd class="col-sm-10">@Model.StartDate.ToShortDateString()</dd>
+        <dt class="col-sm-2">End Date</dt>
+        <dd class="col-sm-10">@Model.EndDate.ToShortDateString()</dd>
+        <dt class="col-sm-2">Active</dt>
+        <dd class="col-sm-10">@Html.DisplayFor(model => model.IsActive)</dd>
+    </dl>
+</div>
+<div>
+    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+        <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> <span>|</span>
+    }
+    <a asp-action="Index">Back to List</a>
+</div>
