@@ -1,0 +1,228 @@
+@model OfficeTaskManagement.ViewModels.UserManagement.CreateUserViewModel
+
+@{
+    ViewData["Title"] = "Create New User";
+}
+
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .form-card .card-header {
+        padding: 2rem 2rem 1.5rem;
+    }
+
+    .form-card .card-body {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #1f2937;
+    }
+
+    .form-control {
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+
+    .password-help {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .roles-container {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+    }
+
+    .form-check {
+        margin-bottom: 1rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid #d1d5db;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #6366f1;
+        border-color: #6366f1;
+    }
+
+    .form-check-label {
+        margin-bottom: 0;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .info-box {
+        background: #dbeafe;
+        border-left: 4px solid #0284c7;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-box strong {
+        color: #0284c7;
+    }
+
+    .info-box ul {
+        margin-bottom: 0;
+        margin-top: 0.75rem;
+    }
+
+    .info-box li {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-group-form {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-start;
+        margin-top: 2rem;
+    }
+
+    .required-field::after {
+        content: "*";
+        color: #ef4444;
+        margin-left: 0.25rem;
+    }
+</style>
+
+<div class="form-container">
+    <div class="form-card">
+        <div class="card-header">
+            <h3 class="mb-0">
+                <i class="fas fa-user-plus"></i> Add New User
+            </h3>
+            <p class="text-muted mb-0 mt-2">Create and configure a new team member account</p>
+        </div>
+
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Email" class="form-label required-field">Email Address</label>
+                    <input asp-for="Email" class="form-control" placeholder="user@example.com" />
+                    <span asp-validation-for="Email" class="text-danger small d-block mt-2"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="FullName" class="form-label required-field">Full Name</label>
+                    <input asp-for="FullName" class="form-control" placeholder="John Doe" />
+                    <span asp-validation-for="FullName" class="text-danger small d-block mt-2"></span>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="Password" class="form-label required-field">Password</label>
+                            <input asp-for="Password" type="password" class="form-control" />
+                            <div class="password-help">
+                                <i class="fas fa-info-circle"></i> 6+ characters with uppercase, lowercase, and numbers
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small d-block mt-2"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="ConfirmPassword" class="form-label required-field">Confirm Password</label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small d-block mt-2"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label required-field">Assign Roles</label>
+                    <div class="roles-container">
+                        @if (!Model.AvailableRoles.Any())
+                        {
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-exclamation-circle"></i> No roles available. Please contact administrator.
+                            </p>
+                        }
+                        else
+                        {
+                            @foreach (var role in Model.AvailableRoles)
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           id="role_@role"
+                                           name="SelectedRoles"
+                                           value="@role"
+                                           @(Model.SelectedRoles?.Contains(role) == true ? "checked" : "") />
+                                    <label class="form-check-label" for="role_@role">
+                                        <strong>@role</strong>
+                                    </label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong><i class="fas fa-lightbulb"></i> Role Guide</strong>
+                    <ul>
+                        <li><strong>Manager:</strong> Full access to all features and user management</li>
+                        <li><strong>Project Lead:</strong> Can manage projects, sprints, and team tasks</li>
+                        <li><strong>Project Coordinator:</strong> Can manage tasks and view reports</li>
+                        <li><strong>Employee:</strong> Can view and update assigned tasks only</li>
+                        <li><strong>Client:</strong> Read-only access to projects and tasks</li>
+                    </ul>
+                </div>
+
+                <div class="btn-group-form">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Create User
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

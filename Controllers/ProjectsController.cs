@@ -40,6 +40,8 @@ namespace OfficeTaskManagement.Controllers
             var project = await _context.Projects
                 .Include(p => p.CreatedBy)
                 .Include(p => p.Sprints)
+                    .ThenInclude(s => s.Tasks)
+                        .ThenInclude(t => t.Assignee)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (project == null)
             {

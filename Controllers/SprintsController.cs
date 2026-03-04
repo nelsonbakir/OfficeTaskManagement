@@ -24,7 +24,9 @@ namespace OfficeTaskManagement.Controllers
         // GET: Sprints
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Sprints.Include(s => s.Project);
+            var applicationDbContext = _context.Sprints
+                .Include(s => s.Project)
+                .Include(s => s.Tasks);
             return View(await applicationDbContext.ToListAsync());
         }
 
@@ -39,6 +41,7 @@ namespace OfficeTaskManagement.Controllers
             var sprint = await _context.Sprints
                 .Include(s => s.Project)
                 .Include(s => s.Tasks)
+                    .ThenInclude(t => t.Assignee)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (sprint == null)
             {
@@ -64,6 +67,10 @@ namespace OfficeTaskManagement.Controllers
         {
             if (ModelState.IsValid)
             {
+                // Ensure DateTimes are UTC to satisfy PostgreSQL timestamp with time zone requirements
+                sprint.StartDate = EnsureUtc(sprint.StartDate);
+                sprint.EndDate = EnsureUtc(sprint.EndDate);
+
                 _context.Add(sprint);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
@@ -105,6 +112,10 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
+                    // Ensure DateTimes are UTC before saving to PostgreSQL
+                    sprint.StartDate = EnsureUtc(sprint.StartDate);
+                    sprint.EndDate = EnsureUtc(sprint.EndDate);
+
                     _context.Update(sprint);
                     await _context.SaveChangesAsync();
                 }
@@ -164,6 +175,16 @@ namespace OfficeTaskManagement.Controllers
         private bool SprintExists(int id)
         {
             return _context.Sprints.Any(e => e.Id == id);
+        }
+
+        private static DateTime EnsureUtc(DateTime dt)
+        {
+            return dt.Kind switch
+            {
+                DateTimeKind.Utc => dt,
+                DateTimeKind.Local => dt.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+            };
         }
     }
 }

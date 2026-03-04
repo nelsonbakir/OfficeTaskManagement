@@ -1,0 +1,249 @@
+@model OfficeTaskManagement.ViewModels.UserManagement.EditUserViewModel
+
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .form-card .card-header {
+        padding: 2rem 2rem 1.5rem;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    }
+
+    .form-card .card-body {
+        padding: 2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: #1f2937;
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+
+    .form-control[disabled] {
+        background-color: #f3f4f6;
+        cursor: not-allowed;
+    }
+
+    .disabled-help {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    .roles-container {
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+    }
+
+    .form-check {
+        margin-bottom: 1rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid #d1d5db;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: #6366f1;
+        border-color: #6366f1;
+    }
+
+    .form-check-label {
+        margin-bottom: 0;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 1rem;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .toggle-switch .form-check-input {
+        margin: 0;
+    }
+
+    .info-box {
+        background: #dbeafe;
+        border-left: 4px solid #0284c7;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin: 1.5rem 0;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin: 1.5rem 0;
+    }
+
+    .btn-group-form {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-start;
+        margin-top: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+</style>
+
+<div class="form-container">
+    <div class="form-card">
+        <div class="card-header text-white">
+            <h3 class="mb-0">
+                <i class="fas fa-user-edit"></i> Edit User
+            </h3>
+            <p class="text-white-50 mb-0 mt-2">@Model.Email</p>
+        </div>
+
+        <div class="card-body">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" asp-for="Id" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div class="section-title">
+                    <i class="fas fa-user"></i> User Information
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Email" class="form-label">Email Address</label>
+                    <input asp-for="Email" class="form-control" disabled />
+                    <div class="disabled-help">
+                        <i class="fas fa-lock"></i> Email cannot be changed
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="FullName" class="form-label">Full Name</label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger small d-block mt-2"></span>
+                </div>
+
+                <div class="section-title">
+                    <i class="fas fa-shield-alt"></i> Roles & Permissions
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Assign Roles</label>
+                    <div class="roles-container">
+                        @if (!Model.AvailableRoles.Any())
+                        {
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-exclamation-circle"></i> No roles available.
+                            </p>
+                        }
+                        else
+                        {
+                            @foreach (var role in Model.AvailableRoles)
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           id="role_@role"
+                                           name="SelectedRoles"
+                                           value="@role"
+                                           @(Model.SelectedRoles?.Contains(role) == true ? "checked" : "") />
+                                    <label class="form-check-label" for="role_@role">
+                                        <strong>@role</strong>
+                                    </label>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <div class="section-title">
+                    <i class="fas fa-toggle-on"></i> Account Status
+                </div>
+
+                <div class="toggle-switch">
+                    <input type="checkbox" class="form-check-input" asp-for="IsActive" />
+                    <label class="form-check-label">
+                        <strong>Account Active</strong>
+                        <div class="text-muted" style="font-size: 0.85rem;">
+                            Deactivated users cannot log in
+                        </div>
+                    </label>
+                </div>
+
+                <div class="info-box">
+                    <strong><i class="fas fa-lightbulb"></i> Quick Actions</strong>
+                    <div class="quick-actions mt-3">
+                        <a asp-action="ResetPassword" asp-route-id="@Model.Id" class="btn btn-warning btn-sm">
+                            <i class="fas fa-key"></i> Reset Password
+                        </a>
+                    </div>
+                </div>
+
+                <div class="btn-group-form">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

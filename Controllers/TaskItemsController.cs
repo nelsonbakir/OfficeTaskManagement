@@ -81,6 +81,10 @@ namespace OfficeTaskManagement.Controllers
                 vm.TaskItem.CreatedById = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 vm.TaskItem.CreatedAt = DateTime.UtcNow;
 
+                // Normalize date times to UTC to satisfy PostgreSQL timestamptz requirements
+                vm.TaskItem.StartDate = EnsureUtc(vm.TaskItem.StartDate);
+                vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
+
                 _context.Add(vm.TaskItem);
                 await _context.SaveChangesAsync();
 
@@ -89,7 +93,8 @@ namespace OfficeTaskManagement.Controllers
                 {
                     TaskItemId = vm.TaskItem.Id,
                     ChangedById = User.FindFirstValue(ClaimTypes.NameIdentifier),
-                    ChangeDescription = "Task created."
+                    ChangeDescription = "Task created.",
+                    Timestamp = DateTime.UtcNow
                 });
 
                 // Handle Attachment
@@ -183,6 +188,11 @@ namespace OfficeTaskManagement.Controllers
                     var existingTask = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
                     if (existingTask == null) return NotFound();
 
+                    // Ensure existing and incoming DateTimes are normalized to UTC
+                    existingTask.CreatedAt = EnsureUtc(existingTask.CreatedAt);
+                    vm.TaskItem.StartDate = EnsureUtc(vm.TaskItem.StartDate);
+                    vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
+
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     var userRole = User.IsInRole("Project Lead") || User.IsInRole("Manager");
                     
@@ -213,7 +223,8 @@ namespace OfficeTaskManagement.Controllers
                         {
                             TaskItemId = vm.TaskItem.Id,
                             ChangedById = userId,
-                            ChangeDescription = string.Join(" ", changes)
+                            ChangeDescription = string.Join(" ", changes),
+                            Timestamp = DateTime.UtcNow
                         });
                     }
 
@@ -337,6 +348,28 @@ namespace OfficeTaskManagement.Controllers
         private bool TaskItemExists(int id)
         {
             return _context.Tasks.Any(e => e.Id == id);
+        }
+
+        private static DateTime EnsureUtc(DateTime dt)
+        {
+            return dt.Kind switch
+            {
+                DateTimeKind.Utc => dt,
+                DateTimeKind.Local => dt.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+            };
+        }
+
+        private static DateTime? EnsureUtc(DateTime? dt)
+        {
+            if (!dt.HasValue) return null;
+            var d = dt.Value;
+            return d.Kind switch
+            {
+                DateTimeKind.Utc => d,
+                DateTimeKind.Local => d.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(d, DateTimeKind.Utc),
+            };
         }
     }
 }

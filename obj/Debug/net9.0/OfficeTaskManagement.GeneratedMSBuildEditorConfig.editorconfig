@@ -1,127 +1,159 @@
 is_global = true
 build_property.TargetFramework = net9.0
-build_property.TargetFramework = net9.0
-build_property.TargetPlatformMinVersion =
-build_property.TargetPlatformMinVersion =
-build_property.UsingMicrosoftNETSdkWeb = true
-build_property.UsingMicrosoftNETSdkWeb = true
-build_property.ProjectTypeGuids =
-build_property.ProjectTypeGuids =
-build_property.InvariantGlobalization =
-build_property.InvariantGlobalization =
-build_property.PlatformNeutralAssembly =
-build_property.PlatformNeutralAssembly =
-build_property.EnforceExtendedAnalyzerRules =
-build_property.EnforceExtendedAnalyzerRules =
-build_property._SupportedPlatformList = Linux,macOS,Windows
-build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.TargetFrameworkIdentifier = .NETCoreApp
 build_property.TargetFrameworkVersion = v9.0
+build_property.TargetPlatformMinVersion = 
+build_property.UsingMicrosoftNETSdkWeb = true
+build_property.ProjectTypeGuids = 
+build_property.InvariantGlobalization = 
+build_property.PlatformNeutralAssembly = 
+build_property.EnforceExtendedAnalyzerRules = 
+build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = OfficeTaskManagement
 build_property.RootNamespace = OfficeTaskManagement
-build_property.ProjectDir = /app/
-build_property.EnableComHosting =
-build_property.EnableGeneratedComInterfaceComImportInterop =
+build_property.ProjectDir = D:\TGI\RND\OfficeTaskManagement\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 9.0
-build_property.SupportLocalizedComponentNames =
-build_property.GenerateRazorMetadataSourceChecksumAttributes =
-build_property.MSBuildProjectDirectory = /app
-build_property._RazorSourceGeneratorDebug =
+build_property.SupportLocalizedComponentNames = 
+build_property.GenerateRazorMetadataSourceChecksumAttributes = 
+build_property.MSBuildProjectDirectory = D:\TGI\RND\OfficeTaskManagement
+build_property._RazorSourceGeneratorDebug = 
 build_property.EffectiveAnalysisLevelStyle = 9.0
-build_property.EnableCodeStyleSeverity =
+build_property.EnableCodeStyleSeverity = 
 
-[/app/Views/Analytics/Index.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQW5hbHl0aWNzL0luZGV4LmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Home/Index.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvSG9tZS9JbmRleC5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/Dashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXERhc2hib2FyZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Home/Privacy.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvSG9tZS9Qcml2YWN5LmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Projects/Create.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUHJvamVjdHMvQ3JlYXRlLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/_CoordinatorDashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXF9Db29yZGluYXRvckRhc2hib2FyZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Projects/Delete.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUHJvamVjdHMvRGVsZXRlLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/_EmployeeDashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXF9FbXBsb3llZURhc2hib2FyZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Projects/Details.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUHJvamVjdHMvRGV0YWlscy5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/_ManagerDashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXF9NYW5hZ2VyRGFzaGJvYXJkLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Projects/Edit.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUHJvamVjdHMvRWRpdC5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Analytics/_ProjectLeadDashboard.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcQW5hbHl0aWNzXF9Qcm9qZWN0TGVhZERhc2hib2FyZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Projects/Index.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvUHJvamVjdHMvSW5kZXguY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Home/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Shared/Error.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL0Vycm9yLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Home/Privacy.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcSG9tZVxQcml2YWN5LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Shared/_LoginPartial.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19Mb2dpblBhcnRpYWwuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Projects/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvamVjdHNcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Shared/_ValidationScriptsPartial.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Projects/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvamVjdHNcRGVsZXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Sprints/Create.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU3ByaW50cy9DcmVhdGUuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Projects/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvamVjdHNcRGV0YWlscy5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Sprints/Delete.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU3ByaW50cy9EZWxldGUuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Projects/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvamVjdHNcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Sprints/Details.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU3ByaW50cy9EZXRhaWxzLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Projects/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcUHJvamVjdHNcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Sprints/Edit.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU3ByaW50cy9FZGl0LmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Shared/Error.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXEVycm9yLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Sprints/Index.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU3ByaW50cy9JbmRleC5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Shared/_LoginPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9Mb2dpblBhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/TaskItems/Create.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvVGFza0l0ZW1zL0NyZWF0ZS5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Shared/_ValidationScriptsPartial.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9WYWxpZGF0aW9uU2NyaXB0c1BhcnRpYWwuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/TaskItems/Delete.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvVGFza0l0ZW1zL0RlbGV0ZS5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Sprints/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3ByaW50c1xDcmVhdGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/TaskItems/Details.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvVGFza0l0ZW1zL0RldGFpbHMuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Sprints/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3ByaW50c1xEZWxldGUuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/TaskItems/Edit.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvVGFza0l0ZW1zL0VkaXQuY3NodG1s
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Sprints/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3ByaW50c1xEZXRhaWxzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/TaskItems/Index.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvVGFza0l0ZW1zL0luZGV4LmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Sprints/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3ByaW50c1xFZGl0LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/_ViewImports.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvX1ZpZXdJbXBvcnRzLmNzaHRtbA==
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/Sprints/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU3ByaW50c1xJbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/_ViewStart.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvX1ZpZXdTdGFydC5jc2h0bWw=
-build_metadata.AdditionalFiles.CssScope =
+[D:/TGI/RND/OfficeTaskManagement/Views/TaskItems/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFza0l0ZW1zXENyZWF0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
 
-[/app/Views/Shared/_Layout.cshtml]
-build_metadata.AdditionalFiles.TargetPath = Vmlld3MvU2hhcmVkL19MYXlvdXQuY3NodG1s
-build_metadata.AdditionalFiles.CssScope = b-ropgdw7kxt
+[D:/TGI/RND/OfficeTaskManagement/Views/TaskItems/Delete.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFza0l0ZW1zXERlbGV0ZS5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/TaskItems/Details.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFza0l0ZW1zXERldGFpbHMuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/TaskItems/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFza0l0ZW1zXEVkaXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/TaskItems/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVGFza0l0ZW1zXEluZGV4LmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/UserManagement/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlck1hbmFnZW1lbnRcQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/UserManagement/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlck1hbmFnZW1lbnRcRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/UserManagement/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlck1hbmFnZW1lbnRcSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/UserManagement/ResetPassword.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcVXNlck1hbmFnZW1lbnRcUmVzZXRQYXNzd29yZC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/_ViewImports.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdJbXBvcnRzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/_ViewStart.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcX1ZpZXdTdGFydC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TGI/RND/OfficeTaskManagement/Views/Shared/_Layout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3NcU2hhcmVkXF9MYXlvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = b-jxpwecysvo

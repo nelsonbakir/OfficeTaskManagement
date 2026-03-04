@@ -1,0 +1,239 @@
+@model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<style>
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+
+    .dashboard-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+    }
+
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .metric-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-label {
+        color: #605E5C;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0078D4;
+        margin: 0;
+    }
+
+    .metric-subtext {
+        font-size: 0.85rem;
+        color: #A19F9D;
+        margin-top: 0.5rem;
+    }
+
+    .metric-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2rem;
+        color: #EDEBE9;
+        opacity: 0.5;
+    }
+
+    .metric-card {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        height: 6px;
+        background: #F3F2F1;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.75rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0078D4, #50E6FF);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: 2rem 0 1.5rem 0;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #EDEBE9;
+    }
+
+    .section-header h2 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin: 0;
+        color: #252424;
+    }
+
+    .section-header i {
+        font-size: 1.5rem;
+        color: #0078D4;
+    }
+
+    .table-card {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .table-card table {
+        width: 100%;
+        margin: 0;
+    }
+
+    .table-card thead {
+        background: #F3F2F1;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .table-card th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #252424;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .table-card td {
+        padding: 1rem;
+        border-bottom: 1px solid #EDEBE9;
+        color: #605E5C;
+    }
+
+    .table-card tbody tr:hover {
+        background: #F9F8F8;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-on-track {
+        background: #D4EDDA;
+        color: #155724;
+    }
+
+    .status-at-risk {
+        background: #FFF3CD;
+        color: #856404;
+    }
+
+    .status-overdue {
+        background: #F8D7DA;
+        color: #721C24;
+    }
+
+    .status-active {
+        background: #D1ECF1;
+        color: #0C5460;
+    }
+
+    .list-item {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .list-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .list-item-content h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .list-item-content p {
+        font-size: 0.85rem;
+        color: #605E5C;
+        margin: 0;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #A19F9D;
+    }
+
+    .empty-state i {
+        font-size: 2rem;
+        color: #EDEBE9;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<div class="dashboard-header">
+    <h1 class="dashboard-title">
+        <i class="fas fa-chart-line"></i> Dashboard
+    </h1>
+</div>
+
+@if (User.IsInRole("Manager") && Model.ManagerMetrics != null)
+{
+    <partial name="_ManagerDashboard" model="Model.ManagerMetrics" />
+}
+else if (User.IsInRole("Project Lead") && Model.ProjectLeadMetrics != null)
+{
+    <partial name="_ProjectLeadDashboard" model="Model.ProjectLeadMetrics" />
+}
+else if (User.IsInRole("Project Coordinator") && Model.CoordinatorMetrics != null)
+{
+    <partial name="_CoordinatorDashboard" model="Model.CoordinatorMetrics" />
+}
+else if (User.IsInRole("Employee") && Model.EmployeeMetrics != null)
+{
+    <partial name="_EmployeeDashboard" model="Model.EmployeeMetrics" />
+}

@@ -1,21 +1,491 @@
 @model OfficeTaskManagement.Models.Project
-@{ ViewData["Title"] = "Project Details"; }
-<h1>Details</h1>
-<div>
-    <h4>Project</h4>
-    <hr />
-    <dl class="row">
-        <dt class="col-sm-2">Name</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Name)</dd>
-        <dt class="col-sm-2">Description</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Description)</dd>
-        <dt class="col-sm-2">Created By</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.CreatedBy.Email)</dd>
-    </dl>
-</div>
-<div>
-    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
-        <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> <span>|</span>
+@{ 
+    ViewData["Title"] = Model.Name;
+    var sprints = Model.Sprints ?? new List<OfficeTaskManagement.Models.Sprint>();
+    var tasks = sprints.SelectMany(s => s.Tasks).ToList();
+}
+
+<style>
+    .project-header {
+        background: white;
+        border-bottom: 1px solid #EDEBE9;
+        padding: 2rem;
+        margin: -2rem -2rem 2rem -2rem;
+        border-radius: 6px 6px 0 0;
     }
-    <a asp-action="Index">Back to List</a>
+
+    .project-title-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1.5rem;
+    }
+
+    .project-title-section h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .project-header-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .project-info {
+        display: grid;
+        grid-template-columns: auto 1fr auto 1fr;
+        gap: 2rem;
+        font-size: 0.9rem;
+        margin-top: 1rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .info-label {
+        color: #605E5C;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+        color: #252424;
+        font-weight: 500;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 1px solid #EDEBE9;
+        background: white;
+        padding: 0 2rem;
+        margin: 0 -2rem 0 -2rem;
+        border-radius: 0;
+    }
+
+    .nav-tabs .nav-link {
+        color: #605E5C;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 1rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: #0078D4;
+        border-bottom-color: #0078D4;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: #0078D4;
+        border-bottom-color: #0078D4;
+        background: transparent;
+    }
+
+    /* Sections */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .section-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    /* Sprint Card */
+    .sprint-card {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .sprint-card:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .sprint-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .sprint-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #0078D4;
+        margin: 0;
+    }
+
+    .sprint-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .sprint-status.active {
+        background: #D4EDDA;
+        color: #155724;
+    }
+
+    .sprint-status.planning {
+        background: #FFF3CD;
+        color: #856404;
+    }
+
+    .sprint-status.completed {
+        background: #D1ECF1;
+        color: #0C5460;
+    }
+
+    .sprint-tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .task-item {
+        background: #F3F2F1;
+        padding: 0.75rem 1rem;
+        border-radius: 4px;
+        border-left: 3px solid #0078D4;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+
+    .task-item:hover {
+        background: #EDEBE9;
+    }
+
+    .task-info {
+        flex: 1;
+    }
+
+    .task-title {
+        font-weight: 500;
+        color: #252424;
+        margin-bottom: 0.25rem;
+    }
+
+    .task-meta {
+        font-size: 0.8rem;
+        color: #605E5C;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .quick-action-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        border: 1px solid #EDEBE9;
+        background: white;
+        color: #605E5C;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        font-size: 0.85rem;
+    }
+
+    .quick-action-btn:hover {
+        background: white;
+        color: #0078D4;
+    }
+
+    .empty-list {
+        text-align: center;
+        padding: 2rem;
+        color: #605E5C;
+        background: white;
+        border: 1px dashed #EDEBE9;
+        border-radius: 6px;
+    }
+
+    .empty-list i {
+        font-size: 2rem;
+        color: #EDEBE9;
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .inline-form {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .inline-form-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .inline-form-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-control-inline {
+        border: 1px solid #EDEBE9;
+        padding: 0.625rem 0.875rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    .form-control-inline:focus {
+        outline: none;
+        border-color: #0078D4;
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    .btn-inline {
+        padding: 0.625rem 1rem;
+        border-radius: 4px;
+        border: none;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-inline-primary {
+        background: #0078D4;
+        color: white;
+    }
+
+    .btn-inline-primary:hover {
+        background: #005A9E;
+    }
+
+    .btn-inline-secondary {
+        background: white;
+        border: 1px solid #EDEBE9;
+        color: #252424;
+    }
+
+    .btn-inline-secondary:hover {
+        background: #F3F2F1;
+    }
+</style>
+
+<div class="project-header">
+    <div class="project-title-section">
+        <h1>
+            <i class="fas fa-folder-open"></i> @Model.Name
+        </h1>
+        <div class="project-header-actions">
+            @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-pen-to-square"></i> Edit
+                </a>
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            } else {
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            }
+        </div>
+    </div>
+
+    <div class="project-info">
+        <div class="info-item">
+            <span class="info-label">Owner</span>
+            <span class="info-value">@Html.DisplayFor(model => model.CreatedBy.FullName)</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Sprints</span>
+            <span class="info-value">@sprints.Count</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Active Tasks</span>
+            <span class="info-value">@tasks.Where(t => t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done).Count()</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Completion</span>
+            <span class="info-value">@(tasks.Any() ? Math.Round((tasks.Count(t => t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done) * 100) / (double)tasks.Count()) : 0)%</span>
+        </div>
+    </div>
+</div>
+
+@if(!string.IsNullOrEmpty(Model.Description)) {
+    <div style="background: white; padding: 1.5rem; border-radius: 6px; margin-bottom: 2rem; border: 1px solid #EDEBE9;">
+        <p style="margin: 0; color: #605E5C; line-height: 1.6;">@Model.Description</p>
+    </div>
+}
+
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#sprints">
+            <i class="fas fa-rocket"></i> Sprints
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#tasks">
+            <i class="fas fa-check-circle"></i> All Tasks
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content" style="background: white; padding: 2rem;">
+    <!-- Sprints Tab -->
+    <div id="sprints" class="tab-pane fade show active">
+        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+            <div class="section-header" style="margin-top: 1.5rem;">
+                <h2>Sprints</h2>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#newSprintForm">
+                    <i class="fas fa-plus"></i> New Sprint
+                </button>
+            </div>
+
+            <div id="newSprintForm" class="collapse">
+                <form asp-controller="Sprints" asp-action="Create" method="post" class="inline-form">
+                    <input type="hidden" name="projectId" value="@Model.Id" />
+                    <div class="inline-form-row">
+                        <input type="text" name="name" placeholder="Sprint name" class="form-control-inline" required />
+                        <button type="submit" class="btn-inline btn-inline-primary">Create</button>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @if (sprints.Any()) {
+            @foreach (var sprint in sprints) {
+                <div class="sprint-card">
+                    <div class="sprint-header">
+                        <h3 class="sprint-name">@sprint.Name</h3>
+                        <div class="sprint-status active" style="text-align: center;">
+                            @(sprint.IsActive ? "Active" : "Completed")
+                        </div>
+                    </div>
+
+                    @if (sprint.Tasks.Any()) {
+                        <div class="sprint-tasks">
+                            @foreach (var task in sprint.Tasks) {
+                                <div class="task-item">
+                                    <div class="task-info">
+                                        <div class="task-title">@task.Title</div>
+                                        <div class="task-meta">
+                                            @if(task.Assignee != null) {
+                                                <i class="fas fa-user-circle"></i> @task.Assignee.FullName
+                                                <span style="margin: 0 0.5rem;">•</span>
+                                            }
+                                            <span style="padding: 2px 6px; background: #F3F2F1; border-radius: 3px; font-size: 0.75rem;">
+                                                @task.Status
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="task-actions">
+                                        <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@task.Id" class="quick-action-btn" title="Edit">
+                                            <i class="fas fa-pen-to-square"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    } else {
+                        <div class="empty-list">
+                            <i class="fas fa-inbox"></i>
+                            No tasks in this sprint
+                        </div>
+                    }
+                </div>
+            }
+        } else {
+            <div class="empty-list" style="margin-top: 1.5rem;">
+                <i class="fas fa-inbox"></i>
+                No sprints yet
+                @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                    <p style="margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="collapse" data-bs-target="#newSprintForm">
+                            Create your first sprint
+                        </button>
+                    </p>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- All Tasks Tab -->
+    <div id="tasks" class="tab-pane fade">
+        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+            <div class="section-header" style="margin-top: 1.5rem;">
+                <h2>All Tasks</h2>
+                <a asp-controller="TaskItems" asp-action="Create" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> New Task
+                </a>
+            </div>
+        }
+
+        @if (tasks.Any()) {
+            <div class="sprint-tasks" style="margin-top: 1.5rem;">
+                @foreach (var task in tasks.OrderByDescending(t => t.CreatedAt)) {
+                    <div class="task-item">
+                        <div class="task-info">
+                            <div class="task-title">@task.Title</div>
+                            <div class="task-meta">
+                                @if(task.Sprint != null) {
+                                    <i class="fas fa-rocket"></i> @task.Sprint.Name
+                                    <span style="margin: 0 0.5rem;">•</span>
+                                }
+                                @if(task.Assignee != null) {
+                                    <i class="fas fa-user-circle"></i> @task.Assignee.FullName
+                                    <span style="margin: 0 0.5rem;">•</span>
+                                }
+                                <span style="padding: 2px 6px; background: #F3F2F1; border-radius: 3px; font-size: 0.75rem;">
+                                    @task.Status
+                                </span>
+                            </div>
+                        </div>
+                        <div class="task-actions">
+                            <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@task.Id" class="quick-action-btn" title="Edit">
+                                <i class="fas fa-pen-to-square"></i>
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        } else {
+            <div class="empty-list" style="margin-top: 1.5rem;">
+                <i class="fas fa-inbox"></i>
+                No tasks yet
+                @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                    <p style="margin-top: 0.5rem;">
+                        <a asp-controller="TaskItems" asp-action="Create" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">
+                            Create your first task
+                        </a>
+                    </p>
+                }
+            </div>
+        }
+    </div>
 </div>

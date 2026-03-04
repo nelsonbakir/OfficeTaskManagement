@@ -32,7 +32,7 @@
 <div class="row mb-4">
     <div class="col-md-12">
         <form asp-action="Index" method="get" class="form-inline">
-            <div class="row align-items-end">
+            <div class="row align-items-end w-100">
                 <div class="col-md-3">
                     <label for="assigneeId">Employee</label>
                     <select name="assigneeId" class="form-control" asp-items="Model.Assignees">
@@ -45,16 +45,19 @@
                         <option value="">-- All Projects --</option>
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-6">
                     <button type="submit" class="btn btn-primary">Filter</button>
                     <a asp-action="Index" class="btn btn-secondary">Clear</a>
+                    <button type="button" class="btn btn-info" id="toggleTimetableBtn">
+                        <i class="fa fa-calendar"></i> Timetable View
+                    </button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
-<div class="row">
+<div class="row" id="tableViewSection">
     <!-- Employee Engagement Table -->
     <div class="col-md-12 mb-4">
         <div class="card">
@@ -92,6 +95,25 @@
     </div>
 </div>
 
+<!-- Timetable Calendar View using FullCalendar -->
+<div class="row" id="timetableViewSection" style="display: none;">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Timetable Calendar View</h4>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-light btn-sm view-mode-btn active" data-view="dayGridDay">Daily</button>
+                    <button type="button" class="btn btn-light btn-sm view-mode-btn" data-view="timeGridWeek">Weekly</button>
+                    <button type="button" class="btn btn-light btn-sm view-mode-btn" data-view="dayGridMonth">Monthly</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="timetableCalendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <!-- Burndown Chart -->
     <div class="col-md-6 mb-4">
@@ -120,7 +142,189 @@
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+
+    <style>
+        .no-tasks-message {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        .fc {
+            font-family: inherit;
+        }
+
+        .fc .fc-button-primary {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+        }
+
+        .fc .fc-button-primary:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+        }
+
+        .fc .fc-button-primary.fc-button-active {
+            background-color: #117a8b;
+            border-color: #0c5460;
+        }
+
+        .fc-event {
+            padding: 2px !important;
+        }
+
+        .fc-event-title {
+            font-size: 0.85em;
+            padding: 2px 3px;
+        }
+
+        .fc-daygrid-day-number {
+            padding: 6px 4px;
+        }
+
+        .event-employee {
+            font-weight: bold;
+            font-size: 0.8em;
+            color: #333;
+        }
+
+        .event-hours {
+            font-size: 0.75em;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .event-status-todo {
+            opacity: 0.6;
+        }
+
+        /* Custom styling for event backgrounds */
+        .fc-event.event-active {
+            background-color: #17a2b8 !important;
+            border-color: #117a8b !important;
+        }
+
+        .fc-event.event-todo {
+            background-color: #6c757d !important;
+            border-color: #5a6268 !important;
+            opacity: 0.7;
+        }
+
+        .view-mode-btn {
+            margin-right: 5px;
+        }
+
+        .view-mode-btn.active {
+            background-color: #17a2b8 !important;
+            color: white !important;
+        }
+
+        .fc .fc-daygrid-day.fc-day-other {
+            background-color: #f5f5f5;
+        }
+
+        .fc .fc-col-header-cell {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .fc .fc-timegrid-slot {
+            height: 2em;
+        }
+    </style>
+
     <script>
+        // Prepare engagement data for FullCalendar
+        const engagementData = @Html.Raw(JsonSerializer.Serialize(Model.Engagements.Select(e => new {
+            assigneeName = e.AssigneeName,
+            taskTitle = e.TaskTitle,
+            date = e.Date,
+            hours = e.Hours,
+            isToDo = e.IsToDo
+        }).ToList()));
+
+        // Transform data into FullCalendar events
+        const calendarEvents = engagementData.map((eng, index) => {
+            const dateObj = new Date(eng.date);
+            const endDate = new Date(dateObj);
+            endDate.setHours(endDate.getHours() + Math.ceil(eng.hours));
+
+            return {
+                id: `event-${index}`,
+                title: `${eng.assigneeName}: ${eng.taskTitle} (${eng.hours.toFixed(1)}h)`,
+                start: dateObj.toISOString(),
+                end: endDate.toISOString(),
+                extendedProps: {
+                    assigneeName: eng.assigneeName,
+                    taskTitle: eng.taskTitle,
+                    hours: eng.hours,
+                    isToDo: eng.isToDo
+                },
+                classNames: [eng.isToDo ? 'event-todo' : 'event-active'],
+                backgroundColor: eng.isToDo ? '#6c757d' : '#17a2b8',
+                borderColor: eng.isToDo ? '#5a6268' : '#117a8b'
+            };
+        });
+
+        // Initialize FullCalendar
+        let calendar;
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('timetableCalendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: ''
+                },
+                events: calendarEvents,
+                height: 'auto',
+                contentHeight: 'auto',
+                eventClick: function(info) {
+                    const props = info.event.extendedProps;
+                    alert(`Employee: ${props.assigneeName}\nTask: ${props.taskTitle}\nHours: ${props.hours.toFixed(1)}\nStatus: ${props.isToDo ? 'ToDo (Not Active)' : 'Active'}`);
+                },
+                eventDisplay: 'block',
+                dayMaxEventRows: true,
+                navLinks: true,
+                selectConstraint: 'businessHours'
+            });
+
+            calendar.render();
+        });
+
+        // View mode switching
+        document.querySelectorAll('.view-mode-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                const view = this.getAttribute('data-view');
+                calendar.changeView(view);
+            });
+        });
+
+        // Toggle between table and timetable views
+        document.getElementById('toggleTimetableBtn').addEventListener('click', function() {
+            const tableView = document.getElementById('tableViewSection');
+            const timetableView = document.getElementById('timetableViewSection');
+
+            if (timetableView.style.display === 'none') {
+                tableView.style.display = 'none';
+                timetableView.style.display = 'block';
+                this.classList.add('active');
+                if (calendar) {
+                    setTimeout(() => calendar.updateSize(), 100);
+                }
+            } else {
+                tableView.style.display = 'block';
+                timetableView.style.display = 'none';
+                this.classList.remove('active');
+            }
+        });
+
         // Data for Velocity Chart
         const velocityCtx = document.getElementById('velocityChart').getContext('2d');
         const velocityChart = new Chart(velocityCtx, {

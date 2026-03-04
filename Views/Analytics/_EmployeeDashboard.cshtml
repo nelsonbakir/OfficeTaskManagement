@@ -1,0 +1,146 @@
+@model OfficeTaskManagement.ViewModels.Analytics.EmployeeDashboard
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-user"></i></div>
+        <div class="metric-label">Your Name</div>
+        <p class="metric-value" style="font-size: 1.2rem;">@Model.EmployeeName</p>
+        <div class="metric-subtext">@Model.MyProjects.Count projects</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-tasks"></i></div>
+        <div class="metric-label">Task Completion</div>
+        <p class="metric-value">@Model.TaskCompletion.ToString("F0")%</p>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: @Model.TaskCompletion%"></div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-hourglass-start"></i></div>
+        <div class="metric-label">To Do</div>
+        <p class="metric-value">@Model.ToDoTasks</p>
+        <div class="metric-subtext">@Model.AssignedTasks total assigned</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
+        <div class="metric-label">In Progress</div>
+        <p class="metric-value">@Model.InProgressTasks</p>
+        <div class="metric-subtext">active work</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="metric-label">Completed</div>
+        <p class="metric-value">@Model.CompletedTasks</p>
+        <div class="metric-subtext">@(Model.AssignedTasks > 0 ? ((Model.CompletedTasks * 100) / Model.AssignedTasks).ToString("F0") : "0")% done</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-briefcase"></i></div>
+        <div class="metric-label">Current Workload</div>
+        <p class="metric-value">@Model.CurrentWeekload.ToString("F1")</p>
+        <div class="metric-subtext">hours of work</div>
+    </div>
+</div>
+
+<!-- My Projects -->
+<div class="section-header">
+    <i class="fas fa-folder-open"></i>
+    <h2>My Projects (@Model.MyProjects.Count)</h2>
+</div>
+
+@if (Model.MyProjects.Any())
+{
+    @foreach (var project in Model.MyProjects)
+    {
+        <div class="list-item">
+            <div class="list-item-content">
+                <h3>@project</h3>
+                <p><i class="fas fa-folder"></i> Project</p>
+            </div>
+            <span class="status-badge status-active">Active</span>
+        </div>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No projects assigned yet</p>
+    </div>
+}
+
+<!-- My Tasks -->
+<div class="section-header">
+    <i class="fas fa-check-circle"></i>
+    <h2>My Tasks (@Model.MyTasks.Count)</h2>
+</div>
+
+@if (Model.MyTasks.Any())
+{
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Task</th>
+                    <th>Project</th>
+                    <th>Sprint</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var task in Model.MyTasks.OrderBy(t => t.DueDate))
+                {
+                    <tr>
+                        <td><strong>@task.TaskTitle</strong></td>
+                        <td>@task.ProjectName</td>
+                        <td>@(string.IsNullOrEmpty(task.SprintName) ? "-" : task.SprintName)</td>
+                        <td>
+                            <span class="status-badge @GetStatusClass(task.Status)">
+                                @task.Status
+                            </span>
+                        </td>
+                        <td>@(task.DueDate.HasValue ? task.DueDate.Value.ToString("MMM dd, yyyy") : "-")</td>
+                        <td>@task.EstimatedHours.ToString("F1") hrs</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No tasks assigned yet</p>
+    </div>
+}
+
+<!-- Current Sprints -->
+<div class="section-header">
+    <i class="fas fa-rocket"></i>
+    <h2>Current Sprints (@Model.CurrentSprints)</h2>
+</div>
+
+<p style="color: #605E5C; margin-bottom: 1rem;">
+    You are participating in @Model.CurrentSprints sprint@(Model.CurrentSprints != 1 ? "s" : "").
+</p>
+
+@functions {
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "ToDo" => "status-on-track",
+            "InProgress" => "status-active",
+            "Tested" => "status-on-track",
+            "Done" => "status-on-track",
+            _ => "status-on-track"
+        };
+    }
+}

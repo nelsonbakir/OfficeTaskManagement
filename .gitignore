@@ -1,5 +1,7 @@
 bin/
-obj/
+[Oo]bj/
+Debug/
+Obj/
 wwwroot/lib/
 appsettings.Development.json
 *.user

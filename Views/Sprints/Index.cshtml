@@ -1,38 +1,240 @@
 @model IEnumerable<OfficeTaskManagement.Models.Sprint>
 @{ ViewData["Title"] = "Sprints"; }
-<h1>Sprints</h1>
-<p>
-    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
-        <a asp-action="Create" class="btn btn-primary">Create New Sprint</a>
+
+<style>
+    .page-title {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-bottom: 2rem;
+        color: #252424;
     }
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>@Html.DisplayNameFor(model => model.Name)</th>
-            <th>Project</th>
-            <th>Start Date</th>
-            <th>End Date</th>
-            <th>Active</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>@Html.DisplayFor(modelItem => item.Name)</td>
-            <td>@Html.DisplayFor(modelItem => item.Project.Name)</td>
-            <td>@item.StartDate.ToShortDateString()</td>
-            <td>@item.EndDate.ToShortDateString()</td>
-            <td>@Html.DisplayFor(modelItem => item.IsActive)</td>
-            <td>
-                @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
-                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> <span>|</span>
-                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a> <span>|</span>
-                }
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a>
-            </td>
-        </tr>
+
+    .page-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .sprints-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .sprint-card {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .sprint-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .sprint-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: #0078D4;
+        border-radius: 6px 0 0 6px;
+    }
+
+    .sprint-card {
+        position: relative;
+    }
+
+    .sprint-top {
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .sprint-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #0078D4;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .sprint-project {
+        font-size: 0.85rem;
+        color: #605E5C;
+        margin: 0;
+    }
+
+    .sprint-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        flex: 1;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: #605E5C;
+    }
+
+    .meta-item i {
+        color: #0078D4;
+        width: 18px;
+    }
+
+    .sprint-status {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .sprint-status.active {
+        background: #D4EDDA;
+        color: #155724;
+    }
+
+    .sprint-status.inactive {
+        background: #E8E8E8;
+        color: #605E5C;
+    }
+
+    .sprint-footer {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+
+    .sprint-action-btn {
+        flex: 1;
+        padding: 0.625rem 1rem;
+        border-radius: 4px;
+        border: 1px solid #EDEBE9;
+        background: white;
+        color: #0078D4;
+        text-decoration: none;
+        text-align: center;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .sprint-action-btn:hover {
+        background: #F3F2F1;
+    }
+
+    .sprint-action-btn.danger {
+        color: #E81123;
+    }
+
+    .sprint-action-btn.danger:hover {
+        background: #FEE2E2;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: white;
+        border: 1px dashed #EDEBE9;
+        border-radius: 6px;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #EDEBE9;
+        display: block;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #605E5C;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #A19F9D;
+    }
+</style>
+
+<div class="page-actions">
+    <h1 class="page-title" style="margin-bottom: 0;">
+        <i class="fas fa-rocket"></i> Sprints
+    </h1>
+    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Sprint
+        </a>
+    }
+</div>
+
+@if (Model.Any()) {
+    <div class="sprints-grid">
+        @foreach (var item in Model) {
+            <div class="sprint-card">
+                <div class="sprint-top">
+                    <h3 class="sprint-title">@item.Name</h3>
+                    <p class="sprint-project">
+                        <i class="fas fa-folder"></i> @item.Project?.Name
+                    </p>
+                </div>
+
+                <div class="sprint-status @(item.IsActive ? "active" : "inactive")">
+                    @(item.IsActive ? "Active" : "Completed")
+                </div>
+
+                <div class="sprint-meta">
+                    <div class="meta-item">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>@item.StartDate.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-calendar-xmark"></i>
+                        <span>@item.EndDate.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="meta-item">
+                        <i class="fas fa-tasks"></i>
+                        <span>@item.Tasks.Count tasks</span>
+                    </div>
+                </div>
+
+                <div class="sprint-footer">
+                    <a asp-action="Details" asp-route-id="@item.Id" class="sprint-action-btn">
+                        <i class="fas fa-eye"></i> View
+                    </a>
+                    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="sprint-action-btn">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="sprint-action-btn danger" onclick="return confirm('Are you sure?')">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+} else {
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <h3>No sprints yet</h3>
+        <p>Create your first sprint to get started with project planning</p>
+        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+            <a asp-action="Create" class="btn btn-primary" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> Create Sprint
+            </a>
+        }
+    </div>
 }
-    </tbody>
-</table>

@@ -1,0 +1,145 @@
+@model OfficeTaskManagement.ViewModels.Analytics.ProjectLeadDashboard
+
+<div class="metric-grid">
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-folder-open"></i></div>
+        <div class="metric-label">Project Name</div>
+        <p class="metric-value" style="font-size: 1.2rem;">@Model.ProjectName</p>
+        <div class="metric-subtext">@Model.TeamSize team members</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-tasks"></i></div>
+        <div class="metric-label">Project Completion</div>
+        <p class="metric-value">@Model.ProjectCompletion.ToString("F0")%</p>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: @Model.ProjectCompletion%"></div>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-rocket"></i></div>
+        <div class="metric-label">Active Sprints</div>
+        <p class="metric-value">@Model.ActiveSprints</p>
+        <div class="metric-subtext">@Model.TotalSprints total sprints</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
+        <div class="metric-label">In Progress</div>
+        <p class="metric-value">@Model.InProgressTasks</p>
+        <div class="metric-subtext">@Model.TotalTasks total tasks</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="metric-label">Completed Tasks</div>
+        <p class="metric-value">@Model.CompletedTasks</p>
+        <div class="metric-subtext">@(Model.TotalTasks > 0 ? ((Model.CompletedTasks * 100) / Model.TotalTasks).ToString("F0") : "0")% done</div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon"><i class="fas fa-ban"></i></div>
+        <div class="metric-label">Blocked Tasks</div>
+        <p class="metric-value" style="color: #E81123;">@Model.BlockedTasks</p>
+        <div class="metric-subtext">need attention</div>
+    </div>
+</div>
+
+<!-- Team Members -->
+<div class="section-header">
+    <i class="fas fa-users"></i>
+    <h2>Team Members</h2>
+</div>
+
+@if (Model.TeamMetrics.Any())
+{
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Assigned Tasks</th>
+                    <th>Completed</th>
+                    <th>Utilization</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in Model.TeamMetrics)
+                {
+                    <tr>
+                        <td><strong>@member.MemberName</strong></td>
+                        <td>@member.AssignedTasks</td>
+                        <td>@member.CompletedTasks</td>
+                        <td>
+                            <div class="progress-bar" style="width: 100px;">
+                                <div class="progress-fill" style="width: @member.Utilization%"></div>
+                            </div>
+                            @member.Utilization.ToString("F0")%
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No team members assigned yet</p>
+    </div>
+}
+
+<!-- Sprints -->
+<div class="section-header">
+    <i class="fas fa-rocket"></i>
+    <h2>Sprint Status</h2>
+</div>
+
+@if (Model.SprintMetrics.Any())
+{
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sprint</th>
+                    <th>Dates</th>
+                    <th>Tasks</th>
+                    <th>Completion</th>
+                    <th>Velocity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var sprint in Model.SprintMetrics)
+                {
+                    <tr>
+                        <td><strong>@sprint.SprintName</strong></td>
+                        <td>@sprint.StartDate.ToString("MMM dd") - @sprint.EndDate.ToString("MMM dd")</td>
+                        <td>@sprint.CompletedTasks / @sprint.TotalTasks</td>
+                        <td>
+                            <div class="progress-bar" style="width: 100px;">
+                                <div class="progress-fill" style="width: @sprint.Completion%"></div>
+                            </div>
+                            @sprint.Completion.ToString("F0")%
+                        </td>
+                        <td>@sprint.Velocity.ToString("F1") hrs</td>
+                        <td>
+                            <span class="status-badge @(sprint.Status == "Active" ? "status-active" : "status-on-track")">
+                                @sprint.Status
+                            </span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No sprints yet</p>
+    </div>
+}

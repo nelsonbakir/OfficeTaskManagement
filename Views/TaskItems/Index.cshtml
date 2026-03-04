@@ -1,39 +1,362 @@
 @model IEnumerable<OfficeTaskManagement.Models.TaskItem>
+@{ ViewData["Title"] = "Tasks"; }
 
-@{
-    ViewData["Title"] = "Tasks";
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-size: 2rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .view-controls {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .view-btn {
+        padding: 0.625rem 1rem;
+        border-radius: 4px;
+        border: 1px solid #EDEBE9;
+        background: white;
+        color: #605E5C;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .view-btn.active {
+        background: #0078D4;
+        color: white;
+        border-color: #0078D4;
+    }
+
+    /* Kanban Board */
+    .kanban-board {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .kanban-column {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 200px);
+        overflow: hidden;
+    }
+
+    .column-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid #EDEBE9;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        background: #F3F2F1;
+    }
+
+    .column-title {
+        font-weight: 600;
+        color: #252424;
+        margin: 0;
+        flex: 1;
+    }
+
+    .column-count {
+        background: white;
+        border-radius: 12px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #0078D4;
+    }
+
+    .kanban-items {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .kanban-item {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 1rem;
+        cursor: move;
+        transition: all 0.2s ease;
+        border-left: 3px solid #0078D4;
+    }
+
+    .kanban-item:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .kanban-item-title {
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 0.75rem 0;
+        font-size: 0.95rem;
+    }
+
+    .kanban-item-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    .kanban-item-meta span {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: #605E5C;
+    }
+
+    .kanban-item-actions {
+        display: flex;
+        gap: 0.5rem;
+        border-top: 1px solid #EDEBE9;
+        padding-top: 0.75rem;
+    }
+
+    .kanban-action-btn {
+        flex: 1;
+        padding: 0.5rem;
+        border-radius: 3px;
+        border: 1px solid #EDEBE9;
+        background: white;
+        color: #0078D4;
+        text-decoration: none;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .kanban-action-btn:hover {
+        background: #F3F2F1;
+    }
+
+    .empty-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        color: #A19F9D;
+    }
+
+    .empty-column i {
+        font-size: 2rem;
+        color: #EDEBE9;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Table View */
+    .task-table {
+        margin-top: 1.5rem;
+        display: none;
+    }
+
+    .task-table.active {
+        display: table;
+    }
+
+    .task-table thead th {
+        background: #F3F2F1;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+        border: 1px solid #EDEBE9;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+
+    .task-table tbody td {
+        padding: 1rem;
+        border: 1px solid #EDEBE9;
+        vertical-align: middle;
+    }
+
+    .task-table tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .task-table tbody tr:hover {
+        background: #F3F2F1;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: white;
+        border: 1px dashed #EDEBE9;
+        border-radius: 6px;
+        margin-top: 1.5rem;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #EDEBE9;
+        display: block;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #605E5C;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #A19F9D;
+    }
+</style>
+
+<div class="page-header">
+    <h1><i class="fas fa-check-circle"></i> Tasks</h1>
+    <div class="view-controls">
+        <button class="view-btn active" onclick="switchView('kanban')">
+            <i class="fas fa-columns"></i> Board
+        </button>
+        <button class="view-btn" onclick="switchView('table')">
+            <i class="fas fa-list"></i> List
+        </button>
+        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Task
+            </a>
+        }
+    </div>
+</div>
+
+@if (Model.Any()) {
+    <!-- Kanban Board View -->
+    <div class="kanban-board" id="kanbanView">
+        @{
+            var statuses = new[] { 
+                OfficeTaskManagement.Models.Enums.TaskStatus.ToDo,
+                OfficeTaskManagement.Models.Enums.TaskStatus.InProgress,
+                OfficeTaskManagement.Models.Enums.TaskStatus.Tested,
+                OfficeTaskManagement.Models.Enums.TaskStatus.Done
+            };
+        }
+
+        @foreach (var status in statuses) {
+            var tasksInStatus = Model.Where(t => t.Status == status).ToList();
+            <div class="kanban-column">
+                <div class="column-header">
+                    <h3 class="column-title">@status</h3>
+                    <span class="column-count">@tasksInStatus.Count</span>
+                </div>
+                <div class="kanban-items">
+                    @if (tasksInStatus.Any()) {
+                        @foreach (var task in tasksInStatus) {
+                            <div class="kanban-item" data-task-id="@task.Id">
+                                <h4 class="kanban-item-title">@task.Title</h4>
+                                <div class="kanban-item-meta">
+                                    @if(task.Project != null) {
+                                        <span><i class="fas fa-folder"></i> @task.Project.Name</span>
+                                    }
+                                    @if(task.Sprint != null) {
+                                        <span><i class="fas fa-rocket"></i> @task.Sprint.Name</span>
+                                    }
+                                    @if(task.Assignee != null) {
+                                        <span><i class="fas fa-user-circle"></i> @task.Assignee.FullName</span>
+                                    }
+                                </div>
+                                <div class="kanban-item-actions">
+                                    <a asp-action="Edit" asp-route-id="@task.Id" class="kanban-action-btn">Edit</a>
+                                    @if(User.IsInRole("Manager")) {
+                                        <a asp-action="Delete" asp-route-id="@task.Id" class="kanban-action-btn" onclick="return confirm('Delete this task?')">Delete</a>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    } else {
+                        <div class="empty-column">
+                            <i class="fas fa-inbox"></i>
+                            No tasks
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Table View -->
+    <table class="task-table table" id="tableView">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Project</th>
+                <th>Sprint</th>
+                <th>Status</th>
+                <th>Assignee</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var task in Model) {
+                <tr>
+                    <td><strong>@task.Title</strong></td>
+                    <td>@task.Project?.Name</td>
+                    <td>@task.Sprint?.Name</td>
+                    <td>
+                        <span style="padding: 4px 8px; background: #F3F2F1; border-radius: 3px; font-size: 0.8rem;">
+                            @task.Status
+                        </span>
+                    </td>
+                    <td>@task.Assignee?.FullName</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@task.Id" style="color: #0078D4; text-decoration: none; font-weight: 500;">Edit</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+} else {
+    <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <h3>No tasks yet</h3>
+        <p>Create your first task to get started</p>
+        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+            <a asp-action="Create" class="btn btn-primary" style="margin-top: 1rem;">
+                <i class="fas fa-plus"></i> Create Task
+            </a>
+        }
+    </div>
 }
 
-<h1>Tasks</h1>
+<script>
+    function switchView(view) {
+        const kanbanView = document.getElementById('kanbanView');
+        const tableView = document.getElementById('tableView');
+        const buttons = document.querySelectorAll('.view-btn');
 
-<p>
-    <a asp-action="Create" class="btn btn-primary">Create New</a>
-</p>
-<table class="table">
-    <thead>
-        <tr>
-            <th>@Html.DisplayNameFor(model => model.Title)</th>
-            <th>@Html.DisplayNameFor(model => model.Status)</th>
-            <th>@Html.DisplayNameFor(model => model.Assignee)</th>
-            <th>@Html.DisplayNameFor(model => model.Sprint)</th>
-            <th>@Html.DisplayNameFor(model => model.Project)</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-@foreach (var item in Model) {
-        <tr>
-            <td>@Html.DisplayFor(modelItem => item.Title)</td>
-            <td>@Html.DisplayFor(modelItem => item.Status)</td>
-            <td>@Html.DisplayFor(modelItem => item.Assignee.Email)</td>
-            <td>@Html.DisplayFor(modelItem => item.Sprint.Name)</td>
-            <td>@Html.DisplayFor(modelItem => item.Project.Name)</td>
-            <td>
-                <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
-                <a asp-action="Details" asp-route-id="@item.Id">Details</a> |
-                <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
-            </td>
-        </tr>
-}
-    </tbody>
-</table>
+        buttons.forEach(btn => btn.classList.remove('active'));
+
+        if (view === 'kanban') {
+            kanbanView.style.display = 'grid';
+            tableView.classList.remove('active');
+            event.target.closest('.view-btn').classList.add('active');
+        } else {
+            kanbanView.style.display = 'none';
+            tableView.classList.add('active');
+            event.target.closest('.view-btn').classList.add('active');
+        }
+    }
+</script>
