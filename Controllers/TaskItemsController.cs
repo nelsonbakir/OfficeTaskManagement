@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -211,6 +212,20 @@ namespace OfficeTaskManagement.Controllers
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
                 FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId)
             };
+            
+            // Explicitly load relations for the view
+            await _context.Entry(taskItem).Collection(t => t.Attachments).LoadAsync();
+            foreach (var attachment in taskItem.Attachments)
+            {
+                await _context.Entry(attachment).Reference(a => a.UploadedBy).LoadAsync();
+            }
+
+            await _context.Entry(taskItem).Collection(t => t.Comments).LoadAsync();
+            foreach (var comment in taskItem.Comments)
+            {
+                await _context.Entry(comment).Reference(c => c.User).LoadAsync();
+            }
+
             return View(vm);
         }
 
@@ -391,6 +406,99 @@ namespace OfficeTaskManagement.Controllers
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
+        }
+
+        // POST: TaskItems/DeleteAttachment/5
+        [HttpPost]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var attachment = await _context.TaskAttachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var taskId = attachment.TaskItemId;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Access check: only the uploader, or Manager/ProjectLead can delete it
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            var filePath = Path.Combine(_env.WebRootPath, attachment.FilePath.TrimStart('/'));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+
+            _context.TaskAttachments.Remove(attachment);
+            
+            _context.TaskHistories.Add(new TaskHistory
+            {
+                TaskItemId = taskId,
+                ChangedById = userId,
+                ChangeDescription = $"Attachment '{attachment.FileName}' deleted.",
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Edit), new { id = taskId });
+        }
+
+        // POST: TaskItems/AddComment
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddComment(int taskId, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return BadRequest();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            
+            var comment = new TaskComment
+            {
+                TaskId = taskId,
+                UserId = userId,
+                CommentText = text,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.TaskComments.Add(comment);
+            await _context.SaveChangesAsync();
+
+            // Load user to return in partial view
+            await _context.Entry(comment).Reference(c => c.User).LoadAsync();
+
+            var formattedText = comment.CommentText.Replace("\n", "<br/>");
+            // Highlight mentions: @(Some Name)
+            formattedText = Regex.Replace(formattedText, @"@([A-Za-z0-9_\.\s]+)", "<span class='mention-badge'>@$1</span>");
+
+            var html = $@"
+                <div class='comment-card'>
+                    <div class='comment-avatar'>
+                        {(comment.User?.FullName?[0].ToString() ?? "?")}
+                    </div>
+                    <div class='comment-content'>
+                        <div class='comment-header'>
+                            <span class='comment-author'>{(comment.User?.FullName ?? "Unknown User")}</span>
+                            <span class='comment-time'>{comment.CreatedAt.ToString("MMM dd, yyyy HH:mm")}</span>
+                        </div>
+                        <div class='comment-text'>{formattedText}</div>
+                    </div>
+                </div>";
+
+            return Content(html, "text/html");
+        }
+
+        // GET: TaskItems/GetEligibleUsersForMention
+        [HttpGet]
+        public async Task<IActionResult> GetEligibleUsersForMention(int projectId)
+        {
+            // Simple implementation: return all valid users for now.
+            // A more complex implementation would filter by project assignment.
+            var users = await _context.Users
+                .Select(u => new { key = u.FullName, value = u.FullName, email = u.Email })
+                .ToListAsync();
+
+            return Json(users);
         }
 
         private bool TaskItemExists(int id)

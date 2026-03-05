@@ -45,5 +45,6 @@ namespace OfficeTaskManagement.Models
 
         public ICollection<TaskHistory> History { get; set; } = new List<TaskHistory>();
         public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();
+        public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
     }
 }

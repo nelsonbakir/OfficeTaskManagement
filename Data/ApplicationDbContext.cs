@@ -18,6 +18,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<TaskHistory> TaskHistories { get; set; }
         public DbSet<TaskAttachment> TaskAttachments { get; set; }
+        public DbSet<TaskComment> TaskComments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -96,6 +97,18 @@ namespace OfficeTaskManagement.Data
                 .WithMany()
                 .HasForeignKey(ta => ta.UploadedById)
                 .OnDelete(DeleteBehavior.SetNull);
+            // TaskComment relations
+            builder.Entity<TaskComment>()
+                .HasOne(tc => tc.Task)
+                .WithMany(t => t.Comments)
+                .HasForeignKey(tc => tc.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskComment>()
+                .HasOne(tc => tc.User)
+                .WithMany()
+                .HasForeignKey(tc => tc.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }
