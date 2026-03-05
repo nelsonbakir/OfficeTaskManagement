@@ -124,7 +124,9 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var feature = await _context.Features.FindAsync(id);
+            var feature = await _context.Features
+                .Include(f => f.Tasks)
+                .FirstOrDefaultAsync(m => m.Id == id);
             if (feature == null)
             {
                 return NotFound();

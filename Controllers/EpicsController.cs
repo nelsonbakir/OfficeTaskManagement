@@ -122,7 +122,10 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var epic = await _context.Epics.FindAsync(id);
+            var epic = await _context.Epics
+                .Include(e => e.Features)
+                    .ThenInclude(f => f.Tasks)
+                .FirstOrDefaultAsync(m => m.Id == id);
             if (epic == null)
             {
                 return NotFound();

@@ -4,6 +4,64 @@
     ViewData["Title"] = "Edit Epic";
 }
 
+<style>
+    .feature-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .feature-card {
+        background: #FAFAFA;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .feature-card:hover {
+        border-color: #0078D4;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transform: translateY(-2px);
+    }
+
+    .feature-card-name {
+        font-weight: 600;
+        color: #252424;
+        font-size: 1rem;
+        margin: 0;
+        display: block;
+        text-decoration: none;
+    }
+
+    .feature-card-name:hover {
+        color: #0078D4;
+    }
+
+    .feature-card-meta {
+        font-size: 0.8rem;
+        color: #605E5C;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .badge-task-count {
+        background: #E1DFDD;
+        color: #323130;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+</style>
+
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <h1 style="font-size: 1.5rem; margin: 0;">Edit Epic</h1>
     <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
@@ -26,12 +84,55 @@
             <span asp-validation-for="Name" class="text-danger small"></span>
 
             <!-- Description Section -->
-            <div class="form-section mb-0">
+            <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
-                <div class="form-group mb-0">
-                    <textarea asp-for="Description" class="form-control" placeholder="Describe the epic's goals and scope..." rows="8"></textarea>
+                <div class="form-group">
+                    <textarea asp-for="Description" class="form-control" placeholder="Describe the epic's goals and scope..." rows="6"></textarea>
                     <span asp-validation-for="Description" class="text-danger small"></span>
                 </div>
+            </div>
+
+            <!-- Child Features Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="fas fa-cubes"></i> Features
+                    <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Features.Count</span>
+                </h3>
+                
+                @if (Model.Features.Any())
+                {
+                    <div class="feature-card-grid">
+                        @foreach (var feature in Model.Features)
+                        {
+                            <div class="feature-card">
+                                <a asp-controller="Features" asp-action="Edit" asp-route-id="@feature.Id" class="feature-card-name">
+                                    @feature.Name
+                                </a>
+                                @if (!string.IsNullOrEmpty(feature.Description))
+                                {
+                                    <p class="text-muted small mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                        @feature.Description
+                                    </p>
+                                }
+                                <div class="feature-card-meta">
+                                    <span class="badge-task-count">
+                                        <i class="fas fa-tasks"></i> @feature.Tasks.Count Tasks
+                                    </span>
+                                    <span class="small">Created @feature.CreatedAt.ToString("MMM dd")</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-light border text-center p-4">
+                        <p class="text-muted mb-0">No features associated with this epic yet.</p>
+                        <a asp-controller="Features" asp-action="Create" asp-route-epicId="@Model.Id" class="btn btn-sm btn-link mt-2">
+                            <i class="fas fa-plus"></i> Create first feature
+                        </a>
+                    </div>
+                }
             </div>
         </div>
 
