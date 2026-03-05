@@ -1,0 +1,186 @@
+﻿@page
+@model LoginModel
+
+@{
+    ViewData["Title"] = "Log in";
+}
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: calc(100vh - 48px);
+        background: linear-gradient(135deg, #0078D4 0%, #50E6FF 100%);
+        margin: 0 -2rem;
+        padding: 2rem;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        padding: 3rem 2rem;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .login-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0078D4;
+        margin: 0 0 0.5rem 0;
+    }
+
+    .login-header p {
+        color: #605E5C;
+        margin: 0;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-group input:focus {
+        outline: none;
+        border-color: #0078D4;
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    .form-group.checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-group.checkbox input {
+        width: auto;
+        margin: 0;
+    }
+
+    .form-group.checkbox label {
+        margin-bottom: 0;
+        margin-top: 0;
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 0.875rem;
+        background: #0078D4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-bottom: 1rem;
+    }
+
+    .btn-login:hover {
+        background: #005A9E;
+        box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+    }
+
+    .btn-login:active {
+        transform: translateY(1px);
+    }
+
+    .error-message {
+        background: #F8D7DA;
+        color: #721C24;
+        border: 1px solid #F5C6CB;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+
+    .login-footer {
+        text-align: center;
+        color: #605E5C;
+        font-size: 0.9rem;
+    }
+
+    .login-footer a {
+        color: #0078D4;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .login-footer a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h1><i class="fas fa-tasks"></i> TaskFlow</h1>
+            <p>Sign in to your account</p>
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="error-message" role="alert"></div>
+
+        <form id="account" method="post">
+            <div class="form-group">
+                <label asp-for="Input.Email">Email Address</label>
+                <input asp-for="Input.Email" autocomplete="username" aria-required="true" placeholder="your@email.com" required autofocus />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Input.Password">Password</label>
+                <input asp-for="Input.Password" autocomplete="current-password" aria-required="true" placeholder="••••••••" required />
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+
+            <div class="form-group checkbox">
+                <input asp-for="Input.RememberMe" />
+                <label asp-for="Input.RememberMe">Remember me</label>
+            </div>
+
+            <button id="login-submit" type="submit" class="btn-login">
+                <i class="fas fa-sign-in-alt"></i> Sign In
+            </button>
+        </form>
+
+        <div class="login-footer">
+            <p>
+                <a id="forgot-password" asp-page="./ForgotPassword">Forgot your password?</a>
+            </p>
+            <p>
+                <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register as a new user</a>
+            </p>
+            <p>
+                <a id="resend-confirmation" asp-page="./ResendEmailConfirmation">Resend email confirmation</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -7,3 +7,4 @@ appsettings.Development.json
 *.user
 *.suo
 .vs/
+obj/
