@@ -230,6 +230,14 @@
                 </div>
 
                 <div class="form-group">
+                    <label>Feature</label>
+                    <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList">
+                        <option value="">-- Select Feature --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.FeatureId" class="text-danger small"></span>
+                </div>
+
+                <div class="form-group">
                     <label>Assign To</label>
                     <select asp-for="TaskItem.AssigneeId" class="form-select" asp-items="Model.UsersList">
                         <option value="">-- Unassigned --</option>

@@ -18,12 +18,21 @@
         </a>
 
         <ul class="navbar-nav">
-            <li class="nav-item">
-                <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
+            @if (!User.IsInRole("Employee") || User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
+            {
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Reports">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+            }
             <li class="nav-item">
                 <a class="nav-link" asp-area="" asp-controller="Projects" asp-action="Index">
                     <i class="fas fa-folder"></i>
@@ -37,6 +46,18 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="Epics" asp-action="Index">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Epics</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="Features" asp-action="Index">
+                    <i class="fas fa-cube"></i>
+                    <span>Features</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" asp-area="" asp-controller="TaskItems" asp-action="Index">
                     <i class="fas fa-check-circle"></i>
                     <span>Tasks</span>
@@ -44,18 +65,11 @@
             </li>
             @if (User.IsInRole("Manager"))
             {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-sliders-h"></i>
-                        <span>Admin</span>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="UserManagement" asp-action="Index">
+                        <i class="fas fa-users"></i>
+                        <span>User Management</span>
                     </a>
-                    <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                        <li>
-                            <a class="dropdown-item" asp-area="" asp-controller="UserManagement" asp-action="Index">
-                                <i class="fas fa-users"></i> User Management
-                            </a>
-                        </li>
-                    </ul>
                 </li>
             }
         </ul>

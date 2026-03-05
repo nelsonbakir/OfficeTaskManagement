@@ -25,8 +25,22 @@ namespace OfficeTaskManagement.Controllers
         // GET: Projects
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Projects.Include(p => p.CreatedBy);
-            return View(await applicationDbContext.ToListAsync());
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Projects.Include(p => p.CreatedBy).AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(p => p.CreatedById == userId || p.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) || p.Epics.Any(e => e.Features.Any(f => f.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+                else
+                {
+                    query = query.Where(p => p.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) || p.Epics.Any(e => e.Features.Any(f => f.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+            }
+
+            return View(await query.ToListAsync());
         }
 
         // GET: Projects/Details/5
@@ -37,12 +51,29 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var project = await _context.Projects
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Projects
                 .Include(p => p.CreatedBy)
+                .Include(p => p.Epics)
                 .Include(p => p.Sprints)
                     .ThenInclude(s => s.Tasks)
                         .ThenInclude(t => t.Assignee)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(p => p.CreatedById == userId || p.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) || p.Epics.Any(e => e.Features.Any(f => f.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+                else
+                {
+                    query = query.Where(p => p.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) || p.Epics.Any(e => e.Features.Any(f => f.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+            }
+
+            var project = await query.FirstOrDefaultAsync(m => m.Id == id);
+            
             if (project == null)
             {
                 return NotFound();

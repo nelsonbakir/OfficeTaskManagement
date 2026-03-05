@@ -77,7 +77,67 @@ namespace OfficeTaskManagement.Controllers
                 vm.EmployeeMetrics = await GetEmployeeMetrics(userId, user?.FullName ?? "Employee");
             }
 
-            return View(vm);
+            return View("Dashboard", vm);
+        }
+
+        public async Task<IActionResult> Reports(string? assigneeId, int? projectId)
+        {
+            var vm = new DashboardViewModel
+            {
+                SelectedAssigneeId = assigneeId,
+                SelectedProjectId = projectId
+            };
+
+            var assigneesList = await _context.Users.ToListAsync();
+            var projectsList = await _context.Projects.ToListAsync();
+            vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
+            vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
+
+            var tasksQuery = _context.Tasks.Include(t => t.Assignee).Include(t => t.Sprint).AsQueryable();
+            if (!string.IsNullOrEmpty(assigneeId))
+                tasksQuery = tasksQuery.Where(t => t.AssigneeId == assigneeId);
+            if (projectId.HasValue)
+                tasksQuery = tasksQuery.Where(t => t.ProjectId == projectId.Value);
+
+            var tasks = await tasksQuery.ToListAsync();
+            var sprints = await _context.Sprints.Include(s => s.Tasks).ToListAsync();
+
+            vm.Engagements = tasks.Select(t => new DailyEngagement
+            {
+                AssigneeName = t.Assignee?.FullName ?? "Unassigned",
+                TaskTitle = t.Title,
+                Date = t.DueDate ?? DateTime.Today,
+                Hours = t.EstimatedHours,
+                IsToDo = t.Status == TaskStatus.ToDo
+            }).ToList();
+
+            vm.Velocities = sprints.Where(s => !s.IsActive || s.EndDate < DateTime.Now).Select(s => new SprintVelocity
+            {
+                SprintName = s.Name,
+                CompletedHours = s.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours)
+            }).ToList();
+
+            foreach (var sprint in sprints.Where(s => s.IsActive && s.EndDate >= DateTime.Now))
+            {
+                var totalHours = sprint.Tasks.Sum(t => t.EstimatedHours);
+                var days = (sprint.EndDate - sprint.StartDate).Days;
+                if (days > 0)
+                {
+                    for (int i = 0; i <= days; i++)
+                    {
+                        var date = sprint.StartDate.AddDays(i);
+                        var idealRemaining = totalHours - (totalHours / days) * i;
+                        vm.Burndowns.Add(new SprintBurndown
+                        {
+                            SprintName = sprint.Name,
+                            Date = date,
+                            RemainingHours = idealRemaining < 0 ? 0 : idealRemaining
+                        });
+                    }
+                }
+            }
+
+            return View("Index", vm);
         }
 
         private async Task<ManagerDashboard> GetManagerMetrics(string? assigneeId, int? projectId)
@@ -157,6 +217,25 @@ namespace OfficeTaskManagement.Controllers
                 Status = s.IsActive ? "Active" : (DateTime.Now > s.EndDate ? "Completed" : "Planning")
             }).ToList();
 
+            // Advanced Analytics Metrics
+            metrics.TaskStatusDistribution = allTasks
+                .GroupBy(t => t.Status.ToString())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            metrics.EmployeeWorkload = allUsers
+                .ToDictionary(
+                    u => !string.IsNullOrEmpty(u.FullName) ? u.FullName : (u.Email ?? "Unknown User"),
+                    u => allTasks.Where(t => t.AssigneeId == u.Id && t.Status != TaskStatus.Done).Sum(t => t.EstimatedHours))
+                .Where(kv => kv.Value > 0)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            metrics.TopBlockers = allTasks
+                .Where(t => t.DueDate.HasValue && t.DueDate < DateTime.Now && t.Status != TaskStatus.Done)
+                .OrderByDescending(t => t.EstimatedHours)
+                .Take(5)
+                .Select(t => t.Title)
+                .ToList();
+
             return metrics;
         }
 
@@ -230,6 +309,17 @@ namespace OfficeTaskManagement.Controllers
                         Status = sprint.IsActive ? "Active" : "Completed"
                     });
                 }
+                // Advanced Analytics Metrics
+                metrics.TaskStatusDistribution = allProjectTasks
+                    .GroupBy(t => t.Status.ToString())
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                metrics.EmployeeWorkload = teamMembers
+                    .ToDictionary(
+                        id => allProjectTasks.FirstOrDefault(t => t.AssigneeId == id)?.Assignee?.FullName ?? "Unknown",
+                        id => allProjectTasks.Where(t => t.AssigneeId == id && t.Status != TaskStatus.Done).Sum(t => t.EstimatedHours))
+                    .Where(kv => kv.Value > 0)
+                    .ToDictionary(kv => kv.Key, kv => kv.Value);
             }
 
             return metrics;

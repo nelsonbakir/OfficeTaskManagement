@@ -47,6 +47,11 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         public List<SprintMetric> RecentSprints { get; set; } = new();
         public int AtRiskTasks { get; set; }
         public int OverdueTasks { get; set; }
+        
+        // Advanced Analytics Data
+        public Dictionary<string, int> TaskStatusDistribution { get; set; } = new();
+        public Dictionary<string, decimal> EmployeeWorkload { get; set; } = new();
+        public List<string> TopBlockers { get; set; } = new();
     }
 
     // Project Lead Dashboard - Project and team specific
@@ -65,6 +70,10 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         public List<TeamMemberMetric> TeamMetrics { get; set; } = new();
         public List<SprintMetric> SprintMetrics { get; set; } = new();
         public int BlockedTasks { get; set; }
+
+        // Advanced Analytics Data
+        public Dictionary<string, int> TaskStatusDistribution { get; set; } = new();
+        public Dictionary<string, decimal> EmployeeWorkload { get; set; } = new();
     }
 
     // Coordinator Dashboard - Operational metrics

@@ -31,8 +31,30 @@ namespace OfficeTaskManagement.Controllers
         // GET: TaskItems
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Tasks.Include(t => t.Assignee).Include(t => t.CreatedBy).Include(t => t.Project).Include(t => t.Sprint);
-            return View(await applicationDbContext.ToListAsync());
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Tasks
+                .Include(t => t.Assignee)
+                .Include(t => t.CreatedBy)
+                .Include(t => t.Project)
+                .Include(t => t.Sprint)
+                .Include(t => t.Feature)
+                .AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(t => t.AssigneeId == userId || 
+                                             t.CreatedById == userId ||
+                                             (t.Project != null && (t.Project.CreatedById == userId || t.Project.Sprints.Any(s => s.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId)) || t.Project.Epics.Any(ep => ep.Features.Any(fe => fe.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId))))));
+                }
+                else
+                {
+                    query = query.Where(t => t.AssigneeId == userId || t.CreatedById == userId);
+                }
+            }
+            
+            return View(await query.ToListAsync());
         }
 
         // GET: TaskItems/Details/5
@@ -43,14 +65,31 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var taskItem = await _context.Tasks
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Tasks
                 .Include(t => t.Assignee)
                 .Include(t => t.CreatedBy)
                 .Include(t => t.Project)
                 .Include(t => t.Sprint)
+                .Include(t => t.Feature)
                 .Include(t => t.History).ThenInclude(h => h.ChangedBy)
                 .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(t => t.AssigneeId == userId || 
+                                             t.CreatedById == userId ||
+                                             (t.Project != null && (t.Project.CreatedById == userId || t.Project.Sprints.Any(s => s.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId)) || t.Project.Epics.Any(ep => ep.Features.Any(fe => fe.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId))))));
+                }
+                else
+                {
+                    query = query.Where(t => t.AssigneeId == userId || t.CreatedById == userId);
+                }
+            }
+            var taskItem = await query.FirstOrDefaultAsync(m => m.Id == id);
             if (taskItem == null)
             {
                 return NotFound();
@@ -66,7 +105,8 @@ namespace OfficeTaskManagement.Controllers
             {
                 UsersList = new SelectList(_context.Users, "Id", "Email"),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name"),
-                SprintsList = new SelectList(_context.Sprints, "Id", "Name")
+                SprintsList = new SelectList(_context.Sprints, "Id", "Name"),
+                FeaturesList = new SelectList(_context.Features, "Id", "Name")
             };
             return View(vm);
         }
@@ -133,6 +173,7 @@ namespace OfficeTaskManagement.Controllers
                         vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                        vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
                         return View(vm);
                     }
                 }
@@ -144,6 +185,7 @@ namespace OfficeTaskManagement.Controllers
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
             return View(vm);
         }
 
@@ -166,7 +208,8 @@ namespace OfficeTaskManagement.Controllers
                 TaskItem = taskItem,
                 UsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AssigneeId),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
-                SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId)
+                SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
+                FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId)
             };
             return View(vm);
         }
@@ -205,6 +248,7 @@ namespace OfficeTaskManagement.Controllers
                             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
                             return View(vm);
                         }
                     }
@@ -236,6 +280,7 @@ namespace OfficeTaskManagement.Controllers
                     existingTask.DueDate = vm.TaskItem.DueDate;
                     existingTask.ProjectId = vm.TaskItem.ProjectId;
                     existingTask.SprintId = vm.TaskItem.SprintId;
+                    existingTask.FeatureId = vm.TaskItem.FeatureId;
                     existingTask.AssigneeId = vm.TaskItem.AssigneeId;
 
                     _context.Update(existingTask);
@@ -283,6 +328,7 @@ namespace OfficeTaskManagement.Controllers
                             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
                             return View(vm);
                         }
                     }
@@ -305,6 +351,7 @@ namespace OfficeTaskManagement.Controllers
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
             return View(vm);
         }
 
@@ -321,6 +368,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.CreatedBy)
                 .Include(t => t.Project)
                 .Include(t => t.Sprint)
+                .Include(t => t.Feature)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (taskItem == null)
             {

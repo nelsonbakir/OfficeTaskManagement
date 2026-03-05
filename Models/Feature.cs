@@ -4,10 +4,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OfficeTaskManagement.Models
 {
-    public class Project
+    public class Feature
     {
         [Key]
         public int Id { get; set; }
+
+        public int EpicId { get; set; }
+        public Epic? Epic { get; set; }
 
         [Required]
         [StringLength(200)]
@@ -20,7 +23,6 @@ namespace OfficeTaskManagement.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
-        public ICollection<Epic> Epics { get; set; } = new List<Epic>();
+        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

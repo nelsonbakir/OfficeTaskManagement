@@ -12,5 +12,6 @@ namespace OfficeTaskManagement.ViewModels
         public SelectList? UsersList { get; set; }
         public SelectList? ProjectsList { get; set; }
         public SelectList? SprintsList { get; set; }
+        public SelectList? FeaturesList { get; set; }
     }
 }

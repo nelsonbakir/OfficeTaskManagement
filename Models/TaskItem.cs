@@ -32,6 +32,9 @@ namespace OfficeTaskManagement.Models
         public int? ProjectId { get; set; }
         public Project? Project { get; set; }
 
+        public int? FeatureId { get; set; }
+        public Feature? Feature { get; set; }
+
         public string? AssigneeId { get; set; }
         public User? Assignee { get; set; }
 

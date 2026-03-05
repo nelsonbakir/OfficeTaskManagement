@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using System.Security.Claims;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -24,10 +25,27 @@ namespace OfficeTaskManagement.Controllers
         // GET: Sprints
         public async Task<IActionResult> Index()
         {
-            var applicationDbContext = _context.Sprints
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Sprints
                 .Include(s => s.Project)
-                .Include(s => s.Tasks);
-            return View(await applicationDbContext.ToListAsync());
+                .Include(s => s.Tasks)
+                .AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(s => s.Project.CreatedById == userId ||
+                                             s.Project.Sprints.Any(sp => sp.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||
+                                             s.Project.Epics.Any(ep => ep.Features.Any(fe => fe.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+                else
+                {
+                    query = query.Where(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId));
+                }
+            }
+
+            return View(await query.ToListAsync());
         }
 
         // GET: Sprints/Details/5
@@ -38,11 +56,28 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var sprint = await _context.Sprints
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var query = _context.Sprints
                 .Include(s => s.Project)
                 .Include(s => s.Tasks)
                     .ThenInclude(t => t.Assignee)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .AsQueryable();
+
+            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            {
+                if (User.IsInRole("Project Lead"))
+                {
+                    query = query.Where(s => s.Project.CreatedById == userId ||
+                                             s.Project.Sprints.Any(sp => sp.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||
+                                             s.Project.Epics.Any(ep => ep.Features.Any(fe => fe.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId))));
+                }
+                else
+                {
+                    query = query.Where(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId));
+                }
+            }
+
+            var sprint = await query.FirstOrDefaultAsync(m => m.Id == id);
             if (sprint == null)
             {
                 return NotFound();

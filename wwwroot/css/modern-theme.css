@@ -779,3 +779,108 @@ a:hover {
 .rounded {
     border-radius: 0.375rem;
 }
+
+/* Common Editor Styles (Azure DevOps Style) */
+.item-editor-container {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 2rem;
+}
+
+.item-editor-main {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 2rem;
+}
+
+.item-editor-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.item-title-input {
+    font-size: 1.8rem;
+    font-weight: 600;
+    border: none;
+    padding: 0.5rem;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: var(--text-primary);
+}
+
+.item-title-input:focus {
+    outline: none;
+    border-bottom-color: var(--primary-color);
+}
+
+.form-section {
+    margin-bottom: 2rem;
+}
+
+.form-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Sidebar Panels */
+.sidebar-panel {
+    background: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1.25rem;
+}
+
+.sidebar-panel-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-item {
+    margin-bottom: 1rem;
+}
+
+.info-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.action-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 1rem 0;
+}
+
+@media (max-width: 900px) {
+    .item-editor-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .item-editor-sidebar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+}

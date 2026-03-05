@@ -1,0 +1,73 @@
+@model OfficeTaskManagement.Models.Epic
+
+@{
+    ViewData["Title"] = "Edit Epic";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Edit Epic</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Epics
+    </a>
+</div>
+
+<form asp-action="Edit">
+    <div class="item-editor-container">
+        <!-- Main Editor -->
+        <div class="item-editor-main">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
+            
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CreatedById" />
+            <input type="hidden" asp-for="CreatedAt" />
+
+            <!-- Title -->
+            <input asp-for="Name" class="item-title-input" placeholder="Epic title" />
+            <span asp-validation-for="Name" class="text-danger small"></span>
+
+            <!-- Description Section -->
+            <div class="form-section mb-0">
+                <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+                <div class="form-group mb-0">
+                    <textarea asp-for="Description" class="form-control" placeholder="Describe the epic's goals and scope..." rows="8"></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="item-editor-sidebar">
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Details</h3>
+                <div class="form-group mb-0">
+                    <label asp-for="ProjectId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Project</label>
+                    <select asp-for="ProjectId" class="form-select" asp-items="ViewBag.ProjectId"></select>
+                    <span asp-validation-for="ProjectId" class="text-danger small"></span>
+                </div>
+            </div>
+            
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Quick Info</h3>
+                <div class="info-item">
+                    <div class="info-label">Created</div>
+                    <div class="info-value">@Model.CreatedAt.ToString("MMM dd, yyyy")</div>
+                </div>
+            </div>
+
+            <!-- Actions Panel -->
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Actions</h3>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger" style="width: 100%;">
+                    <i class="fas fa-trash"></i> Delete
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

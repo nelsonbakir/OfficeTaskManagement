@@ -1,0 +1,60 @@
+@model OfficeTaskManagement.Models.Feature
+
+@{
+    ViewData["Title"] = "Create Feature";
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Create Feature</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Features
+    </a>
+</div>
+
+<form asp-action="Create">
+    <div class="item-editor-container">
+        <!-- Main Editor -->
+        <div class="item-editor-main">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
+
+            <!-- Title -->
+            <input asp-for="Name" class="item-title-input" placeholder="Feature title" />
+            <span asp-validation-for="Name" class="text-danger small"></span>
+
+            <!-- Description Section -->
+            <div class="form-section mb-0">
+                <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+                <div class="form-group mb-0">
+                    <textarea asp-for="Description" class="form-control" placeholder="Describe the feature's specific requirements..." rows="8"></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="item-editor-sidebar">
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Details</h3>
+                <div class="form-group mb-0">
+                    <label asp-for="EpicId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Epic</label>
+                    <select asp-for="EpicId" class="form-select" asp-items="ViewBag.EpicId">
+                        <option value="">-- Select Epic --</option>
+                    </select>
+                    <span asp-validation-for="EpicId" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Actions Panel -->
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Actions</h3>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-plus"></i> Create Feature
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

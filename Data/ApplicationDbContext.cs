@@ -12,6 +12,8 @@ namespace OfficeTaskManagement.Data
         }
 
         public DbSet<Project> Projects { get; set; }
+        public DbSet<Epic> Epics { get; set; }
+        public DbSet<Feature> Features { get; set; }
         public DbSet<Sprint> Sprints { get; set; }
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<TaskHistory> TaskHistories { get; set; }
@@ -22,6 +24,24 @@ namespace OfficeTaskManagement.Data
             base.OnModelCreating(builder);
 
             // Configure Delete Behaviors to avoid multiple cascade paths
+
+            builder.Entity<Epic>()
+                .HasOne(e => e.Project)
+                .WithMany(p => p.Epics)
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Feature>()
+                .HasOne(f => f.Epic)
+                .WithMany(e => e.Features)
+                .HasForeignKey(f => f.EpicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.Feature)
+                .WithMany(f => f.Tasks)
+                .HasForeignKey(t => t.FeatureId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<TaskItem>()
                 .HasOne(t => t.Assignee)
