@@ -100,7 +100,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <form id="logoutForm" asp-controller="Account" asp-action="Logout" method="post" style="display: inline;">
+                                    <form id="logoutForm" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" method="post" style="display: inline;">
                                         <button type="submit" class="dropdown-item btn-logout-link">
                                             <i class="fas fa-sign-out-alt"></i> Logout
                                         </button>
@@ -111,7 +111,7 @@
                     }
                     else
                     {
-                        <a class="btn btn-primary" asp-controller="Account" asp-action="Login">
+                        <a class="btn btn-primary" asp-area="Identity" asp-page="/Account/Login">
                             <i class="fas fa-sign-in-alt"></i> Login
                         </a>
                     }
