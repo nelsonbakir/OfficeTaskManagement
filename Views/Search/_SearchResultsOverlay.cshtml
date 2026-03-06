@@ -1,0 +1,146 @@
+@model OfficeTaskManagement.ViewModels.SearchResultViewModel
+@{
+    var hasResults = Model.TotalHits > 0;
+}
+
+<div class="search-overlay-dropdown shadow-lg" style="position: absolute; top: 110%; left: 0; right: 0; background: white; border-radius: 8px; border: 1px solid #EDEBE9; max-height: 480px; overflow-y: auto; z-index: 1050; display: none;" id="searchResultsContainer">
+    @if (!hasResults && !string.IsNullOrWhiteSpace(Model.Query))
+    {
+        <div class="p-4 text-center text-muted">
+            <i class="fas fa-search mb-2" style="font-size: 1.25rem;"></i>
+            <p class="mb-0" style="font-size: 0.9rem;">No results found for "@Model.Query"</p>
+        </div>
+    }
+    else if (hasResults)
+    {
+        <div class="p-2">
+            @{ var remaining = 10; }
+            @if (Model.Tasks.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Tasks.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-2">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">Tasks <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Tasks.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Tasks.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (Model.Projects.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Projects.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-1">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">Projects <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Projects.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Projects.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (Model.Users.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Users.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-1">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">People <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Users.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Users.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (Model.Epics.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Epics.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-1">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">Epics <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Epics.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Epics.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (Model.Features.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Features.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-1">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">Features <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Features.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Features.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+            @if (Model.Sprints.Any() && remaining > 0)
+            {
+                var takeCount = Math.Min(Model.Sprints.Count, remaining);
+                remaining -= takeCount;
+                <div class="search-category px-2 pt-1">
+                    <h6 style="font-size: 0.75rem; text-transform: uppercase; color: #605E5C; font-weight: 600; margin-bottom: 0.5rem;">Sprints <span class="badge bg-secondary rounded-pill ms-1" style="font-size: 0.6rem;">@Model.Sprints.Count</span></h6>
+                    <ul class="list-unstyled mb-2">
+                        @foreach (var hit in Model.Sprints.Take(takeCount))
+                        {
+                            <li>
+                                <a href="@hit.Url" class="search-hit-item d-flex flex-column px-2 py-1 rounded text-decoration-none">
+                                    <span style="font-weight: 500; color: #252424; font-size: 0.85rem;" class="text-truncate">@hit.Title</span>
+                                    <span style="font-size: 0.75rem; color: #605E5C;" class="text-truncate">@hit.ContextHint</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+        
+        <div class="p-2 border-top text-center" style="background: #F8F8F8; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+            <a href="/Search/Index?q=@Model.Query" class="text-decoration-none" style="font-size: 0.85rem; font-weight: 600; color: #0078D4;">
+                View all @Model.TotalHits results
+            </a>
+        </div>
+    }
+</div>
+
+<style>
+    .search-hit-item:hover {
+        background-color: #F3F2F1;
+    }
+</style>

@@ -76,12 +76,31 @@
     </nav>
 
     <!-- Header -->
-    <header>
-        <nav class="navbar navbar-expand-lg">
-            <div class="container-fluid">
+    <header style="min-height: 75px; padding-top: 5px; padding-bottom: 5px; border-bottom: 1px solid #EDEBE9;">
+        <nav class="navbar navbar-expand-lg h-100">
+            <div class="container-fluid align-items-center">
                 <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target=".sidebar" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <i class="fas fa-bars"></i>
                 </button>
+
+                <!-- Global Search -->
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <div class="d-none d-md-flex mx-auto" style="width: 400px; position: absolute; left: 50%; transform: translateX(-50%); z-index: 1060;">
+                        <form asp-controller="Search" asp-action="Index" method="get" class="w-100 position-relative" id="globalSearchForm">
+                            <div class="input-group" style="box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-radius: 20px; overflow: hidden; border: 1px solid #EDEBE9; background: white;">
+                                <span class="input-group-text bg-transparent border-0" style="padding-left: 1rem;"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" name="q" id="globalSearchInput" class="form-control border-0 shadow-none bg-transparent" placeholder="Search tasks, projects, people..." aria-label="Search" style="font-size: 0.9rem;" autocomplete="off">
+                                <!-- Loading Spinner -->
+                                <span class="input-group-text bg-transparent border-0 d-none" id="globalSearchSpinner">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                </span>
+                            </div>
+                            <!-- Injection anchor for the overlay -->
+                            <div id="searchResultsOverlayAnchor"></div>
+                        </form>
+                    </div>
+                }
 
                 <!-- User Profile & Logout -->
                 <div class="d-flex align-items-center ms-auto">
@@ -205,6 +224,59 @@
                     this.setAttribute('aria-expanded', menu.classList.contains('show'));
                 });
             });
+        });
+
+        // Global Search overlay interactions
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('globalSearchInput');
+            const searchAnchor = document.getElementById('searchResultsOverlayAnchor');
+            const searchSpinner = document.getElementById('globalSearchSpinner');
+            let debounceTimer;
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(debounceTimer);
+                    const query = this.value.trim();
+                    
+                    if (query.length < 3) {
+                        searchAnchor.innerHTML = '';
+                        searchSpinner.classList.add('d-none');
+                        return;
+                    }
+
+                    searchSpinner.classList.remove('d-none');
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`/Search?q=${encodeURIComponent(query)}`, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        })
+                        .then(response => response.text())
+                        .then(html => {
+                            searchAnchor.innerHTML = html;
+                            const overlay = searchAnchor.querySelector('.search-overlay-dropdown');
+                            if (overlay) overlay.style.display = 'block';
+                        })
+                        .catch(error => console.error('Error fetching search results:', error))
+                        .finally(() => {
+                            searchSpinner.classList.add('d-none');
+                        });
+                    }, 400); 
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!searchInput.contains(e.target) && !searchAnchor.contains(e.target)) {
+                        const overlay = searchAnchor.querySelector('.search-overlay-dropdown');
+                        if (overlay) overlay.style.display = 'none';
+                    }
+                });
+
+                searchInput.addEventListener('focus', function() {
+                    const overlay = searchAnchor.querySelector('.search-overlay-dropdown');
+                    if (overlay && this.value.trim().length >= 3) {
+                        overlay.style.display = 'block';
+                    }
+                });
+            }
         });
     </script>
     @await RenderSectionAsync("Scripts", required: false)
