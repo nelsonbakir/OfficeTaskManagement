@@ -26,67 +26,117 @@
     var sprintDates = Model.Burndowns.OrderBy(b => b.Date).Select(b => b.Date.ToShortDateString()).Distinct().ToList();
 }
 
-<h1>Project Analytics</h1>
-<hr />
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 600; color: #252424; margin-bottom: 0.25rem;">
+            <i class="fas fa-chart-pie text-primary me-2"></i> Project Analytics & Reports
+        </h1>
+        <p class="text-muted mb-0" style="font-size: 0.95rem;">Track team engagement, velocity, and sprint performance.</p>
+    </div>
+</div>
 
-<div class="row mb-4">
-    <div class="col-md-12">
-        <form asp-action="Index" method="get" class="form-inline">
-            <div class="row align-items-end w-100">
-                <div class="col-md-3">
-                    <label for="assigneeId">Employee</label>
-                    <select name="assigneeId" class="form-control" asp-items="Model.Assignees">
-                        <option value="">-- All Employees --</option>
-                    </select>
+<div class="card mb-4" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+    <div class="card-body p-4">
+        <form asp-action="Reports" method="get">
+            <div class="row align-items-end g-3">
+                <div class="col-md-4">
+                    <label for="assigneeId" style="font-weight: 600; color: #605E5C; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Employee</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: #F8F8F8; border: 1px solid #EDEBE9; border-right: none; color: #A19F9D;">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <select name="assigneeId" class="form-select" style="border: 1px solid #EDEBE9; border-left: none; box-shadow: none;" asp-items="Model.Assignees">
+                            <option value="">-- All Employees --</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label for="projectId">Project</label>
-                    <select name="projectId" class="form-control" asp-items="Model.Projects">
-                        <option value="">-- All Projects --</option>
-                    </select>
+                <div class="col-md-4">
+                    <label for="projectId" style="font-weight: 600; color: #605E5C; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Project</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: #F8F8F8; border: 1px solid #EDEBE9; border-right: none; color: #A19F9D;">
+                            <i class="fas fa-folder"></i>
+                        </span>
+                        <select name="projectId" class="form-select" style="border: 1px solid #EDEBE9; border-left: none; box-shadow: none;" asp-items="Model.Projects">
+                            <option value="">-- All Projects --</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                    <a asp-action="Index" class="btn btn-secondary">Clear</a>
-                    <button type="button" class="btn btn-info" id="toggleTimetableBtn">
-                        <i class="fa fa-calendar"></i> Timetable View
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-filter"></i> Apply Filters
                     </button>
+                    <a asp-action="Reports" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Tab Controls for Views -->
+<div class="d-flex mb-3 gap-2">
+    <button type="button" class="btn btn-primary btn-sm view-toggle-btn active" id="btnShowTable">
+        <i class="fas fa-list"></i> Table View
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm view-toggle-btn" id="btnShowCalendar">
+        <i class="fa fa-calendar-alt"></i> Calendar View
+    </button>
+</div>
+
 <div class="row" id="tableViewSection">
     <!-- Employee Engagement Table -->
     <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h4>Employee Engagement Timetable</h4>
+        <div class="card" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
+            <div class="card-header" style="background: #F8F8F8; border-bottom: 1px solid #EDEBE9; padding: 1rem 1.25rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-users text-muted me-2"></i> Employee Engagement & Tracking
+                </h4>
             </div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-bordered table-sm">
-                    <thead>
+            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+                    <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                         <tr>
-                            <th>Assignee</th>
-                            <th>Task</th>
-                            <th>Date</th>
-                            <th>Hours Allocated</th>
+                            <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Assignee</th>
+                            <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Assigned Task</th>
+                            <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Target Date</th>
+                            <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Allocation</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var eng in Model.Engagements.OrderBy(e => e.Date).ThenBy(e => e.AssigneeName))
                         {
-                            <tr style="@(eng.IsToDo ? "background-color: #e9ecef; color: #6c757d;" : "")">
-                                <td>@eng.AssigneeName</td>
-                                <td>@eng.TaskTitle @(eng.IsToDo ? "(ToDo - Not Active)" : "")</td>
-                                <td>@eng.Date.ToShortDateString()</td>
-                                <td>@eng.Hours.ToString("0.0") hrs</td>
+                            <tr style="@(eng.IsToDo ? "opacity: 0.7; background-color: #FAFAFA;" : "")">
+                                <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1;">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items:center; justify-content:center; font-size: 0.7rem; font-weight: 600;">
+                                            @(eng.AssigneeName?[0].ToString() ?? "?")
+                                        </div>
+                                        <span style="font-weight: 500; color: #252424;">@eng.AssigneeName</span>
+                                    </div>
+                                </td>
+                                <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1; color: #252424;">
+                                    @eng.TaskTitle
+                                    @if (eng.IsToDo)
+                                    {
+                                        <span class="badge" style="background: #EDEBE9; color: #605E5C; font-weight: 500; margin-left: 0.5rem; font-size: 0.7rem;">To Do</span>
+                                    }
+                                    else
+                                    {
+                                         <span class="badge" style="background: #E8F5E9; color: #2E7D32; font-weight: 500; margin-left: 0.5rem; font-size: 0.7rem;">Active</span>
+                                    }
+                                </td>
+                                <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1; color: #605E5C;">
+                                    <i class="far fa-calendar-alt me-1"></i> @eng.Date.ToString("MMM dd, yyyy")
+                                </td>
+                                <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1;">
+                                    <span style="font-weight: 600; color: #0078D4;">@eng.Hours.ToString("0.0")</span> <span class="text-muted small">hrs</span>
+                                </td>
                             </tr>
                         }
                         @if (!Model.Engagements.Any())
                         {
-                            <tr><td colspan="4" class="text-center">No active tasks found for engagement analysis.</td></tr>
+                            <tr><td colspan="4" class="text-center py-4 text-muted" style="background: #F8F8F8;"><i class="fas fa-search me-2"></i> No active tasks found matching filters.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -98,16 +148,18 @@
 <!-- Timetable Calendar View using FullCalendar -->
 <div class="row" id="timetableViewSection" style="display: none;">
     <div class="col-md-12 mb-4">
-        <div class="card">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Timetable Calendar View</h4>
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-light btn-sm view-mode-btn active" data-view="dayGridDay">Daily</button>
-                    <button type="button" class="btn btn-light btn-sm view-mode-btn" data-view="timeGridWeek">Weekly</button>
-                    <button type="button" class="btn btn-light btn-sm view-mode-btn" data-view="dayGridMonth">Monthly</button>
+        <div class="card" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
+            <div class="card-header d-flex justify-content-between align-items-center" style="background: #F8F8F8; border-bottom: 1px solid #EDEBE9; padding: 1rem 1.25rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-calendar-week text-muted me-2"></i> Timetable Calendar 
+                </h4>
+                <div class="btn-group shadow-sm" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm view-mode-btn" data-view="dayGridDay">Day</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm view-mode-btn" data-view="timeGridWeek">Week</button>
+                    <button type="button" class="btn btn-primary btn-sm view-mode-btn active" data-view="dayGridMonth">Month</button>
                 </div>
             </div>
-            <div class="card-body">
+            <div class="card-body p-3">
                 <div id="timetableCalendar"></div>
             </div>
         </div>
@@ -117,24 +169,42 @@
 <div class="row">
     <!-- Burndown Chart -->
     <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h4>Sprint Burndown (Ideal)</h4>
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-fire text-danger me-2"></i> Sprint Burndown (Ideal)
+                </h4>
             </div>
-            <div class="card-body">
-                <canvas id="burndownChart"></canvas>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                 @if (!Model.Burndowns.Any())
+                 {
+                     <p class="text-muted"><i class="fas fa-chart-line"></i> No active sprints to project.</p>
+                 }
+                 else
+                 {
+                    <canvas id="burndownChart" style="max-height: 300px;"></canvas>
+                 }
             </div>
         </div>
     </div>
 
     <!-- Velocity Chart -->
     <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h4>Team Velocity</h4>
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-tachometer-alt text-primary me-2"></i> Team Story Velocity
+                </h4>
             </div>
-            <div class="card-body">
-                <canvas id="velocityChart"></canvas>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                @if (!Model.Velocities.Any())
+                 {
+                     <p class="text-muted"><i class="fas fa-chart-bar"></i> No completed sprints to measure.</p>
+                 }
+                 else
+                 {
+                    <canvas id="velocityChart" style="max-height: 300px;"></canvas>
+                 }
             </div>
         </div>
     </div>
@@ -146,92 +216,63 @@
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
 
     <style>
-        .no-tasks-message {
-            text-align: center;
-            padding: 30px;
-            color: #666;
-        }
-
         .fc {
             font-family: inherit;
+            color: #252424;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.25em;
+            font-weight: 600;
         }
 
         .fc .fc-button-primary {
-            background-color: #17a2b8;
-            border-color: #17a2b8;
+            background-color: #0078D4;
+            border-color: #0078D4;
         }
 
         .fc .fc-button-primary:hover {
-            background-color: #138496;
-            border-color: #117a8b;
+            background-color: #106EBE;
+            border-color: #106EBE;
         }
 
         .fc .fc-button-primary.fc-button-active {
-            background-color: #117a8b;
-            border-color: #0c5460;
+            background-color: #005A9E;
+            border-color: #005A9E;
         }
 
         .fc-event {
-            padding: 2px !important;
+            padding: 3px 5px !important;
+            border-radius: 4px;
+            border: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
 
         .fc-event-title {
-            font-size: 0.85em;
-            padding: 2px 3px;
+            font-size: 0.8em;
+            font-weight: 500;
         }
 
         .fc-daygrid-day-number {
-            padding: 6px 4px;
+            padding: 8px;
+            font-weight: 500;
+            color: #605E5C;
         }
 
-        .event-employee {
-            font-weight: bold;
-            font-size: 0.8em;
-            color: #333;
+        .fc-day-today {
+            background-color: #F0F6FF !important;
         }
 
-        .event-hours {
-            font-size: 0.75em;
-            color: #28a745;
-            font-weight: bold;
+        .fc-col-header-cell {
+            padding: 0.5rem 0;
+            background-color: #F8F8F8;
+            border-bottom: 2px solid #EDEBE9 !important;
         }
 
-        .event-status-todo {
-            opacity: 0.6;
-        }
-
-        /* Custom styling for event backgrounds */
-        .fc-event.event-active {
-            background-color: #17a2b8 !important;
-            border-color: #117a8b !important;
-        }
-
-        .fc-event.event-todo {
-            background-color: #6c757d !important;
-            border-color: #5a6268 !important;
-            opacity: 0.7;
-        }
-
-        .view-mode-btn {
-            margin-right: 5px;
-        }
-
-        .view-mode-btn.active {
-            background-color: #17a2b8 !important;
-            color: white !important;
-        }
-
-        .fc .fc-daygrid-day.fc-day-other {
-            background-color: #f5f5f5;
-        }
-
-        .fc .fc-col-header-cell {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .fc .fc-timegrid-slot {
-            height: 2em;
+        .fc-col-header-cell-cushion {
+            color: #605E5C;
+            font-size: 0.85rem;
+            text-transform: uppercase;
         }
     </style>
 
@@ -263,8 +304,9 @@
                     isToDo: eng.isToDo
                 },
                 classNames: [eng.isToDo ? 'event-todo' : 'event-active'],
-                backgroundColor: eng.isToDo ? '#6c757d' : '#17a2b8',
-                borderColor: eng.isToDo ? '#5a6268' : '#117a8b'
+                backgroundColor: eng.isToDo ? '#EDEBE9' : '#0078D4',
+                borderColor: eng.isToDo ? '#E1DFDD' : '#005A9E',
+                textColor: eng.isToDo ? '#605E5C' : '#FFFFFF'
             };
         });
 
@@ -307,21 +349,29 @@
         });
 
         // Toggle between table and timetable views
-        document.getElementById('toggleTimetableBtn').addEventListener('click', function() {
-            const tableView = document.getElementById('tableViewSection');
-            const timetableView = document.getElementById('timetableViewSection');
+        document.getElementById('btnShowTable').addEventListener('click', function() {
+            document.getElementById('tableViewSection').style.display = 'block';
+            document.getElementById('timetableViewSection').style.display = 'none';
+            this.classList.add('active');
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+            
+            const btnCalendar = document.getElementById('btnShowCalendar');
+            btnCalendar.classList.remove('active');
+            btnCalendar.classList.replace('btn-primary', 'btn-outline-secondary');
+        });
 
-            if (timetableView.style.display === 'none') {
-                tableView.style.display = 'none';
-                timetableView.style.display = 'block';
-                this.classList.add('active');
-                if (calendar) {
-                    setTimeout(() => calendar.updateSize(), 100);
-                }
-            } else {
-                tableView.style.display = 'block';
-                timetableView.style.display = 'none';
-                this.classList.remove('active');
+        document.getElementById('btnShowCalendar').addEventListener('click', function() {
+            document.getElementById('tableViewSection').style.display = 'none';
+            document.getElementById('timetableViewSection').style.display = 'block';
+            this.classList.add('active');
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+            
+            const btnTable = document.getElementById('btnShowTable');
+            btnTable.classList.remove('active');
+            btnTable.classList.replace('btn-primary', 'btn-outline-secondary');
+
+            if (calendar) {
+                setTimeout(() => calendar.updateSize(), 100);
             }
         });
 
@@ -334,29 +384,70 @@
                 datasets: [{
                     label: 'Completed Hours',
                     data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
-                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
+                    backgroundColor: 'rgba(0, 120, 212, 0.8)', // Primary Brand
+                    borderColor: 'rgba(0, 120, 212, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: '#F3F2F1' },
+                        border: { display: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
                 }
             }
         });
 
         // Data for Burndown Chart
+        var burndownDataObj = @Html.Raw(JsonSerializer.Serialize(burndownDatasets));
+        
+        // Add styling properties dynamically
+        burndownDataObj.forEach(function(ds) {
+            ds.borderWidth = 2;
+            ds.tension = 0.1;
+            ds.pointBackgroundColor = '#FFFFFF';
+            ds.pointBorderWidth = 2;
+            ds.pointRadius = 4;
+        });
+
         const burndownCtx = document.getElementById('burndownChart').getContext('2d');
         const burndownChart = new Chart(burndownCtx, {
             type: 'line',
             data: {
                 labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
-                datasets: @Html.Raw(JsonSerializer.Serialize(burndownDatasets))
+                datasets: burndownDataObj
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: { boxWidth: 12, usePointStyle: true }
+                    }
+                },
                 scales: {
-                    y: { beginAtZero: true }
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: '#F3F2F1' },
+                        border: { display: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
                 }
             }
         });
