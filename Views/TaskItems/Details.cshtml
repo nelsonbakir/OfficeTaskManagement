@@ -4,61 +4,395 @@
     ViewData["Title"] = "Task Details";
 }
 
-<h1>Details</h1>
+<style>
+    .task-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+    }
 
-<div>
-    <h4>TaskItem</h4>
-    <hr />
-    <dl class="row">
-        <dt class="col-sm-2">Title</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Title)</dd>
+    .task-editor-main {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 2rem;
+    }
 
-        <dt class="col-sm-2">Description</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Description)</dd>
+    .task-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
 
-        <dt class="col-sm-2">Status</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Status)</dd>
+    .task-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+    }
+    
+    .task-subtitle {
+        color: #605E5C;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
 
-        <dt class="col-sm-2">Estimated Hours</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.EstimatedHours)</dd>
+    .form-section {
+        margin-bottom: 2rem;
+    }
 
-        <dt class="col-sm-2">Start Date</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.StartDate)</dd>
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
 
-        <dt class="col-sm-2">Due Date</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.DueDate)</dd>
+    .description-content {
+        color: #252424;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        background: #F8F8F8;
+        padding: 1.5rem;
+        border-radius: 6px;
+        border: 1px solid #EDEBE9;
+    }
 
-        <dt class="col-sm-2">Assignee</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Assignee.Email)</dd>
-        
-        <dt class="col-sm-2">Created By</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.CreatedBy.Email)</dd>
-        
-        <dt class="col-sm-2">Project</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Project.Name)</dd>
+    /* Sidebar Panels */
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
 
-        <dt class="col-sm-2">Sprint</dt>
-        <dd class="col-sm-10">@Html.DisplayFor(model => model.Sprint.Name)</dd>
-    </dl>
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-align: center;
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+
+    .status-badge.new {
+        background: #FFE5E5;
+        color: #A4373A;
+    }
+
+    .status-badge.inprogress {
+        background: #FFF4CE;
+        color: #8A7C0A;
+    }
+
+    .status-badge.testing {
+        background: #E7E6E6;
+        color: #5E5E5E;
+    }
+
+    .status-badge.done {
+        background: #CFF0E7;
+        color: #0B5A46;
+    }
+
+    .assignee-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #0078D4;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.8rem;
+    }
+
+    .info-item {
+        margin-bottom: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.8rem;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #252424;
+        font-weight: 500;
+    }
+
+    .action-divider {
+        height: 1px;
+        background: #EDEBE9;
+        margin: 1rem 0;
+    }
+
+    /* Attachments Styles */
+    .attachment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        background: #FAFAFA;
+    }
+
+    .attachment-item i {
+        font-size: 1.5rem;
+        color: #0078D4;
+        margin-right: 1rem;
+    }
+
+    .attachment-info {
+        flex: 1;
+    }
+
+    .attachment-name {
+        font-weight: 600;
+        color: #323130;
+        text-decoration: none;
+    }
+
+    .attachment-meta {
+        font-size: 0.75rem;
+        color: #605E5C;
+    }
+    
+    .history-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .history-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #EDEBE9;
+        font-size: 0.85rem;
+    }
+    
+    .history-item:last-child {
+        border-bottom: none;
+    }
+    
+    .history-meta {
+        color: #605E5C;
+        margin-bottom: 0.25rem;
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Task Details</h1>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Tasks
+        </a>
+    </div>
 </div>
 
-<h4>Attachments</h4>
-<ul>
-    @foreach(var attachment in Model.Attachments)
-    {
-        <li><a href="@attachment.FilePath" target="_blank">@attachment.FileName</a></li>
-    }
-</ul>
+<div class="task-editor-container">
+    <!-- Main Detail Area -->
+    <div class="task-editor-main">
+        <h2 class="task-title">@Model.Title</h2>
+        <div class="task-subtitle">
+            <span class="badge bg-secondary me-2">@Model.Type</span>
+            @if(Model.ParentTaskId.HasValue && Model.ParentTask != null) {
+                <a asp-action="Details" asp-route-id="@Model.ParentTaskId" class="text-decoration-none text-muted">
+                    <i class="fas fa-level-up-alt"></i> Sub-task of Task-@Model.ParentTaskId
+                </a>
+            } else {
+                <span>Created by @Model.CreatedBy?.FullName on @Model.CreatedAt.ToString("MMM dd, yyyy")</span>
+            }
+        </div>
 
-<h4>History</h4>
-<ul>
-    @foreach(var history in Model.History.OrderByDescending(h => h.Timestamp))
-    {
-        <li>[@history.Timestamp.ToLocalTime()] @history.ChangedBy?.Email: @history.ChangeDescription</li>
-    }
-</ul>
+        <!-- Description Section -->
+        <div class="form-section">
+            <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+            <div class="description-content">
+                @if(!string.IsNullOrWhiteSpace(Model.Description)) {
+                    @Model.Description
+                } else {
+                    <em class="text-muted">No description provided.</em>
+                }
+            </div>
+        </div>
 
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+        @if (Model.SubTasks != null && Model.SubTasks.Any())
+        {
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-tasks"></i> Sub-Tasks</h3>
+                <div class="list-group">
+                    @foreach (var subTask in Model.SubTasks)
+                    {
+                        <a asp-action="Details" asp-route-id="@subTask.Id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-secondary me-2">@subTask.Type</span>
+                                <strong>@subTask.Title</strong>
+                            </div>
+                            <span class="badge @(subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress ? "bg-warning text-dark" : "bg-primary") rounded-pill">
+                                @subTask.Status
+                            </span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Attachments Section -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-paperclip"></i> Attachments 
+                <span class="badge bg-secondary" style="font-size: 0.7rem; vertical-align: middle;">@Model.Attachments.Count</span>
+            </h3>
+
+            @if (Model.Attachments.Any())
+            {
+                <div class="attachment-list">
+                    @foreach (var attachment in Model.Attachments)
+                    {
+                        <div class="attachment-item">
+                            <i class="fas fa-file-alt"></i>
+                            <div class="attachment-info">
+                                <a href="@attachment.FilePath" target="_blank" class="attachment-name">@attachment.FileName</a>
+                                <div class="attachment-meta">
+                                    Uploaded by @(attachment.UploadedBy?.FullName ?? "Unknown") on @attachment.UploadedAt.ToString("MMM dd, yyyy HH:mm")
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small">No attachments found.</p>
+            }
+        </div>
+        
+        <!-- History Section -->
+        <div class="form-section">
+            <h3 class="form-section-title"><i class="fas fa-history"></i> History</h3>
+            @if(Model.History != null && Model.History.Any())
+            {
+                <ul class="history-list">
+                    @foreach(var history in Model.History.OrderByDescending(h => h.Timestamp))
+                    {
+                        <li class="history-item">
+                            <div class="history-meta">
+                                <strong>@history.ChangedBy?.FullName</strong> - 
+                                @history.Timestamp.ToLocalTime().ToString("MMM dd, yyyy HH:mm")
+                            </div>
+                            <div>@history.ChangeDescription</div>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted small">No history recorded.</p>
+            }
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="task-editor-sidebar">
+        <!-- Status Panel -->
+        <div class="sidebar-panel">
+            <h3 class="sidebar-panel-title">Status</h3>
+            <div class="status-badge @Model.Status.ToString().ToLower() mb-0">
+                @Model.Status
+            </div>
+        </div>
+
+        <!-- Quick Info Panel -->
+        <div class="sidebar-panel">
+            <h3 class="sidebar-panel-title">Details</h3>
+
+            <div class="info-item">
+                <div class="info-label">Project</div>
+                <div class="info-value">
+                    @if(Model.Project != null) {
+                        <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="text-decoration-none">
+                            <i class="fas fa-folder"></i> @Model.Project.Name
+                        </a>
+                    } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Sprint</div>
+                <div class="info-value">
+                    @if(Model.Sprint != null) {
+                        <a asp-controller="Sprints" asp-action="Details" asp-route-id="@Model.SprintId" class="text-decoration-none">
+                            <i class="fas fa-rocket"></i> @Model.Sprint.Name
+                        </a>
+                    } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+
+            <div class="action-divider"></div>
+
+            <div class="info-item">
+                <div class="info-label">Assigned To</div>
+                @if (Model.Assignee != null) {
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="assignee-avatar">@Model.Assignee.FullName[0]</div>
+                        <span class="info-value">@Model.Assignee.FullName</span>
+                    </div>
+                } else {
+                    <div style="color: #605E5C;">
+                        <i class="fas fa-exclamation-circle"></i> Unassigned
+                    </div>
+                }
+            </div>
+
+            <div class="action-divider"></div>
+
+            <div class="info-item">
+                <div class="info-label">Timeline</div>
+                <div class="info-value small">
+                    <div><strong>Start:</strong> @(Model.StartDate?.ToString("MMM dd, yyyy") ?? "Not set")</div>
+                    <div><strong>Due:</strong> @(Model.DueDate?.ToString("MMM dd, yyyy") ?? "Not set")</div>
+                </div>
+            </div>
+
+            @if (Model.EstimatedHours > 0) {
+                <div class="info-item mt-2">
+                    <div class="info-label">Effort</div>
+                    <div class="info-value">@Model.EstimatedHours hours</div>
+                </div>
+            }
+        </div>
+    </div>
 </div>

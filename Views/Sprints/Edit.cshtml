@@ -1,40 +1,205 @@
 @model OfficeTaskManagement.Models.Sprint
 @{ ViewData["Title"] = "Edit Sprint"; }
-<h1>Edit Sprint</h1>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Edit">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Id" />
-            <div class="form-group">
-                <label asp-for="Name" class="control-label"></label>
-                <input asp-for="Name" class="form-control" />
-                <span asp-validation-for="Name" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="ProjectId" class="control-label">Project</label>
-                <select asp-for="ProjectId" class="form-control" asp-items="ViewBag.ProjectId"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="StartDate" class="control-label"></label>
-                <input asp-for="StartDate" class="form-control" type="date" />
-                <span asp-validation-for="StartDate" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                <label asp-for="EndDate" class="control-label"></label>
-                <input asp-for="EndDate" class="form-control" type="date" />
-                <span asp-validation-for="EndDate" class="text-danger"></span>
-            </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="IsActive" /> @Html.DisplayNameFor(model => model.IsActive)
-                </label>
-            </div>
-            <div class="form-group mt-3">
-                <input type="submit" value="Save" class="btn btn-primary" />
-            </div>
-        </form>
-    </div>
+
+<style>
+    .item-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+    }
+
+    .item-editor-main {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 2rem;
+    }
+
+    .item-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .item-title-input {
+        font-size: 1.8rem;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem;
+        margin-bottom: 1.5rem;
+        width: 100%;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .item-title-input:focus {
+        outline: none;
+        border-bottom-color: #0078D4;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9rem;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: #0078D4;
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-check label {
+        margin-bottom: 0;
+        font-weight: 500;
+    }
+
+    .compact-field-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        background: #F8F8F8;
+        padding: 1.25rem;
+        border-radius: 6px;
+        border: 1px solid #EDEBE9;
+    }
+
+    .compact-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .compact-field label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    .compact-field .form-control,
+    .compact-field .form-select {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+        background: white;
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Edit Sprint</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Sprints
+    </a>
 </div>
-<div><a asp-action="Index">Back to List</a></div>
+
+<form asp-action="Edit">
+    <div class="item-editor-container">
+        <!-- Main Editor -->
+        <div class="item-editor-main">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
+            <input type="hidden" asp-for="Id" />
+
+            <!-- Title -->
+            <input asp-for="Name" class="item-title-input" placeholder="Sprint name" />
+            <span asp-validation-for="Name" class="text-danger small"></span>
+
+            <div class="compact-field-grid">
+                <div class="compact-field">
+                    <label asp-for="ProjectId">Project</label>
+                    <select asp-for="ProjectId" class="form-select" asp-items="ViewBag.ProjectId"></select>
+                </div>
+
+                <div class="compact-field">
+                    <!-- Placeholder to align grid -->
+                </div>
+
+                <div class="compact-field">
+                    <label asp-for="StartDate">Start Date</label>
+                    <input asp-for="StartDate" class="form-control" type="date" />
+                    <span asp-validation-for="StartDate" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label asp-for="EndDate">End Date</label>
+                    <input asp-for="EndDate" class="form-control" type="date" />
+                    <span asp-validation-for="EndDate" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="item-editor-sidebar">
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Status</h3>
+                <div class="form-check">
+                    <input class="form-check-input" asp-for="IsActive" />
+                    <label class="form-check-label" asp-for="IsActive">Active Sprint</label>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Actions</h3>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger" style="width: 100%;">
+                    <i class="fas fa-trash"></i> Delete Sprint
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

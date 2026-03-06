@@ -68,6 +68,12 @@ namespace OfficeTaskManagement.Data
                 .HasForeignKey(t => t.ProjectId)
                 .OnDelete(DeleteBehavior.Restrict); // Project deletion should not automatically cascade to tasks if sprint cascades? Or restrict here and cascade via Sprint.
 
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.ParentTask)
+                .WithMany(t => t.SubTasks)
+                .HasForeignKey(t => t.ParentTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.Entity<Sprint>()
                 .HasOne(s => s.Project)
                 .WithMany(p => p.Sprints)

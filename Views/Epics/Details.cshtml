@@ -1,48 +1,263 @@
 @model OfficeTaskManagement.Models.Epic
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Epic Details";
 }
 
-<h1>Details</h1>
+<style>
+    .task-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+    }
 
-<div>
-    <h4>Epic</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Project)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Project.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Description)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Description)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CreatedBy)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CreatedBy.Id)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CreatedAt)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CreatedAt)
-        </dd>
-    </dl>
+    .task-editor-main {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 2rem;
+    }
+
+    .task-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .task-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+    }
+    
+    .task-subtitle {
+        color: #605E5C;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .description-content {
+        color: #252424;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        background: #F8F8F8;
+        padding: 1.5rem;
+        border-radius: 6px;
+        border: 1px solid #EDEBE9;
+    }
+
+    /* Sidebar Panels */
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-item {
+        margin-bottom: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.8rem;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #252424;
+        font-weight: 500;
+    }
+
+    .action-divider {
+        height: 1px;
+        background: #EDEBE9;
+        margin: 1rem 0;
+    }
+    
+    .feature-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .feature-card {
+        background: #FAFAFA;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .feature-card:hover {
+        border-color: #0078D4;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        transform: translateY(-2px);
+    }
+
+    .feature-card-name {
+        font-weight: 600;
+        color: #252424;
+        font-size: 1rem;
+        margin: 0;
+        display: block;
+        text-decoration: none;
+    }
+
+    .feature-card-name:hover {
+        color: #0078D4;
+    }
+
+    .feature-card-meta {
+        font-size: 0.8rem;
+        color: #605E5C;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .badge-task-count {
+        background: #E1DFDD;
+        color: #323130;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Epic Details</h1>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Epics
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+
+<div class="task-editor-container">
+    <!-- Main Detail Area -->
+    <div class="task-editor-main">
+        <h2 class="task-title">@Model.Name</h2>
+        <div class="task-subtitle">
+            <span>Created by @Model.CreatedBy?.FullName on @Model.CreatedAt.ToString("MMM dd, yyyy")</span>
+        </div>
+
+        <!-- Description Section -->
+        <div class="form-section">
+            <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+            <div class="description-content">
+                @if(!string.IsNullOrWhiteSpace(Model.Description)) {
+                    @Model.Description
+                } else {
+                    <em class="text-muted">No description provided.</em>
+                }
+            </div>
+        </div>
+        
+        <!-- Features Section -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-cubes"></i> Features
+                <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Features.Count</span>
+            </h3>
+            
+            @if (Model.Features.Any())
+            {
+                <div class="feature-card-grid">
+                    @foreach (var feature in Model.Features)
+                    {
+                        <div class="feature-card">
+                            <a asp-controller="Features" asp-action="Details" asp-route-id="@feature.Id" class="feature-card-name">
+                                @feature.Name
+                            </a>
+                            @if (!string.IsNullOrEmpty(feature.Description))
+                            {
+                                <p class="text-muted small mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                    @feature.Description
+                                </p>
+                            }
+                            <div class="feature-card-meta">
+                                <span class="badge-task-count">
+                                    <i class="fas fa-tasks"></i> @(feature.Tasks?.Count ?? 0) Tasks
+                                </span>
+                                <span class="small">Created @feature.CreatedAt.ToString("MMM dd")</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border text-center p-4">
+                    <p class="text-muted mb-0">No features associated with this epic yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="task-editor-sidebar">
+        <!-- Quick Info Panel -->
+        <div class="sidebar-panel">
+            <h3 class="sidebar-panel-title">Details</h3>
+
+            <div class="info-item">
+                <div class="info-label">Project</div>
+                <div class="info-value">
+                    @if(Model.Project != null) {
+                        <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="text-decoration-none">
+                            <i class="fas fa-folder"></i> @Model.Project.Name
+                        </a>
+                    } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+
+            <div class="action-divider"></div>
+
+            <div class="info-item">
+                <div class="info-label">Created By</div>
+                <div class="info-value">
+                    <i class="fas fa-user-circle"></i> @Model.CreatedBy?.FullName
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

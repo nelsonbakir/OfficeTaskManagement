@@ -18,6 +18,8 @@ namespace OfficeTaskManagement.Models
 
         public Enums.TaskStatus Status { get; set; } = Enums.TaskStatus.ToDo;
 
+        public TaskType Type { get; set; } = TaskType.NewRequest;
+
         // Efforts required in hours
         public decimal EstimatedHours { get; set; }
 
@@ -42,6 +44,11 @@ namespace OfficeTaskManagement.Models
         public User? CreatedBy { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int? ParentTaskId { get; set; }
+        public TaskItem? ParentTask { get; set; }
+
+        public ICollection<TaskItem> SubTasks { get; set; } = new List<TaskItem>();
 
         public ICollection<TaskHistory> History { get; set; } = new List<TaskHistory>();
         public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();

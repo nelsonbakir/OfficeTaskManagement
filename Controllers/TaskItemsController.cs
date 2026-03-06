@@ -72,9 +72,9 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.CreatedBy)
                 .Include(t => t.Project)
                 .Include(t => t.Sprint)
-                .Include(t => t.Feature)
                 .Include(t => t.History).ThenInclude(h => h.ChangedBy)
                 .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
+                .Include(t => t.SubTasks)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -107,7 +107,8 @@ namespace OfficeTaskManagement.Controllers
                 UsersList = new SelectList(_context.Users, "Id", "Email"),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name"),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name"),
-                FeaturesList = new SelectList(_context.Features, "Id", "Name")
+                FeaturesList = new SelectList(_context.Features, "Id", "Name"),
+                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title")
             };
             return View(vm);
         }
@@ -127,6 +128,18 @@ namespace OfficeTaskManagement.Controllers
                 vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
 
                 _context.Add(vm.TaskItem);
+                
+                // If this is a sub-task and its status is InProgress, ensure parent is also InProgress
+                if (vm.TaskItem.ParentTaskId.HasValue && vm.TaskItem.Status == TaskStatus.InProgress)
+                {
+                    var parent = await _context.Tasks.FindAsync(vm.TaskItem.ParentTaskId);
+                    if (parent != null && parent.Status != TaskStatus.InProgress)
+                    {
+                        parent.Status = TaskStatus.InProgress;
+                        _context.Update(parent);
+                    }
+                }
+
                 await _context.SaveChangesAsync();
 
                 // Add to History
@@ -175,6 +188,7 @@ namespace OfficeTaskManagement.Controllers
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                         vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                        vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                         return View(vm);
                     }
                 }
@@ -187,6 +201,7 @@ namespace OfficeTaskManagement.Controllers
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
         }
 
@@ -210,8 +225,12 @@ namespace OfficeTaskManagement.Controllers
                 UsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AssigneeId),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
-                FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId)
+                FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId),
+                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != taskItem.Id), "Id", "Title", taskItem.ParentTaskId)
             };
+            
+            // Explicitly load SubTasks for the view
+            await _context.Entry(taskItem).Collection(t => t.SubTasks).LoadAsync();
             
             // Explicitly load relations for the view
             await _context.Entry(taskItem).Collection(t => t.Attachments).LoadAsync();
@@ -264,6 +283,20 @@ namespace OfficeTaskManagement.Controllers
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                            return View(vm);
+                        }
+
+                        // Check Sub-tasks status: Cannot mark parent as Done if any sub-task is not Done
+                        var hasOpenSubTasks = await _context.Tasks.AnyAsync(t => t.ParentTaskId == id && t.Status != TaskStatus.Done);
+                        if (hasOpenSubTasks)
+                        {
+                            ModelState.AddModelError("", "Cannot mark this task as Done because it has open Sub-tasks. Please complete all Sub-tasks first.");
+                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                            vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                             return View(vm);
                         }
                     }
@@ -297,8 +330,28 @@ namespace OfficeTaskManagement.Controllers
                     existingTask.SprintId = vm.TaskItem.SprintId;
                     existingTask.FeatureId = vm.TaskItem.FeatureId;
                     existingTask.AssigneeId = vm.TaskItem.AssigneeId;
+                    existingTask.ParentTaskId = vm.TaskItem.ParentTaskId;
+                    existingTask.Type = vm.TaskItem.Type;
 
                     _context.Update(existingTask);
+                    
+                    // If a sub-task is moving to InProgress, parent must be InProgress
+                    if (existingTask.ParentTaskId.HasValue && existingTask.Status == TaskStatus.InProgress)
+                    {
+                        var parent = await _context.Tasks.FindAsync(existingTask.ParentTaskId);
+                        if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Done)
+                        {
+                            parent.Status = TaskStatus.InProgress;
+                            _context.Update(parent);
+                            _context.TaskHistories.Add(new TaskHistory
+                            {
+                                TaskItemId = parent.Id,
+                                ChangedById = userId,
+                                ChangeDescription = $"Status changed to InProgress automatically because sub-task '{existingTask.Title}' started.",
+                                Timestamp = DateTime.UtcNow
+                            });
+                        }
+                    }
 
                     // Handle Attachment
                     if (vm.Attachment != null)
@@ -344,6 +397,7 @@ namespace OfficeTaskManagement.Controllers
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                             return View(vm);
                         }
                     }
@@ -367,6 +421,7 @@ namespace OfficeTaskManagement.Controllers
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
         }
 

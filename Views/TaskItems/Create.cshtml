@@ -4,99 +4,268 @@
     ViewData["Title"] = "Create Task";
 }
 
-<h1>Create</h1>
+<style>
+    .task-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+    }
 
-<h4>TaskItem</h4>
-<hr />
-<div class="row">
-    <div class="col-md-4">
-        <form asp-action="Create" enctype="multipart/form-data">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            
-            <div class="form-group">
-                <label asp-for="TaskItem.Title" class="control-label"></label>
-                <input asp-for="TaskItem.Title" class="form-control" />
-                <span asp-validation-for="TaskItem.Title" class="text-danger"></span>
+    .task-editor-main {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 2rem;
+    }
+
+    .task-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .task-title-input {
+        font-size: 1.8rem;
+        font-weight: 600;
+        border: none;
+        padding: 0.5rem;
+        margin-bottom: 1.5rem;
+        width: 100%;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .task-title-input:focus {
+        outline: none;
+        border-bottom-color: #0078D4;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9rem;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: #0078D4;
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+    }
+
+    textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    /* Sidebar Panels */
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Compact Header Fields */
+    .compact-field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.25rem;
+        background: #F8F8F8;
+        padding: 1.25rem;
+        border-radius: 6px;
+        margin-bottom: 2rem;
+        border: 1px solid #EDEBE9;
+    }
+
+    .compact-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .compact-field label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #605E5C;
+        text-transform: uppercase;
+        margin: 0;
+    }
+
+    .compact-field .form-control, 
+    .compact-field .form-select {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.85rem;
+        background: white;
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Create Task</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Tasks
+    </a>
+</div>
+
+<form asp-action="Create" enctype="multipart/form-data">
+    <div class="task-editor-container">
+        <!-- Main Editor -->
+        <div class="task-editor-main">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
+
+            <!-- Title -->
+            <input asp-for="TaskItem.Title" class="task-title-input" placeholder="Task title" />
+            <span asp-validation-for="TaskItem.Title" class="text-danger small"></span>
+
+            <!-- Compact Header Fields -->
+            <div class="compact-field-grid">
+                <div class="compact-field">
+                    <label>Assigned To</label>
+                    <select asp-for="TaskItem.AssigneeId" class="form-select" asp-items="Model.UsersList">
+                        <option value="">-- Unassigned --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.AssigneeId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Project</label>
+                    <select asp-for="TaskItem.ProjectId" class="form-select" asp-items="Model.ProjectsList">
+                        <option value="">-- Select Project --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.ProjectId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Sprint</label>
+                    <select asp-for="TaskItem.SprintId" class="form-select" asp-items="Model.SprintsList">
+                        <option value="">-- Select Sprint --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.SprintId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Feature</label>
+                    <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList">
+                        <option value="">-- Select Feature --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.FeatureId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Parent Task</label>
+                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
+                        <option value="">-- None (Top Level) --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Type</label>
+                    <select asp-for="TaskItem.Type" class="form-select" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskType>()"></select>
+                    <span asp-validation-for="TaskItem.Type" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Start Date</label>
+                    <input asp-for="TaskItem.StartDate" class="form-control" type="date" />
+                    <span asp-validation-for="TaskItem.StartDate" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Due Date</label>
+                    <input asp-for="TaskItem.DueDate" class="form-control" type="date" />
+                    <span asp-validation-for="TaskItem.DueDate" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Effort (Hrs)</label>
+                    <input asp-for="TaskItem.EstimatedHours" class="form-control" type="number" step="0.5" placeholder="0" />
+                    <span asp-validation-for="TaskItem.EstimatedHours" class="text-danger small"></span>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label asp-for="TaskItem.Description" class="control-label"></label>
-                <textarea asp-for="TaskItem.Description" class="form-control"></textarea>
-                <span asp-validation-for="TaskItem.Description" class="text-danger"></span>
+            <!-- Description Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+                <div class="form-group">
+                    <textarea asp-for="TaskItem.Description" class="form-control" placeholder="Add a detailed description..."></textarea>
+                    <span asp-validation-for="TaskItem.Description" class="text-danger small"></span>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label asp-for="TaskItem.Status" class="control-label"></label>
-                <select asp-for="TaskItem.Status" class="form-control" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskStatus>()"></select>
-                <span asp-validation-for="TaskItem.Status" class="text-danger"></span>
+            <!-- Attachments Section -->
+            <div class="form-section">
+                <h3 class="form-section-title">
+                    <i class="fas fa-paperclip"></i> Initial Attachment 
+                </h3>
+                <div class="form-group">
+                    <label class="form-label">Upload File</label>
+                    <input asp-for="Attachment" class="form-control" type="file" />
+                    <span asp-validation-for="Attachment" class="text-danger small"></span>
+                </div>
             </div>
+        </div>
 
-            <div class="form-group">
-                <label asp-for="TaskItem.EstimatedHours" class="control-label"></label>
-                <input asp-for="TaskItem.EstimatedHours" class="form-control" />
-                <span asp-validation-for="TaskItem.EstimatedHours" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="TaskItem.StartDate" class="control-label"></label>
-                <input asp-for="TaskItem.StartDate" class="form-control" type="date" />
-                <span asp-validation-for="TaskItem.StartDate" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="TaskItem.DueDate" class="control-label"></label>
-                <input asp-for="TaskItem.DueDate" class="form-control" type="date" />
-                <span asp-validation-for="TaskItem.DueDate" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="TaskItem.ProjectId" class="control-label"></label>
-                <select asp-for="TaskItem.ProjectId" class="form-control" asp-items="Model.ProjectsList">
-                    <option value="">-- Select Project --</option>
+        <!-- Sidebar -->
+        <div class="task-editor-sidebar">
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Status</h3>
+                <select asp-for="TaskItem.Status" class="form-select" style="margin-bottom: 1rem;">
+                    @foreach (var status in Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskStatus>()) {
+                        <option value="@status.Value">@status.Text</option>
+                    }
                 </select>
-                <span asp-validation-for="TaskItem.ProjectId" class="text-danger"></span>
+                <span asp-validation-for="TaskItem.Status" class="text-danger small"></span>
             </div>
 
-            <div class="form-group">
-                <label asp-for="TaskItem.SprintId" class="control-label"></label>
-                <select asp-for="TaskItem.SprintId" class="form-control" asp-items="Model.SprintsList">
-                    <option value="">-- Select Sprint --</option>
-                </select>
-                <span asp-validation-for="TaskItem.SprintId" class="text-danger"></span>
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Actions</h3>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-plus"></i> Create Task
+                </button>
             </div>
-
-            <div class="form-group">
-                <label asp-for="TaskItem.FeatureId" class="control-label"></label>
-                <select asp-for="TaskItem.FeatureId" class="form-control" asp-items="Model.FeaturesList">
-                    <option value="">-- Select Feature --</option>
-                </select>
-                <span asp-validation-for="TaskItem.FeatureId" class="text-danger"></span>
-            </div>
-
-            <div class="form-group">
-                <label asp-for="TaskItem.AssigneeId" class="control-label"></label>
-                <select asp-for="TaskItem.AssigneeId" class="form-control" asp-items="Model.UsersList">
-                    <option value="">-- Unassigned --</option>
-                </select>
-                <span asp-validation-for="TaskItem.AssigneeId" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mt-3">
-                <label asp-for="Attachment" class="control-label">Attachment</label>
-                <input asp-for="Attachment" class="form-control" type="file" />
-                <span asp-validation-for="Attachment" class="text-danger"></span>
-            </div>
-
-            <div class="form-group mt-3">
-                <input type="submit" value="Create" class="btn btn-primary" />
-            </div>
-        </form>
+        </div>
     </div>
-</div>
-
-<div class="mt-3">
-    <a asp-action="Index">Back to List</a>
-</div>
+</form>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

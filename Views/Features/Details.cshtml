@@ -1,48 +1,285 @@
 @model OfficeTaskManagement.Models.Feature
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Feature Details";
 }
 
-<h1>Details</h1>
+<style>
+    .task-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
+    }
 
-<div>
-    <h4>Feature</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Epic)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Epic.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.Description)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.Description)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CreatedBy)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CreatedBy.Id)
-        </dd>
-        <dt class = "col-sm-2">
-            @Html.DisplayNameFor(model => model.CreatedAt)
-        </dt>
-        <dd class = "col-sm-10">
-            @Html.DisplayFor(model => model.CreatedAt)
-        </dd>
-    </dl>
+    .task-editor-main {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 2rem;
+    }
+
+    .task-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .task-title {
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #252424;
+        margin-bottom: 0.5rem;
+    }
+    
+    .task-subtitle {
+        color: #605E5C;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
+    .description-content {
+        color: #252424;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        background: #F8F8F8;
+        padding: 1.5rem;
+        border-radius: 6px;
+        border: 1px solid #EDEBE9;
+    }
+
+    /* Sidebar Panels */
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-item {
+        margin-bottom: 1rem;
+    }
+
+    .info-label {
+        font-size: 0.8rem;
+        color: #605E5C;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-value {
+        color: #252424;
+        font-weight: 500;
+    }
+
+    .action-divider {
+        height: 1px;
+        background: #EDEBE9;
+        margin: 1rem 0;
+    }
+
+    .task-item-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .task-item-row {
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 0.75rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .task-item-row:hover {
+        border-color: #0078D4;
+        background: #F8F8F8;
+    }
+
+    .task-status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .task-status-dot.new { background: #E1DFDD; }
+    .task-status-dot.inprogress { background: #0078D4; }
+    .task-status-dot.testing { background: #F2C811; }
+    .task-status-dot.done { background: #107C10; }
+
+    .task-item-title {
+        font-weight: 500;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .task-item-meta {
+        font-size: 0.8rem;
+        color: #605E5C;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .task-assignee {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .task-assignee-avatar {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #0078D4;
+        color: white;
+        font-size: 0.65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h1 style="font-size: 1.5rem; margin: 0;">Feature Details</h1>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Features
+        </a>
+    </div>
 </div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+
+<div class="task-editor-container">
+    <!-- Main Detail Area -->
+    <div class="task-editor-main">
+        <h2 class="task-title">@Model.Name</h2>
+        <div class="task-subtitle">
+            <span>Created by @Model.CreatedBy?.FullName on @Model.CreatedAt.ToString("MMM dd, yyyy")</span>
+        </div>
+
+        <!-- Description Section -->
+        <div class="form-section">
+            <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+            <div class="description-content">
+                @if(!string.IsNullOrWhiteSpace(Model.Description)) {
+                    @Model.Description
+                } else {
+                    <em class="text-muted">No description provided.</em>
+                }
+            </div>
+        </div>
+
+        <!-- Child Tasks Section -->
+        <div class="form-section">
+            <h3 class="form-section-title">
+                <i class="fas fa-tasks"></i> Associated Tasks
+                <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Tasks?.Count</span>
+            </h3>
+            
+            @if (Model.Tasks != null && Model.Tasks.Any())
+            {
+                <div class="task-item-list">
+                    @foreach (var task in Model.Tasks)
+                    {
+                        <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="task-item-row">
+                            <div class="task-status-dot @task.Status.ToString().ToLower()"></div>
+                            <div class="task-item-title">@task.Title</div>
+                            <div class="task-item-meta">
+                                <div class="task-assignee">
+                                    @if (task.Assignee != null)
+                                    {
+                                        <div class="task-assignee-avatar">@task.Assignee.FullName[0]</div>
+                                        <span>@task.Assignee.FullName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted"><i class="far fa-user"></i> Unassigned</span>
+                                    }
+                                </div>
+                                <div class="task-due text-nowrap">
+                                    @if (task.DueDate.HasValue)
+                                    {
+                                        <i class="far fa-calendar"></i> @task.DueDate.Value.ToString("MMM dd")
+                                    }
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border text-center p-4">
+                    <p class="text-muted mb-0">No tasks associated with this feature yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="task-editor-sidebar">
+        <!-- Quick Info Panel -->
+        <div class="sidebar-panel">
+            <h3 class="sidebar-panel-title">Details</h3>
+
+            <div class="info-item">
+                <div class="info-label">Epic</div>
+                <div class="info-value">
+                    @if(Model.Epic != null) {
+                        <a asp-controller="Epics" asp-action="Details" asp-route-id="@Model.EpicId" class="text-decoration-none">
+                            <i class="fas fa-crown"></i> @Model.Epic.Name
+                        </a>
+                    } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+
+            <div class="action-divider"></div>
+
+            <div class="info-item">
+                <div class="info-label">Created By</div>
+                <div class="info-value">
+                    <i class="fas fa-user-circle"></i> @Model.CreatedBy?.FullName
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

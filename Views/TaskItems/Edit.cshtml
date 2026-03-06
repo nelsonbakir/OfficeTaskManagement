@@ -409,6 +409,20 @@
                 </div>
 
                 <div class="compact-field">
+                    <label>Parent Task</label>
+                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
+                        <option value="">-- None (Top Level) --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Type</label>
+                    <select asp-for="TaskItem.Type" class="form-select" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskType>()"></select>
+                    <span asp-validation-for="TaskItem.Type" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
                     <label>Start Date</label>
                     <input asp-for="TaskItem.StartDate" class="form-control" type="date" />
                     <span asp-validation-for="TaskItem.StartDate" class="text-danger small"></span>
