@@ -100,7 +100,12 @@ namespace OfficeTaskManagement.Controllers
                 tasksQuery = tasksQuery.Where(t => t.ProjectId == projectId.Value);
 
             var tasks = await tasksQuery.ToListAsync();
-            var sprints = await _context.Sprints.Include(s => s.Tasks).ToListAsync();
+            var sprintsQuery = _context.Sprints.Include(s => s.Tasks).AsQueryable();
+            if (projectId.HasValue)
+            {
+                sprintsQuery = sprintsQuery.Where(s => s.ProjectId == projectId.Value);
+            }
+            var sprints = await sprintsQuery.ToListAsync();
 
             vm.Engagements = tasks.Select(t => new DailyEngagement
             {
@@ -111,17 +116,35 @@ namespace OfficeTaskManagement.Controllers
                 IsToDo = t.Status == TaskStatus.ToDo
             }).ToList();
 
-            vm.Velocities = sprints.Where(s => !s.IsActive || s.EndDate < DateTime.Now).Select(s => new SprintVelocity
-            {
-                SprintName = s.Name,
-                CompletedHours = s.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours)
-            }).ToList();
+            var currentUtc = DateTime.UtcNow;
 
-            foreach (var sprint in sprints.Where(s => s.IsActive && s.EndDate >= DateTime.Now))
+            // Definition of completed sprints: Inactive OR EndDate passed OR (Has Tasks AND All Tasks Done)
+            var completedSprints = sprints.Where(s => 
+                !s.IsActive || 
+                s.EndDate < currentUtc || 
+                (s.Tasks.Any() && s.Tasks.All(t => t.Status == TaskStatus.Done))).ToList();
+
+            vm.Velocities = completedSprints.Select(s => new SprintVelocity
+           {
+               SprintName = s.Name,
+               CompletedHours = s.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours)
+           }).ToList();
+
+            var activeSprints = sprints.Where(s => !completedSprints.Contains(s)).ToList();
+
+            foreach (var sprint in activeSprints)
             {
-                var totalHours = sprint.Tasks.Sum(t => t.EstimatedHours);
+                var sprintTasks = sprint.Tasks.AsEnumerable();
+                
+                // If an Assignee filter is active, only calculate burndown for their tasks
+                if (!string.IsNullOrEmpty(assigneeId))
+                {
+                    sprintTasks = sprintTasks.Where(t => t.AssigneeId == assigneeId);
+                }
+
+                var totalHours = sprintTasks.Sum(t => t.EstimatedHours);
                 var days = (sprint.EndDate - sprint.StartDate).Days;
-                if (days > 0)
+                if (days > 0 && totalHours > 0)
                 {
                     for (int i = 0; i <= days; i++)
                     {

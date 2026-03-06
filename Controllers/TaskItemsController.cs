@@ -565,36 +565,34 @@ namespace OfficeTaskManagement.Controllers
             await _context.Entry(comment).Reference(c => c.User).LoadAsync();
 
             var formattedText = comment.CommentText.Replace("\n", "<br/>");
-            // Highlight mentions: @(Some Name)
-            formattedText = Regex.Replace(formattedText, @"@([A-Za-z0-9_\.\s]+)", "<span class='mention-badge'>@$1</span>");
 
-            // Extract Mentions using Regex and push Notifications
-            var mentions = Regex.Matches(text, @"@([A-Za-z0-9_\.\s]+)", RegexOptions.IgnoreCase);
-            if (mentions.Count > 0)
+            // Extract Mentions using substring match on FullName
+            var allUsers = await _context.Users.ToListAsync();
+            var notifiedUserIds = new HashSet<string>();
+            
+            foreach (var u in allUsers)
             {
-                var allUsers = await _context.Users.ToListAsync();
-                var notifiedUserIds = new HashSet<string>();
-                
-                foreach (Match match in mentions)
+                if (!string.IsNullOrEmpty(u.FullName) && text.Contains("@" + u.FullName, StringComparison.OrdinalIgnoreCase))
                 {
-                    var mentionedName = match.Groups[1].Value.Trim();
-                    // Match by FullName
-                    var mentionedUser = allUsers.FirstOrDefault(u => 
-                        string.Equals(u.FullName, mentionedName, StringComparison.OrdinalIgnoreCase));
-                    
-                    if (mentionedUser != null && mentionedUser.Id != userId && !notifiedUserIds.Contains(mentionedUser.Id))
+                    if (u.Id != userId && !notifiedUserIds.Contains(u.Id))
                     {
                         _context.Notifications.Add(new Notification
                         {
-                            UserId = mentionedUser.Id,
+                            UserId = u.Id,
                             Title = "You were mentioned",
                             Message = $"{(comment.User?.FullName ?? "Someone")} mentioned you in a comment.",
                             Link = $"/TaskItems/Details/{taskId}",
                             Type = "Mention"
                         });
-                        notifiedUserIds.Add(mentionedUser.Id);
+                        notifiedUserIds.Add(u.Id);
                     }
+                    
+                    var pattern = Regex.Escape("@" + u.FullName);
+                    formattedText = Regex.Replace(formattedText, pattern, $"<span class='mention-badge'>@{u.FullName}</span>", RegexOptions.IgnoreCase);
                 }
+            }
+            if (notifiedUserIds.Any()) 
+            {
                 await _context.SaveChangesAsync();
             }
 

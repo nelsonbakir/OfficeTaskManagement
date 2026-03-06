@@ -175,14 +175,18 @@
                     <i class="fas fa-fire text-danger me-2"></i> Sprint Burndown (Ideal)
                 </h4>
             </div>
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+            <div class="card-body">
                  @if (!Model.Burndowns.Any())
                  {
-                     <p class="text-muted"><i class="fas fa-chart-line"></i> No active sprints to project.</p>
+                     <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style="min-height: 200px;">
+                         <p class="mb-0"><i class="fas fa-chart-line"></i> No active sprints to project.</p>
+                     </div>
                  }
                  else
                  {
-                    <canvas id="burndownChart" style="max-height: 300px;"></canvas>
+                     <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="burndownChart"></canvas>
+                     </div>
                  }
             </div>
         </div>
@@ -196,14 +200,18 @@
                     <i class="fas fa-tachometer-alt text-primary me-2"></i> Team Story Velocity
                 </h4>
             </div>
-            <div class="card-body d-flex flex-column align-items-center justify-content-center">
+            <div class="card-body">
                 @if (!Model.Velocities.Any())
                  {
-                     <p class="text-muted"><i class="fas fa-chart-bar"></i> No completed sprints to measure.</p>
+                     <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted" style="min-height: 200px;">
+                         <p class="mb-0"><i class="fas fa-chart-bar"></i> No completed sprints to measure.</p>
+                     </div>
                  }
                  else
                  {
-                    <canvas id="velocityChart" style="max-height: 300px;"></canvas>
+                     <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="velocityChart"></canvas>
+                     </div>
                  }
             </div>
         </div>
@@ -376,80 +384,86 @@
         });
 
         // Data for Velocity Chart
-        const velocityCtx = document.getElementById('velocityChart').getContext('2d');
-        const velocityChart = new Chart(velocityCtx, {
-            type: 'bar',
-            data: {
-                labels: @Html.Raw(JsonSerializer.Serialize(velocityLabels)),
-                datasets: [{
-                    label: 'Completed Hours',
-                    data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
-                    backgroundColor: 'rgba(0, 120, 212, 0.8)', // Primary Brand
-                    borderColor: 'rgba(0, 120, 212, 1)',
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
+        const velocityChartEl = document.getElementById('velocityChart');
+        if (velocityChartEl) {
+            const velocityCtx = velocityChartEl.getContext('2d');
+            const velocityChart = new Chart(velocityCtx, {
+                type: 'bar',
+                data: {
+                    labels: @Html.Raw(JsonSerializer.Serialize(velocityLabels)),
+                    datasets: [{
+                        label: 'Completed Hours',
+                        data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
+                        backgroundColor: 'rgba(0, 120, 212, 0.8)', // Primary Brand
+                        borderColor: 'rgba(0, 120, 212, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
                 },
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        grid: { color: '#F3F2F1' },
-                        border: { display: false }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
                     },
-                    x: {
-                        grid: { display: false },
-                        border: { display: false }
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#F3F2F1' },
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false }
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         // Data for Burndown Chart
-        var burndownDataObj = @Html.Raw(JsonSerializer.Serialize(burndownDatasets));
-        
-        // Add styling properties dynamically
-        burndownDataObj.forEach(function(ds) {
-            ds.borderWidth = 2;
-            ds.tension = 0.1;
-            ds.pointBackgroundColor = '#FFFFFF';
-            ds.pointBorderWidth = 2;
-            ds.pointRadius = 4;
-        });
+        const burndownChartEl = document.getElementById('burndownChart');
+        if (burndownChartEl) {
+            var burndownDataObj = @Html.Raw(JsonSerializer.Serialize(burndownDatasets));
+            
+            // Add styling properties dynamically
+            burndownDataObj.forEach(function(ds) {
+                ds.borderWidth = 2;
+                ds.tension = 0.1;
+                ds.pointBackgroundColor = '#FFFFFF';
+                ds.pointBorderWidth = 2;
+                ds.pointRadius = 4;
+            });
 
-        const burndownCtx = document.getElementById('burndownChart').getContext('2d');
-        const burndownChart = new Chart(burndownCtx, {
-            type: 'line',
-            data: {
-                labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
-                datasets: burndownDataObj
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { 
-                        position: 'bottom',
-                        labels: { boxWidth: 12, usePointStyle: true }
-                    }
+            const burndownCtx = burndownChartEl.getContext('2d');
+            const burndownChart = new Chart(burndownCtx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
+                    datasets: burndownDataObj
                 },
-                scales: {
-                    y: { 
-                        beginAtZero: true,
-                        grid: { color: '#F3F2F1' },
-                        border: { display: false }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            position: 'bottom',
+                            labels: { boxWidth: 12, usePointStyle: true }
+                        }
                     },
-                    x: {
-                        grid: { display: false },
-                        border: { display: false }
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#F3F2F1' },
+                            border: { display: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            border: { display: false }
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
     </script>
 }

@@ -1,5 +1,10 @@
 @model OfficeTaskManagement.ViewModels.TaskItemViewModel
-@{ ViewData["Title"] = "Edit Task"; }
+@using OfficeTaskManagement.Data
+@inject ApplicationDbContext DbContext
+@{ 
+    ViewData["Title"] = "Edit Task"; 
+    var allUsers = DbContext.Users.ToList();
+}
 
 <style>
     .task-editor-container {
@@ -508,7 +513,14 @@
                             var displayComment = comment.CommentText.Replace("\n", "<br/>");
                             if (displayComment.Contains("@"))
                             {
-                                displayComment = System.Text.RegularExpressions.Regex.Replace(displayComment, @"@([A-Za-z0-9_\.\s]+)", "<span class='mention-badge'>@$1</span>");
+                                foreach (var u in allUsers)
+                                {
+                                    if (!string.IsNullOrEmpty(u.FullName) && displayComment.Contains("@" + u.FullName, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        var pattern = System.Text.RegularExpressions.Regex.Escape("@" + u.FullName);
+                                        displayComment = System.Text.RegularExpressions.Regex.Replace(displayComment, pattern, $"<span class='mention-badge'>@{u.FullName}</span>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                                    }
+                                }
                             }
                             <div class="comment-card">
                                 <div class="comment-avatar">
