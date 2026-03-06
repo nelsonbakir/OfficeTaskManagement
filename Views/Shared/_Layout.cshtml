@@ -87,6 +87,8 @@
                 <div class="d-flex align-items-center ms-auto">
                     @if (User.Identity?.IsAuthenticated ?? false)
                     {
+                        @await Component.InvokeAsync("NotificationBell")
+                        
                         <div class="dropdown">
                             <button class="user-profile-dropdown dropdown-toggle" type="button" id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="user-avatar">

@@ -19,6 +19,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<TaskHistory> TaskHistories { get; set; }
         public DbSet<TaskAttachment> TaskAttachments { get; set; }
         public DbSet<TaskComment> TaskComments { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

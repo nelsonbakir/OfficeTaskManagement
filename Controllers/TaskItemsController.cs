@@ -142,6 +142,20 @@ namespace OfficeTaskManagement.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // Notify new assignee if someone else created the task
+                var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId) && vm.TaskItem.AssigneeId != currentUserId)
+                {
+                    _context.Notifications.Add(new Notification
+                    {
+                        UserId = vm.TaskItem.AssigneeId,
+                        Title = "New Task Assigned",
+                        Message = $"You have been assigned: {vm.TaskItem.Title}",
+                        Link = $"/TaskItems/Details/{vm.TaskItem.Id}",
+                        Type = "Assignment"
+                    });
+                }
+
                 // Add to History
                 _context.TaskHistories.Add(new TaskHistory
                 {
@@ -301,11 +315,39 @@ namespace OfficeTaskManagement.Controllers
                         }
                     }
 
-                    // Log history for what changed
+                    // Log history and push notifications for what changed
                     var changes = new List<string>();
                     if (existingTask.Title != vm.TaskItem.Title) changes.Add("Title updated.");
-                    if (existingTask.Status != vm.TaskItem.Status) changes.Add($"Status changed from {existingTask.Status} to {vm.TaskItem.Status}.");
-                    if (existingTask.AssigneeId != vm.TaskItem.AssigneeId) changes.Add("Assignee changed.");
+                    if (existingTask.Status != vm.TaskItem.Status)
+                    {
+                        changes.Add($"Status changed from {existingTask.Status} to {vm.TaskItem.Status}.");
+                        if (vm.TaskItem.Status == TaskStatus.Done && existingTask.CreatedById != userId)
+                        {
+                            _context.Notifications.Add(new Notification
+                            {
+                                UserId = existingTask.CreatedById,
+                                Title = "Task Completed",
+                                Message = $"Task '{vm.TaskItem.Title}' was marked as Done.",
+                                Link = $"/TaskItems/Details/{existingTask.Id}",
+                                Type = "StatusUpdate"
+                            });
+                        }
+                    }
+                    if (existingTask.AssigneeId != vm.TaskItem.AssigneeId)
+                    {
+                        changes.Add("Assignee changed.");
+                        if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId) && vm.TaskItem.AssigneeId != userId)
+                        {
+                            _context.Notifications.Add(new Notification
+                            {
+                                UserId = vm.TaskItem.AssigneeId,
+                                Title = "Task Assignment Updated",
+                                Message = $"You have been assigned to: {vm.TaskItem.Title}",
+                                Link = $"/TaskItems/Details/{existingTask.Id}",
+                                Type = "Assignment"
+                            });
+                        }
+                    }
                     if (existingTask.EstimatedHours != vm.TaskItem.EstimatedHours) changes.Add("Estimated Hours changed.");
                     if (existingTask.StartDate != vm.TaskItem.StartDate) changes.Add("Start Date changed.");
                     
@@ -525,6 +567,36 @@ namespace OfficeTaskManagement.Controllers
             var formattedText = comment.CommentText.Replace("\n", "<br/>");
             // Highlight mentions: @(Some Name)
             formattedText = Regex.Replace(formattedText, @"@([A-Za-z0-9_\.\s]+)", "<span class='mention-badge'>@$1</span>");
+
+            // Extract Mentions using Regex and push Notifications
+            var mentions = Regex.Matches(text, @"@([A-Za-z0-9_\.\s]+)", RegexOptions.IgnoreCase);
+            if (mentions.Count > 0)
+            {
+                var allUsers = await _context.Users.ToListAsync();
+                var notifiedUserIds = new HashSet<string>();
+                
+                foreach (Match match in mentions)
+                {
+                    var mentionedName = match.Groups[1].Value.Trim();
+                    // Match by FullName
+                    var mentionedUser = allUsers.FirstOrDefault(u => 
+                        string.Equals(u.FullName, mentionedName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (mentionedUser != null && mentionedUser.Id != userId && !notifiedUserIds.Contains(mentionedUser.Id))
+                    {
+                        _context.Notifications.Add(new Notification
+                        {
+                            UserId = mentionedUser.Id,
+                            Title = "You were mentioned",
+                            Message = $"{(comment.User?.FullName ?? "Someone")} mentioned you in a comment.",
+                            Link = $"/TaskItems/Details/{taskId}",
+                            Type = "Mention"
+                        });
+                        notifiedUserIds.Add(mentionedUser.Id);
+                    }
+                }
+                await _context.SaveChangesAsync();
+            }
 
             var html = $@"
                 <div class='comment-card'>
