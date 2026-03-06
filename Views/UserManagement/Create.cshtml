@@ -5,221 +5,264 @@
 }
 
 <style>
-    .form-container {
-        max-width: 600px;
-        margin: 0 auto;
+    .item-editor-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 2rem;
     }
 
-    .form-card {
+    .item-editor-main {
         background: white;
-        border-radius: 1rem;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-    }
-
-    .form-card .card-header {
-        padding: 2rem 2rem 1.5rem;
-    }
-
-    .form-card .card-body {
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
         padding: 2rem;
     }
 
+    .item-editor-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #605E5C;
+        text-transform: uppercase;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #EDEBE9;
+    }
+
     .form-group {
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25rem;
     }
 
     .form-label {
         font-weight: 600;
-        margin-bottom: 0.75rem;
-        color: #1f2937;
+        margin-bottom: 0.5rem;
+        color: #252424;
+        display: block;
+        font-size: 0.9rem;
     }
 
     .form-control {
-        border: 2px solid #e5e7eb;
-        border-radius: 0.5rem;
-        padding: 0.75rem 1rem;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
     }
 
     .form-control:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        border-color: #0078D4;
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+        outline: none;
     }
 
     .password-help {
-        font-size: 0.85rem;
-        color: #6b7280;
-        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: #605E5C;
+        margin-top: 0.4rem;
+    }
+
+    .sidebar-panel {
+        background: #F3F2F1;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        padding: 1.25rem;
+    }
+
+    .sidebar-panel-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #252424;
+        margin: 0 0 1rem 0;
+        text-transform: uppercase;
     }
 
     .roles-container {
-        background: #f9fafb;
-        border: 2px solid #e5e7eb;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
     }
 
     .form-check {
-        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
     }
 
     .form-check-input {
-        width: 1.25rem;
-        height: 1.25rem;
-        border: 2px solid #d1d5db;
-        border-radius: 0.25rem;
+        margin: 0;
         cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .form-check-input:checked {
-        background-color: #6366f1;
-        border-color: #6366f1;
     }
 
     .form-check-label {
         margin-bottom: 0;
         cursor: pointer;
         font-weight: 500;
+        font-size: 0.9rem;
     }
 
     .info-box {
-        background: #dbeafe;
-        border-left: 4px solid #0284c7;
-        border-radius: 0.5rem;
-        padding: 1.25rem;
-        margin-bottom: 2rem;
+        background: #F8F8F8;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-top: 1.25rem;
     }
 
     .info-box strong {
-        color: #0284c7;
+        color: #0078D4;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 0.5rem;
     }
 
     .info-box ul {
         margin-bottom: 0;
-        margin-top: 0.75rem;
+        padding-left: 1.25rem;
     }
 
     .info-box li {
-        margin-bottom: 0.5rem;
-        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        font-size: 0.85rem;
+        color: #605E5C;
     }
-
-    .btn-group-form {
-        display: flex;
-        gap: 1rem;
-        justify-content: flex-start;
-        margin-top: 2rem;
+    
+    .info-box li strong {
+        display: inline;
+        color: #252424;
+        text-transform: none;
     }
 
     .required-field::after {
         content: "*";
-        color: #ef4444;
+        color: #A4262C;
         margin-left: 0.25rem;
     }
 </style>
 
-<div class="form-container">
-    <div class="form-card">
-        <div class="card-header">
-            <h3 class="mb-0">
-                <i class="fas fa-user-plus"></i> Add New User
-            </h3>
-            <p class="text-muted mb-0 mt-2">Create and configure a new team member account</p>
-        </div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="font-size: 1.5rem; margin: 0;"><i class="fas fa-user-plus text-primary"></i> Create User</h1>
+        <p class="text-muted mb-0 small">Provision a new account and specify roles</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Users
+    </a>
+</div>
 
-        <div class="card-body">
-            <form asp-action="Create" method="post">
-                <div asp-validation-summary="ModelOnly" class="alert alert-danger alert-dismissible" role="alert">
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
+<form asp-action="Create" method="post">
+    <div class="item-editor-container">
+        <!-- Main Editor Area -->
+        <div class="item-editor-main">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
 
-                <div class="form-group">
-                    <label asp-for="Email" class="form-label required-field">Email Address</label>
-                    <input asp-for="Email" class="form-control" placeholder="user@example.com" />
-                    <span asp-validation-for="Email" class="text-danger small d-block mt-2"></span>
-                </div>
-
-                <div class="form-group">
-                    <label asp-for="FullName" class="form-label required-field">Full Name</label>
-                    <input asp-for="FullName" class="form-control" placeholder="John Doe" />
-                    <span asp-validation-for="FullName" class="text-danger small d-block mt-2"></span>
-                </div>
-
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-id-card"></i> Profile Details</h3>
+                
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="Password" class="form-label required-field">Password</label>
-                            <input asp-for="Password" type="password" class="form-control" />
-                            <div class="password-help">
-                                <i class="fas fa-info-circle"></i> 6+ characters with uppercase, lowercase, and numbers
-                            </div>
-                            <span asp-validation-for="Password" class="text-danger small d-block mt-2"></span>
+                            <label asp-for="FullName" class="form-label required-field">Full Name</label>
+                            <input asp-for="FullName" class="form-control" placeholder="Jane Doe" />
+                            <span asp-validation-for="FullName" class="text-danger small d-block"></span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="ConfirmPassword" class="form-label required-field">Confirm Password</label>
-                            <input asp-for="ConfirmPassword" type="password" class="form-control" />
-                            <span asp-validation-for="ConfirmPassword" class="text-danger small d-block mt-2"></span>
+                            <label asp-for="Email" class="form-label required-field">Email Address</label>
+                            <input asp-for="Email" class="form-control" placeholder="user@company.com" />
+                            <span asp-validation-for="Email" class="text-danger small d-block"></span>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label class="form-label required-field">Assign Roles</label>
-                    <div class="roles-container">
-                        @if (!Model.AvailableRoles.Any())
-                        {
-                            <p class="text-muted mb-0">
-                                <i class="fas fa-exclamation-circle"></i> No roles available. Please contact administrator.
-                            </p>
-                        }
-                        else
-                        {
-                            @foreach (var role in Model.AvailableRoles)
-                            {
-                                <div class="form-check">
-                                    <input type="checkbox"
-                                           class="form-check-input"
-                                           id="role_@role"
-                                           name="SelectedRoles"
-                                           value="@role"
-                                           @(Model.SelectedRoles?.Contains(role) == true ? "checked" : "") />
-                                    <label class="form-check-label" for="role_@role">
-                                        <strong>@role</strong>
-                                    </label>
-                                </div>
-                            }
-                        }
+            <div class="form-section mb-0">
+                <h3 class="form-section-title"><i class="fas fa-key"></i> Security Credentials</h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-0">
+                            <label asp-for="Password" class="form-label required-field">Password</label>
+                            <input asp-for="Password" type="password" class="form-control" />
+                            <div class="password-help">
+                                <i class="fas fa-info-circle"></i> Minimum 6 characters (Aa1!).
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger small d-block"></span>
+                        </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-0">
+                            <label asp-for="ConfirmPassword" class="form-label required-field">Confirm Password</label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control" />
+                            <span asp-validation-for="ConfirmPassword" class="text-danger small d-block"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Area -->
+        <div class="item-editor-sidebar">
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Role Assignment</h3>
+                
+                <div class="roles-container">
+                    @if (!Model.AvailableRoles.Any())
+                    {
+                        <p class="text-muted small mb-0">
+                            <i class="fas fa-exclamation-triangle"></i> No roles configured in DB.
+                        </p>
+                    }
+                    else
+                    {
+                        @foreach (var role in Model.AvailableRoles)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox"
+                                       class="form-check-input"
+                                       id="role_@role"
+                                       name="SelectedRoles"
+                                       value="@role"
+                                       @(Model.SelectedRoles?.Contains(role) == true ? "checked" : "") />
+                                <label class="form-check-label" for="role_@role">
+                                    @role
+                                </label>
+                            </div>
+                        }
+                    }
                 </div>
 
                 <div class="info-box">
-                    <strong><i class="fas fa-lightbulb"></i> Role Guide</strong>
+                    <strong>Guide</strong>
                     <ul>
-                        <li><strong>Manager:</strong> Full access to all features and user management</li>
-                        <li><strong>Project Lead:</strong> Can manage projects, sprints, and team tasks</li>
-                        <li><strong>Project Coordinator:</strong> Can manage tasks and view reports</li>
-                        <li><strong>Employee:</strong> Can view and update assigned tasks only</li>
-                        <li><strong>Client:</strong> Read-only access to projects and tasks</li>
+                        <li><strong>Manager:</strong> Full system access</li>
+                        <li><strong>Project Lead:</strong> Manage specific projects</li>
+                        <li><strong>Coordinator:</strong> Oversee tasks</li>
+                        <li><strong>Employee:</strong> Execute assignments</li>
                     </ul>
                 </div>
+            </div>
 
-                <div class="btn-group-form">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-check"></i> Create User
-                    </button>
-                    <a asp-action="Index" class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Cancel
-                    </a>
-                </div>
-            </form>
+            <div class="sidebar-panel">
+                <h3 class="sidebar-panel-title">Actions</h3>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-plus"></i> Create User
+                </button>
+            </div>
         </div>
     </div>
-</div>
+</form>
 
 @section Scripts {
     @{

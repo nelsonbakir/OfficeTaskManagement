@@ -16,8 +16,9 @@
 
     .page-header h1 {
         font-size: 2rem;
-        font-weight: 700;
+        font-weight: 600;
         margin: 0;
+        color: #252424;
     }
 
     .stats-grid {
@@ -28,37 +29,64 @@
     }
 
     .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: white;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
         padding: 1.5rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-
-    .stat-card.active {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    }
-
-    .stat-card.inactive {
-        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
     }
 
     .stat-value {
         font-size: 2rem;
         font-weight: 700;
-        margin-bottom: 0.5rem;
+        color: #0078D4; /* Primary standard color */
+        margin-bottom: 0.25rem;
     }
 
     .stat-label {
-        font-size: 0.9rem;
-        opacity: 0.9;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: #605E5C;
+        font-weight: 600;
+        letter-spacing: 0.5px;
     }
+
+    .stat-card.active .stat-value { color: #107C10; }
+    .stat-card.inactive .stat-value { color: #A4262C; }
 
     .table-wrapper {
         background: white;
-        border-radius: 0.75rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
         overflow: hidden;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        background: #F8F8F8;
+        border-bottom: 2px solid #EDEBE9;
+        color: #605E5C;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        padding: 1rem;
+    }
+
+    .table td {
+        vertical-align: middle;
+        padding: 1rem;
+        border-top: 1px solid #EDEBE9;
+        color: #252424;
+    }
+
+    .table tr:hover {
+        background-color: #F3F2F1;
     }
 
     .action-buttons {
@@ -68,93 +96,54 @@
     }
 
     .btn-icon {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
         padding: 0;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 0.5rem;
-        border: none;
+        border-radius: 4px;
+        border: 1px solid transparent;
         cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 0.875rem;
+        background: transparent;
+        transition: all 0.2s ease;
+        text-decoration: none;
     }
 
-    .btn-edit {
-        background-color: #dbeafe;
-        color: #0284c7;
-    }
+    .btn-edit { color: #0078D4; }
+    .btn-edit:hover { background: #E5F1FB; border-color: #0078D4; }
 
-    .btn-edit:hover {
-        background-color: #bfdbfe;
-        transform: translateY(-2px);
-    }
+    .btn-reset { color: #D18700; }
+    .btn-reset:hover { background: #FFF4CE; border-color: #D18700; }
 
-    .btn-reset {
-        background-color: #fef3c7;
-        color: #d97706;
-    }
+    .btn-toggle { color: #605E5C; }
+    .btn-toggle:hover { background: #EDEBE9; border-color: #605E5C; }
 
-    .btn-reset:hover {
-        background-color: #fde68a;
-        transform: translateY(-2px);
-    }
-
-    .btn-toggle {
-        background-color: #e5e7eb;
-        color: #6b7280;
-    }
-
-    .btn-toggle:hover {
-        background-color: #d1d5db;
-        transform: translateY(-2px);
-    }
-
-    .btn-delete {
-        background-color: #fee2e2;
-        color: #dc2626;
-    }
-
-    .btn-delete:hover {
-        background-color: #fca5a5;
-        transform: translateY(-2px);
-    }
+    .btn-delete { color: #A4262C; }
+    .btn-delete:hover { background: #FDE7E9; border-color: #A4262C; }
 
     .role-badge {
         display: inline-block;
-        padding: 0.375rem 0.75rem;
-        border-radius: 0.375rem;
-        font-size: 0.8rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
         font-weight: 600;
-        margin: 0.25rem;
+        margin: 0.1rem;
+        background: #E1DFDD;
+        color: #323130;
+        border: 1px solid #EDEBE9;
     }
 
-    .role-manager {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-
-    .role-lead {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-    }
-
-    .role-coordinator {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
-    }
-
-    .role-employee {
-        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-        color: white;
-    }
+    .role-manager { background: #E5E5EA; border-color: #C8C6C4; }
+    .role-lead { background: #E3F2FD; border-color: #BBDEFB; color: #0D47A1; }
+    .role-coordinator { background: #E8F5E9; border-color: #C8E6C9; color: #1B5E20; }
+    .role-employee { background: #FFF3E0; border-color: #FFE0B2; color: #E65100; }
 </style>
 
-<div class="container-fluid">
+<div class="container-fluid px-0">
     <div class="page-header">
         <div>
-            <h1><i class="fas fa-users"></i> User Management</h1>
+            <h1><i class="fas fa-users" style="color: #0078D4;"></i> User Management</h1>
             <p class="text-muted mb-0">Manage team members and their roles</p>
         </div>
         <a asp-action="Create" class="btn btn-primary">
@@ -164,8 +153,8 @@
 
     @if (TempData["SuccessMessage"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <i class="fas fa-check-circle"></i>
+        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
             @TempData["SuccessMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -173,8 +162,8 @@
 
     @if (TempData["ErrorMessage"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <i class="fas fa-exclamation-circle"></i>
+        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
             @TempData["ErrorMessage"]
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
@@ -193,7 +182,7 @@
             </div>
             <div class="stat-card">
                 <div class="stat-value">@Model.Sum(u => u.TotalTasks ?? 0)</div>
-                <div class="stat-label">Total Tasks Assigned</div>
+                <div class="stat-label">Total Assigned</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">@Model.Sum(u => u.CompletedTasks ?? 0)</div>
@@ -206,22 +195,28 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Email</th>
-                            <th>Full Name</th>
+                            <th>User Info</th>
                             <th>Roles</th>
                             <th>Status</th>
                             <th>Tasks</th>
-                            <th>Actions</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var user in Model)
                         {
-                            <tr class="@(!user.IsActive ? "opacity-50" : "")">
+                            <tr class="@(!user.IsActive ? "opacity-50 bg-light" : "")">
                                 <td>
-                                    <strong>@user.Email</strong>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem;">
+                                            @(string.IsNullOrWhiteSpace(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 600; color: #252424;">@user.FullName</div>
+                                            <div style="font-size: 0.85rem; color: #605E5C;">@user.Email</div>
+                                        </div>
+                                    </div>
                                 </td>
-                                <td>@user.FullName</td>
                                 <td>
                                     @if (user.Roles.Any())
                                     {
@@ -240,30 +235,30 @@
                                     }
                                     else
                                     {
-                                        <span class="badge bg-secondary">No Role</span>
+                                        <span class="badge bg-light text-secondary border">No Role</span>
                                     }
                                 </td>
                                 <td>
                                     @if (user.IsActive)
                                     {
-                                        <span class="badge badge-success">
+                                        <span class="badge" style="background: #DFF6DD; color: #107C10; border: 1px solid #107C10;">
                                             <i class="fas fa-check-circle"></i> Active
                                         </span>
                                     }
                                     else
                                     {
-                                        <span class="badge badge-danger">
-                                            <i class="fas fa-times-circle"></i> Inactive
+                                        <span class="badge" style="background: #FDE7E9; color: #A4262C; border: 1px solid #A4262C;">
+                                            <i class="fas fa-ban"></i> Inactive
                                         </span>
                                     }
                                 </td>
                                 <td>
-                                    <small class="text-muted">
-                                        <i class="fas fa-check"></i> @user.CompletedTasks / @user.TotalTasks
+                                    <small class="text-muted fw-bold">
+                                        <i class="fas fa-check-double text-success"></i> @user.CompletedTasks / @user.TotalTasks
                                     </small>
                                 </td>
                                 <td>
-                                    <div class="action-buttons">
+                                    <div class="action-buttons justify-content-end">
                                         <a asp-action="Edit" asp-route-id="@user.Id" class="btn-icon btn-edit" title="Edit User">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -293,12 +288,10 @@
     }
     else
     {
-        <div class="card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-inbox" style="font-size: 3rem; color: #9ca3af; margin-bottom: 1rem;"></i>
-                <h5>No users found</h5>
-                <p class="text-muted">Get started by <a asp-action="Create">creating the first user</a>.</p>
-            </div>
+        <div class="alert alert-light border text-center py-5">
+            <i class="fas fa-users-slash mb-3" style="font-size: 3rem; color: #EDEBE9;"></i>
+            <h5 class="text-dark">No users found</h5>
+            <p class="text-muted">Get started by <a asp-action="Create" class="text-decoration-none">creating the first user</a>.</p>
         </div>
     }
 </div>
