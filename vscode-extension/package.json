@@ -1,0 +1,68 @@
+{
+    "name": "taskflow-vscode",
+    "displayName": "TaskFlow Workspace",
+    "description": "Seamlessly manage your TaskFlow assignments and notifications inside VS Code.",
+    "version": "1.0.0",
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "taskflow.authenticate",
+                "title": "TaskFlow: Authenticate"
+            },
+            {
+                "command": "taskflow.mapProject",
+                "title": "TaskFlow: Map Workspace to Project"
+            },
+            {
+                "command": "taskflow.refresh",
+                "title": "TaskFlow: Refresh Tasks"
+            }
+        ],
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "taskflow-sidebar",
+                    "title": "TaskFlow",
+                    "icon": "resources/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "taskflow-sidebar": [
+                {
+                    "type": "webview",
+                    "id": "taskflow.dashboardView",
+                    "name": "My Workspace"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts"
+    },
+    "devDependencies": {
+        "@types/node": "18.x",
+        "@types/vscode": "^1.80.0",
+        "typescript": "^5.1.3",
+        "eslint": "^8.41.0",
+        "@typescript-eslint/eslint-plugin": "^5.59.8",
+        "@typescript-eslint/parser": "^5.59.8"
+    },
+    "dependencies": {
+        "axios": "^1.4.0"
+    }
+}

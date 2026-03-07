@@ -20,6 +20,10 @@ namespace OfficeTaskManagement.Models
 
         public TaskType Type { get; set; } = TaskType.NewRequest;
 
+        public TaskPriority Priority { get; set; } = TaskPriority.Medium;
+
+        public bool IsBacklog { get; set; } = false;
+
         // Efforts required in hours
         public decimal EstimatedHours { get; set; }
 

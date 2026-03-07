@@ -8,3 +8,7 @@ appsettings.Development.json
 *.suo
 .vs/
 obj/
+node_modules/
+*.log
+*.db
+*.txt

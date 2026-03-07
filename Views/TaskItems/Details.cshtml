@@ -380,6 +380,24 @@
             <div class="action-divider"></div>
 
             <div class="info-item">
+                <div class="info-label">Priority</div>
+                <div class="info-value">
+                    <span class="badge" style="background: #E1DFDD; color: #323130;">@Model.Priority</span>
+                </div>
+            </div>
+
+            @if (Model.IsBacklog) {
+                <div class="info-item mt-2">
+                    <div class="info-label">Backlog</div>
+                    <div class="info-value text-muted">
+                        <i class="fas fa-archive"></i> In Backlog
+                    </div>
+                </div>
+            }
+
+            <div class="action-divider"></div>
+
+            <div class="info-item">
                 <div class="info-label">Timeline</div>
                 <div class="info-value small">
                     <div><strong>Start:</strong> @(Model.StartDate?.ToString("MMM dd, yyyy") ?? "Not set")</div>

@@ -30,8 +30,9 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: TaskItems
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(bool showBacklog = false)
         {
+            ViewBag.ShowBacklog = showBacklog;
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Tasks
                 .Include(t => t.Assignee)
@@ -54,6 +55,8 @@ namespace OfficeTaskManagement.Controllers
                     query = query.Where(t => t.AssigneeId == userId || t.CreatedById == userId);
                 }
             }
+            
+            query = query.Where(t => t.IsBacklog == showBacklog);
             
             return View(await query.ToListAsync());
         }

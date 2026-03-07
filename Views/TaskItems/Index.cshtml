@@ -235,6 +235,12 @@
         <button class="view-btn" onclick="switchView('table')">
             <i class="fas fa-list"></i> List
         </button>
+        <form method="get" asp-action="Index" style="display:inline;">
+            <input type="hidden" name="showBacklog" value="@(Context.Request.Query["showBacklog"] == "true" ? "false" : "true")" />
+            <button type="submit" class="view-btn @(Context.Request.Query["showBacklog"] == "true" ? "active" : "")">
+                <i class="fas fa-archive"></i> Backlog
+            </button>
+        </form>
         @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
             <a asp-action="Create" class="btn btn-primary">
                 <i class="fas fa-plus"></i> New Task
@@ -268,6 +274,7 @@
                             <div class="kanban-item" data-task-id="@task.Id">
                                 <div class="mb-2">
                                     <span class="badge bg-secondary" style="font-size: 0.7rem;">@task.Type</span>
+                                    <span class="badge border ms-1" style="font-size: 0.7rem; color: #605E5C;">@task.Priority</span>
                                     @if(task.ParentTaskId.HasValue && task.ParentTask != null) {
                                         <span class="badge bg-light text-dark border ms-1" style="font-size: 0.7rem;" title="Parent Task">
                                             <i class="fas fa-level-up-alt"></i> Task-@task.ParentTaskId
@@ -313,6 +320,7 @@
             <tr>
                 <th>Title</th>
                 <th>Type</th>
+                <th>Priority</th>
                 <th>Project</th>
                 <th>Sprint</th>
                 <th>Status</th>
@@ -331,6 +339,9 @@
                     </td>
                     <td>
                         <span class="badge bg-secondary">@task.Type</span>
+                    </td>
+                    <td>
+                        <span class="badge border" style="color: #605E5C;">@task.Priority</span>
                     </td>
                     <td>@task.Project?.Name</td>
                     <td>@task.Sprint?.Name</td>
