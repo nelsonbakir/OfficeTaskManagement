@@ -1,0 +1,174 @@
+@{
+    ViewData["Title"] = "AI Insights Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
+    <div>
+        <h2 class="mb-0 text-primary fw-bold"><i class="bi bi-robot text-info"></i> AI Insights</h2>
+        <p class="text-muted d-none d-md-block">Powered by Google Gemini 1.5</p>
+    </div>
+</div>
+
+<div class="row gx-4 gy-4">
+    <!-- Reports Control Panel -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100 border-0">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold"><i class="bi bi-funnel"></i> Generate Report</h5>
+                <p class="text-muted small">Select an AI report to analyze your organization's data.</p>
+            </div>
+            <div class="card-body">
+                <form id="aiReportForm">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Select Report Type</label>
+                        <select id="reportTypeSelect" class="form-select form-select-lg shadow-none" onchange="toggleProjectSelect()">
+                            <option value="burnout">Developer Burnout Detector</option>
+                            <option value="retrospective">Automated Sprint Retrospective</option>
+                            <option value="technical-debt">Technical Debt Flagging</option>
+                            <option value="project-predictability">Project Predictability Analysis</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4" id="projectSelectContainer" style="display: none;">
+                        <label class="form-label fw-bold">Select Project Target</label>
+                        <select id="projectTargetSelect" class="form-select" asp-items="ViewBag.Projects">
+                            <option value="">-- Select a Project --</option>
+                        </select>
+                    </div>
+
+                    <button type="button" class="btn btn-primary w-100 py-2 fw-bold shadow-sm" onclick="generateReport()" id="generateBtn">
+                        <i class="bi bi-stars"></i> Synthesize Data
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="col-md-8">
+        <div class="card shadow-sm h-100 border-0 bg-light">
+            <div class="card-body position-relative" style="min-height: 400px;">
+                
+                <!-- Empty State -->
+                <div id="aiEmptyState" class="text-center position-absolute top-50 start-50 translate-middle w-100 px-4">
+                    <i class="bi bi-cpu text-muted opacity-25" style="font-size: 4rem;"></i>
+                    <h5 class="mt-3 text-muted">Awaiting Request</h5>
+                    <p class="text-muted small">Select a report criteria on the left to begin the Gemini synthesis.</p>
+                </div>
+
+                <!-- Loading State -->
+                <div id="aiLoadingState" class="text-center position-absolute top-50 start-50 translate-middle w-100 px-4" style="display: none;">
+                    <div class="spinner-grow text-primary" style="width: 3rem; height: 3rem;" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="mt-4 fw-bold text-primary">Gemini is Analyzing...</h5>
+                    <p class="text-muted small">Gathering database records and extrapolating trajectories.</p>
+                </div>
+
+                <!-- Markdown Content Result -->
+                <div id="aiResultContainer" class="markdown-body p-3 bg-white rounded shadow-sm h-100" style="display: none; overflow-y: auto; max-height: 700px;">
+                    <!-- Content injected via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Marked.js specifically for this view to render AI Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown-light.min.css" />
+
+<script>
+    function toggleProjectSelect() {
+        const type = document.getElementById('reportTypeSelect').value;
+        const projectSelect = document.getElementById('projectSelectContainer');
+        if (type === 'project-predictability') {
+            projectSelect.style.display = 'block';
+        } else {
+            projectSelect.style.display = 'none';
+        }
+    }
+
+    async function generateReport() {
+        const type = document.getElementById('reportTypeSelect').value;
+        const projectId = document.getElementById('projectTargetSelect').value;
+        
+        if (type === 'project-predictability' && !projectId) {
+            alert('Please select a targeted project first.');
+            return;
+        }
+
+        // UI State Switch
+        document.getElementById('aiEmptyState').style.display = 'none';
+        document.getElementById('aiResultContainer').style.display = 'none';
+        document.getElementById('aiLoadingState').style.display = 'block';
+        document.getElementById('generateBtn').disabled = true;
+
+        let url = `/api/analytics/ai-insights/${type}`;
+        if (type === 'project-predictability') {
+            url += `/${projectId}`;
+        }
+
+        try {
+            const token = localStorage.getItem('jwtToken');
+            const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+            if (token) { headers['Authorization'] = `Bearer ${token}`; }
+
+            const response = await fetch(url, { headers: headers });
+            
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") === -1 && response.ok) {
+                 // ASP.NET Core intercepted a 401/403 and redirected successfully to the HTML Login View
+                 throw new Error("HTTP_REDIRECT_AUTH_FAIL");
+            }
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Parse markdown to HTML using marked.js
+                const htmlContent = marked.parse(data.report);
+                
+                document.getElementById('aiResultContainer').innerHTML = htmlContent;
+                document.getElementById('aiLoadingState').style.display = 'none';
+                document.getElementById('aiResultContainer').style.display = 'block';
+            } else if (response.status === 401 || response.status === 403) {
+                alert("Unauthorized. Make sure you are logged in as a Manager/Admin with valid API permissions.");
+                resetUI();
+            } else {
+                throw new Error("HTTP " + response.status);
+            }
+        } catch(e) {
+            console.error(e);
+            if (e.message === "HTTP_REDIRECT_AUTH_FAIL") {
+                alert("Session Expired or Unauthorized Role. You do not have permissions to access Gemini Analytics. Please re-login.");
+            } else if (e.message.includes("HTTP 404")) {
+                alert("Analytics API Route not found. The server may still be compiling.");
+            } else {
+                alert("Failed to render AI report. Ensure your Gemini API Key is configured in appsettings.json.");
+            }
+            resetUI();
+        }
+
+        document.getElementById('generateBtn').disabled = false;
+    }
+    
+    function resetUI() {
+        document.getElementById('aiLoadingState').style.display = 'none';
+        document.getElementById('aiEmptyState').style.display = 'block';
+    }
+</script>
+
+<style>
+    .markdown-body {
+        box-sizing: border-box;
+        min-width: 200px;
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 45px;
+    }
+    @@media (max-width: 767px) {
+        .markdown-body {
+            padding: 15px;
+        }
+    }
+</style>

@@ -37,6 +37,8 @@ builder.Services.AddAuthentication()
         };
     });
 
+builder.Services.AddHttpClient<OfficeTaskManagement.Services.IGeminiAnalyticsService, OfficeTaskManagement.Services.GeminiAnalyticsService>();
+
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();

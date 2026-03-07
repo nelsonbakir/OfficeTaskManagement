@@ -163,6 +163,17 @@ namespace OfficeTaskManagement.Controllers
             return View("Index", vm);
         }
 
+        public async Task<IActionResult> AIInsights()
+        {
+            var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
+            var projectsList = await _context.Projects.ToListAsync();
+            
+            ViewBag.Projects = new SelectList(projectsList, "Id", "Name");
+            ViewBag.UserRole = userRoles.FirstOrDefault() ?? "Employee";
+
+            return View();
+        }
+
         private async Task<ManagerDashboard> GetManagerMetrics(string? assigneeId, int? projectId)
         {
             var metrics = new ManagerDashboard();
