@@ -9,6 +9,10 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using OfficeTaskManagement.ViewModels;
+using OfficeTaskManagement.Services;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -16,10 +20,12 @@ namespace OfficeTaskManagement.Controllers
     public class FeaturesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public FeaturesController(ApplicationDbContext context)
+        public FeaturesController(ApplicationDbContext context, IMediaService mediaService)
         {
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: Features
@@ -62,6 +68,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(f => f.CreatedBy)
                 .Include(f => f.Epic)
                     .ThenInclude(e => e.Project)
+                .Include(f => f.Attachments)
+                    .ThenInclude(a => a.UploadedBy)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -97,22 +105,45 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // POST: Features/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Create([Bind("Id,EpicId,Name,Description,CreatedById,CreatedAt")] Feature feature)
+        public async Task<IActionResult> Create(FeatureViewModel vm)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(feature);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                vm.Feature.CreatedById = userId;
+                vm.Feature.CreatedAt = DateTime.UtcNow;
+
+                _context.Add(vm.Feature);
                 await _context.SaveChangesAsync();
+
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
+                {
+                    foreach (var file in vm.Attachments)
+                    {
+                        using (var stream = file.OpenReadStream())
+                        {
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                FeatureId = vm.Feature.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = userId,
+                                UploadedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", feature.CreatedById);
-            ViewData["EpicId"] = new SelectList(_context.Epics, "Id", "Name", feature.EpicId);
-            return View(feature);
+            ViewData["EpicId"] = new SelectList(_context.Epics, "Id", "Name", vm.Feature.EpicId);
+            return View(vm);
         }
 
         // GET: Features/Edit/5
@@ -126,25 +157,23 @@ namespace OfficeTaskManagement.Controllers
 
             var feature = await _context.Features
                 .Include(f => f.Tasks)
+                .Include(f => f.Attachments)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (feature == null)
             {
                 return NotFound();
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", feature.CreatedById);
             ViewData["EpicId"] = new SelectList(_context.Epics, "Id", "Name", feature.EpicId);
-            return View(feature);
+            return View(new FeatureViewModel { Feature = feature });
         }
 
         // POST: Features/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,EpicId,Name,Description,CreatedById,CreatedAt")] Feature feature)
+        public async Task<IActionResult> Edit(int id, FeatureViewModel vm)
         {
-            if (id != feature.Id)
+            if (id != vm.Feature.Id)
             {
                 return NotFound();
             }
@@ -153,12 +182,44 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    _context.Update(feature);
-                    await _context.SaveChangesAsync();
+                    var existingFeature = await _context.Features
+                        .Include(f => f.Attachments)
+                        .FirstOrDefaultAsync(f => f.Id == id);
+
+                    if (existingFeature != null)
+                    {
+                        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        existingFeature.Name = vm.Feature.Name;
+                        existingFeature.Description = vm.Feature.Description;
+                        existingFeature.EpicId = vm.Feature.EpicId;
+
+                        // Handle New Attachments
+                        if (vm.Attachments != null && vm.Attachments.Any())
+                        {
+                            foreach (var file in vm.Attachments)
+                            {
+                                using (var stream = file.OpenReadStream())
+                                {
+                                    var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                    _context.Attachments.Add(new Attachment
+                                    {
+                                        FeatureId = existingFeature.Id,
+                                        FileName = file.FileName,
+                                        FilePath = filePath,
+                                        UploadedById = userId,
+                                        UploadedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+
+                        _context.Update(existingFeature);
+                        await _context.SaveChangesAsync();
+                    }
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!FeatureExists(feature.Id))
+                    if (!FeatureExists(vm.Feature.Id))
                     {
                         return NotFound();
                     }
@@ -169,9 +230,32 @@ namespace OfficeTaskManagement.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", feature.CreatedById);
-            ViewData["EpicId"] = new SelectList(_context.Epics, "Id", "Name", feature.EpicId);
-            return View(feature);
+            ViewData["EpicId"] = new SelectList(_context.Epics, "Id", "Name", vm.Feature.EpicId);
+            return View(vm);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Manager,Project Lead")]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var featureId = attachment.FeatureId;
+            if (featureId == null) return BadRequest();
+
+            // Access check
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            await _mediaService.DeleteAsync(attachment.FilePath);
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Edit), new { id = featureId.Value });
         }
 
         // GET: Features/Delete/5

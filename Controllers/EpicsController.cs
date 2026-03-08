@@ -9,6 +9,10 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using OfficeTaskManagement.ViewModels;
+using OfficeTaskManagement.Services;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -16,10 +20,12 @@ namespace OfficeTaskManagement.Controllers
     public class EpicsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public EpicsController(ApplicationDbContext context)
+        public EpicsController(ApplicationDbContext context, IMediaService mediaService)
         {
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: Epics
@@ -60,6 +66,8 @@ namespace OfficeTaskManagement.Controllers
             var query = _context.Epics
                 .Include(e => e.CreatedBy)
                 .Include(e => e.Project)
+                .Include(e => e.Attachments)
+                    .ThenInclude(a => a.UploadedBy)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -95,22 +103,45 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // POST: Epics/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Create([Bind("Id,ProjectId,Name,Description,CreatedById,CreatedAt")] Epic epic)
+        public async Task<IActionResult> Create(EpicViewModel vm)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(epic);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                vm.Epic.CreatedById = userId;
+                vm.Epic.CreatedAt = DateTime.UtcNow;
+
+                _context.Add(vm.Epic);
                 await _context.SaveChangesAsync();
+
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
+                {
+                    foreach (var file in vm.Attachments)
+                    {
+                        using (var stream = file.OpenReadStream())
+                        {
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                EpicId = vm.Epic.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = userId,
+                                UploadedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", epic.CreatedById);
-            ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name", epic.ProjectId);
-            return View(epic);
+            ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name", vm.Epic.ProjectId);
+            return View(vm);
         }
 
         // GET: Epics/Edit/5
@@ -125,25 +156,23 @@ namespace OfficeTaskManagement.Controllers
             var epic = await _context.Epics
                 .Include(e => e.Features)
                     .ThenInclude(f => f.Tasks)
+                .Include(e => e.Attachments)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (epic == null)
             {
                 return NotFound();
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", epic.CreatedById);
             ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name", epic.ProjectId);
-            return View(epic);
+            return View(new EpicViewModel { Epic = epic });
         }
 
         // POST: Epics/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ProjectId,Name,Description,CreatedById,CreatedAt")] Epic epic)
+        public async Task<IActionResult> Edit(int id, EpicViewModel vm)
         {
-            if (id != epic.Id)
+            if (id != vm.Epic.Id)
             {
                 return NotFound();
             }
@@ -152,12 +181,44 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    _context.Update(epic);
-                    await _context.SaveChangesAsync();
+                    var existingEpic = await _context.Epics
+                        .Include(e => e.Attachments)
+                        .FirstOrDefaultAsync(e => e.Id == id);
+
+                    if (existingEpic != null)
+                    {
+                        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        existingEpic.Name = vm.Epic.Name;
+                        existingEpic.Description = vm.Epic.Description;
+                        existingEpic.ProjectId = vm.Epic.ProjectId;
+
+                        // Handle New Attachments
+                        if (vm.Attachments != null && vm.Attachments.Any())
+                        {
+                            foreach (var file in vm.Attachments)
+                            {
+                                using (var stream = file.OpenReadStream())
+                                {
+                                    var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                    _context.Attachments.Add(new Attachment
+                                    {
+                                        EpicId = existingEpic.Id,
+                                        FileName = file.FileName,
+                                        FilePath = filePath,
+                                        UploadedById = userId,
+                                        UploadedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+
+                        _context.Update(existingEpic);
+                        await _context.SaveChangesAsync();
+                    }
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!EpicExists(epic.Id))
+                    if (!EpicExists(vm.Epic.Id))
                     {
                         return NotFound();
                     }
@@ -168,9 +229,32 @@ namespace OfficeTaskManagement.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id", epic.CreatedById);
-            ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name", epic.ProjectId);
-            return View(epic);
+            ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name", vm.Epic.ProjectId);
+            return View(vm);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Manager,Project Lead")]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var epicId = attachment.EpicId;
+            if (epicId == null) return BadRequest();
+
+            // Access check
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            await _mediaService.DeleteAsync(attachment.FilePath);
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Edit), new { id = epicId.Value });
         }
 
         // GET: Epics/Delete/5

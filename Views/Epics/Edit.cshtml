@@ -1,4 +1,6 @@
-@model OfficeTaskManagement.Models.Epic
+@model OfficeTaskManagement.ViewModels.EpicViewModel
+@using OfficeTaskManagement.Services
+@inject IMediaService MediaService
 
 @{
     ViewData["Title"] = "Edit Epic";
@@ -60,6 +62,23 @@
         font-weight: 600;
     }
 
+    .attachment-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 1rem;
+    }
+
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
 </style>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
@@ -69,40 +88,70 @@
     </a>
 </div>
 
-<form asp-action="Edit">
+<form asp-action="Edit" enctype="multipart/form-data">
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
             
-            <input type="hidden" asp-for="Id" />
-            <input type="hidden" asp-for="CreatedById" />
-            <input type="hidden" asp-for="CreatedAt" />
+            <input type="hidden" asp-for="Epic.Id" />
+            <input type="hidden" asp-for="Epic.CreatedById" />
+            <input type="hidden" asp-for="Epic.CreatedAt" />
 
             <!-- Title -->
-            <input asp-for="Name" class="item-title-input" placeholder="Epic title" />
-            <span asp-validation-for="Name" class="text-danger small"></span>
+            <input asp-for="Epic.Name" class="item-title-input" placeholder="Epic title" />
+            <span asp-validation-for="Epic.Name" class="text-danger small"></span>
 
             <!-- Description Section -->
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
                 <div class="form-group">
-                    <textarea asp-for="Description" class="form-control" placeholder="Describe the epic's goals and scope..." rows="6"></textarea>
-                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <textarea asp-for="Epic.Description" class="form-control" placeholder="Describe the epic's goals and scope..." rows="6"></textarea>
+                    <span asp-validation-for="Epic.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Attachments Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-paperclip"></i> Attachments</h3>
+                
+                @if (Model.Epic.Attachments != null && Model.Epic.Attachments.Any())
+                {
+                    <ul class="attachment-list">
+                        @foreach (var attachment in Model.Epic.Attachments)
+                        {
+                            <li class="attachment-item">
+                                <div>
+                                    <i class="fas fa-file"></i>
+                                    <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank">@attachment.FileName</a>
+                                    <span class="text-muted small">(@attachment.UploadedAt.ToShortDateString())</span>
+                                </div>
+                                <button type="submit" asp-action="DeleteAttachment" asp-route-id="@attachment.Id" class="btn btn-link text-danger p-0" onclick="return confirm('Are you sure you want to delete this attachment?')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <div class="form-group mt-3 mb-0">
+                    <label>Add More Attachments</label>
+                    <input asp-for="Attachments" type="file" class="form-control" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
             </div>
 
             <!-- Child Features Section -->
-            <div class="form-section">
+            <div class="form-section mb-0">
                 <h3 class="form-section-title">
                     <i class="fas fa-cubes"></i> Features
-                    <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Features.Count</span>
+                    <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Epic.Features.Count</span>
                 </h3>
                 
-                @if (Model.Features.Any())
+                @if (Model.Epic.Features.Any())
                 {
                     <div class="feature-card-grid">
-                        @foreach (var feature in Model.Features)
+                        @foreach (var feature in Model.Epic.Features)
                         {
                             <div class="feature-card">
                                 <a asp-controller="Features" asp-action="Edit" asp-route-id="@feature.Id" class="feature-card-name">
@@ -128,7 +177,7 @@
                 {
                     <div class="alert alert-light border text-center p-4">
                         <p class="text-muted mb-0">No features associated with this epic yet.</p>
-                        <a asp-controller="Features" asp-action="Create" asp-route-epicId="@Model.Id" class="btn btn-sm btn-link mt-2">
+                        <a asp-controller="Features" asp-action="Create" asp-route-epicId="@Model.Epic.Id" class="btn btn-sm btn-link mt-2">
                             <i class="fas fa-plus"></i> Create first feature
                         </a>
                     </div>
@@ -141,9 +190,9 @@
             <div class="sidebar-panel">
                 <h3 class="sidebar-panel-title">Details</h3>
                 <div class="form-group mb-0">
-                    <label asp-for="ProjectId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Project</label>
-                    <select asp-for="ProjectId" class="form-select" asp-items="ViewBag.ProjectId"></select>
-                    <span asp-validation-for="ProjectId" class="text-danger small"></span>
+                    <label asp-for="Epic.ProjectId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Project</label>
+                    <select asp-for="Epic.ProjectId" class="form-select" asp-items="ViewBag.ProjectId"></select>
+                    <span asp-validation-for="Epic.ProjectId" class="text-danger small"></span>
                 </div>
             </div>
             
@@ -151,7 +200,7 @@
                 <h3 class="sidebar-panel-title">Quick Info</h3>
                 <div class="info-item">
                     <div class="info-label">Created</div>
-                    <div class="info-value">@Model.CreatedAt.ToString("MMM dd, yyyy")</div>
+                    <div class="info-value">@Model.Epic.CreatedAt.ToString("MMM dd, yyyy")</div>
                 </div>
             </div>
 
@@ -161,7 +210,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem;">
                     <i class="fas fa-save"></i> Save Changes
                 </button>
-                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger" style="width: 100%;">
+                <a asp-action="Delete" asp-route-id="@Model.Epic.Id" class="btn btn-outline-danger" style="width: 100%;">
                     <i class="fas fa-trash"></i> Delete
                 </a>
             </div>

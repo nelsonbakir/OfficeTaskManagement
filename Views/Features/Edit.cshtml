@@ -1,4 +1,6 @@
-@model OfficeTaskManagement.Models.Feature
+@model OfficeTaskManagement.ViewModels.FeatureViewModel
+@using OfficeTaskManagement.Services
+@inject IMediaService MediaService
 
 @{
     ViewData["Title"] = "Edit Feature";
@@ -78,6 +80,23 @@
         justify-content: center;
     }
 
+    .attachment-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 1rem;
+    }
+
+    .attachment-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem;
+        border: 1px solid #EDEBE9;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
 </style>
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
@@ -87,40 +106,70 @@
     </a>
 </div>
 
-<form asp-action="Edit">
+<form asp-action="Edit" enctype="multipart/form-data">
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
             
-            <input type="hidden" asp-for="Id" />
-            <input type="hidden" asp-for="CreatedById" />
-            <input type="hidden" asp-for="CreatedAt" />
+            <input type="hidden" asp-for="Feature.Id" />
+            <input type="hidden" asp-for="Feature.CreatedById" />
+            <input type="hidden" asp-for="Feature.CreatedAt" />
 
             <!-- Title -->
-            <input asp-for="Name" class="item-title-input" placeholder="Feature title" />
-            <span asp-validation-for="Name" class="text-danger small"></span>
+            <input asp-for="Feature.Name" class="item-title-input" placeholder="Feature title" />
+            <span asp-validation-for="Feature.Name" class="text-danger small"></span>
 
             <!-- Description Section -->
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
                 <div class="form-group">
-                    <textarea asp-for="Description" class="form-control" placeholder="Describe the feature's specific requirements..." rows="6"></textarea>
-                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <textarea asp-for="Feature.Description" class="form-control" placeholder="Describe the feature's specific requirements..." rows="6"></textarea>
+                    <span asp-validation-for="Feature.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Attachments Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-paperclip"></i> Attachments</h3>
+                
+                @if (Model.Feature.Attachments != null && Model.Feature.Attachments.Any())
+                {
+                    <ul class="attachment-list">
+                        @foreach (var attachment in Model.Feature.Attachments)
+                        {
+                            <li class="attachment-item">
+                                <div>
+                                    <i class="fas fa-file"></i>
+                                    <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank">@attachment.FileName</a>
+                                    <span class="text-muted small">(@attachment.UploadedAt.ToShortDateString())</span>
+                                </div>
+                                <button type="submit" asp-action="DeleteAttachment" asp-route-id="@attachment.Id" class="btn btn-link text-danger p-0" onclick="return confirm('Are you sure you want to delete this attachment?')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                <div class="form-group mt-3 mb-0">
+                    <label>Add More Attachments</label>
+                    <input asp-for="Attachments" type="file" class="form-control" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
             </div>
 
             <!-- Child Tasks Section -->
-            <div class="form-section">
+            <div class="form-section mb-0">
                 <h3 class="form-section-title">
                     <i class="fas fa-tasks"></i> Associated Tasks
-                    <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Tasks.Count</span>
+                    <span class="badge bg-secondary ms-2" style="font-size: 0.7rem; font-weight: normal;">@Model.Feature.Tasks.Count</span>
                 </h3>
                 
-                @if (Model.Tasks.Any())
+                @if (Model.Feature.Tasks.Any())
                 {
                     <div class="task-item-list">
-                        @foreach (var task in Model.Tasks)
+                        @foreach (var task in Model.Feature.Tasks)
                         {
                             <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@task.Id" class="task-item-row">
                                 <div class="task-status-dot @task.Status.ToString().ToLower()"></div>
@@ -152,7 +201,7 @@
                 {
                     <div class="alert alert-light border text-center p-4">
                         <p class="text-muted mb-0">No tasks associated with this feature yet.</p>
-                        <a asp-controller="TaskItems" asp-action="Create" asp-route-featureId="@Model.Id" class="btn btn-sm btn-link mt-2">
+                        <a asp-controller="TaskItems" asp-action="Create" asp-route-featureId="@Model.Feature.Id" class="btn btn-sm btn-link mt-2">
                             <i class="fas fa-plus"></i> Create first task
                         </a>
                     </div>
@@ -165,9 +214,9 @@
             <div class="sidebar-panel">
                 <h3 class="sidebar-panel-title">Details</h3>
                 <div class="form-group mb-0">
-                    <label asp-for="EpicId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Epic</label>
-                    <select asp-for="EpicId" class="form-select" asp-items="ViewBag.EpicId"></select>
-                    <span asp-validation-for="EpicId" class="text-danger small"></span>
+                    <label asp-for="Feature.EpicId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Epic</label>
+                    <select asp-for="Feature.EpicId" class="form-select" asp-items="ViewBag.EpicId"></select>
+                    <span asp-validation-for="Feature.EpicId" class="text-danger small"></span>
                 </div>
             </div>
             
@@ -175,7 +224,7 @@
                 <h3 class="sidebar-panel-title">Quick Info</h3>
                 <div class="info-item">
                     <div class="info-label">Created</div>
-                    <div class="info-value">@Model.CreatedAt.ToString("MMM dd, yyyy")</div>
+                    <div class="info-value">@Model.Feature.CreatedAt.ToString("MMM dd, yyyy")</div>
                 </div>
             </div>
 
@@ -185,7 +234,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem;">
                     <i class="fas fa-save"></i> Save Changes
                 </button>
-                <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger" style="width: 100%;">
+                <a asp-action="Delete" asp-route-id="@Model.Feature.Id" class="btn btn-outline-danger" style="width: 100%;">
                     <i class="fas fa-trash"></i> Delete
                 </a>
             </div>

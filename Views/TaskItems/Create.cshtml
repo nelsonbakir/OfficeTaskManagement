@@ -255,12 +255,12 @@
             <!-- Attachments Section -->
             <div class="form-section">
                 <h3 class="form-section-title">
-                    <i class="fas fa-paperclip"></i> Initial Attachment 
+                    <i class="fas fa-paperclip"></i> Initial Attachments 
                 </h3>
                 <div class="form-group">
-                    <label class="form-label">Upload File</label>
-                    <input asp-for="Attachment" class="form-control" type="file" />
-                    <span asp-validation-for="Attachment" class="text-danger small"></span>
+                    <label class="form-label">Upload Files</label>
+                    <input asp-for="Attachments" class="form-control" type="file" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
             </div>
         </div>

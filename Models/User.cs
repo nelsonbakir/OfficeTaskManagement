@@ -5,5 +5,6 @@ namespace OfficeTaskManagement.Models
     public class User : IdentityUser
     {
         public string? FullName { get; set; }
+        public string? AvatarPath { get; set; }
     }
 }

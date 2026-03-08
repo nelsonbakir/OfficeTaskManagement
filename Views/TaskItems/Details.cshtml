@@ -1,4 +1,5 @@
 @model OfficeTaskManagement.Models.TaskItem
+@inject OfficeTaskManagement.Services.IMediaService MediaService
 
 @{
     ViewData["Title"] = "Task Details";
@@ -302,7 +303,7 @@
                         <div class="attachment-item">
                             <i class="fas fa-file-alt"></i>
                             <div class="attachment-info">
-                                <a href="@attachment.FilePath" target="_blank" class="attachment-name">@attachment.FileName</a>
+                                <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank" class="attachment-name">@attachment.FileName</a>
                                 <div class="attachment-meta">
                                     Uploaded by @(attachment.UploadedBy?.FullName ?? "Unknown") on @attachment.UploadedAt.ToString("MMM dd, yyyy HH:mm")
                                 </div>
@@ -418,7 +419,14 @@
                 <div class="info-label">Assigned To</div>
                 @if (Model.Assignee != null) {
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <div class="assignee-avatar">@Model.Assignee.FullName[0]</div>
+                        @if (!string.IsNullOrEmpty(Model.Assignee.AvatarPath))
+                        {
+                            <img src="@MediaService.GetUrl(Model.Assignee.AvatarPath)" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" alt="@Model.Assignee.FullName" />
+                        }
+                        else
+                        {
+                            <div class="assignee-avatar">@Model.Assignee.FullName[0]</div>
+                        }
                         <span class="info-value">@Model.Assignee.FullName</span>
                     </div>
                 } else {

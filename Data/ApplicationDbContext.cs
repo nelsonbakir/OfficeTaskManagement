@@ -17,7 +17,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<Sprint> Sprints { get; set; }
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<TaskHistory> TaskHistories { get; set; }
-        public DbSet<TaskAttachment> TaskAttachments { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
         public DbSet<TaskComment> TaskComments { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Area> Areas { get; set; }
@@ -96,13 +96,43 @@ namespace OfficeTaskManagement.Data
                 .HasForeignKey(th => th.ChangedById)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            builder.Entity<TaskAttachment>()
+            builder.Entity<Attachment>()
                 .HasOne(ta => ta.TaskItem)
                 .WithMany(t => t.Attachments)
                 .HasForeignKey(ta => ta.TaskItemId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<TaskAttachment>()
+            builder.Entity<Attachment>()
+                .HasOne(ta => ta.Project)
+                .WithMany(p => p.Attachments)
+                .HasForeignKey(ta => ta.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attachment>()
+                .HasOne(ta => ta.Epic)
+                .WithMany(e => e.Attachments)
+                .HasForeignKey(ta => ta.EpicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attachment>()
+                .HasOne(ta => ta.Feature)
+                .WithMany(f => f.Attachments)
+                .HasForeignKey(ta => ta.FeatureId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attachment>()
+                .HasOne(ta => ta.UserStory)
+                .WithMany(us => us.Attachments)
+                .HasForeignKey(ta => ta.UserStoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attachment>()
+                .HasOne(ta => ta.TestCase)
+                .WithMany(tc => tc.Attachments)
+                .HasForeignKey(ta => ta.TestCaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Attachment>()
                 .HasOne(ta => ta.UploadedBy)
                 .WithMany()
                 .HasForeignKey(ta => ta.UploadedById)

@@ -21,5 +21,6 @@ namespace OfficeTaskManagement.Models
         public string ExpectedResult { get; set; } = string.Empty;
 
         public bool IsAutomated { get; set; } = false;
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

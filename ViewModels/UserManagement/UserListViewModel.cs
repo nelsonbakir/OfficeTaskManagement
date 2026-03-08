@@ -8,6 +8,7 @@ namespace OfficeTaskManagement.ViewModels.UserManagement
         public List<string> Roles { get; set; } = new List<string>();
         public bool IsActive { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public string? AvatarPath { get; set; }
         public int? TotalTasks { get; set; }
         public int? CompletedTasks { get; set; }
     }

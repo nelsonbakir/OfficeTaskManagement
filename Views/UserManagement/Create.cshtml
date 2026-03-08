@@ -160,11 +160,26 @@
     </a>
 </div>
 
-<form asp-action="Create" method="post">
+<form asp-action="Create" method="post" enctype="multipart/form-data">
     <div class="item-editor-container">
         <!-- Main Editor Area -->
         <div class="item-editor-main">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-image"></i> Profile Avatar</h3>
+                <div class="d-flex align-items-center gap-4">
+                    <div style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid #EDEBE9; overflow: hidden; background: #F8F8F8; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-user text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <label asp-for="Avatar" class="form-label text-dark fw-bold">Upload Avatar</label>
+                        <input asp-for="Avatar" type="file" class="form-control" accept="image/*" />
+                        <span asp-validation-for="Avatar" class="text-danger small"></span>
+                        <div class="text-muted mt-1 small">Recommended size: 200x200px. JPG, PNG or GIF.</div>
+                    </div>
+                </div>
+            </div>
 
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-id-card"></i> Profile Details</h3>

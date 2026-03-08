@@ -25,5 +25,6 @@ namespace OfficeTaskManagement.Models
 
         public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

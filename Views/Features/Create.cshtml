@@ -1,4 +1,4 @@
-@model OfficeTaskManagement.Models.Feature
+@model OfficeTaskManagement.ViewModels.FeatureViewModel
 
 @{
     ViewData["Title"] = "Create Feature";
@@ -11,22 +11,31 @@
     </a>
 </div>
 
-<form asp-action="Create">
+<form asp-action="Create" enctype="multipart/form-data">
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
 
             <!-- Title -->
-            <input asp-for="Name" class="item-title-input" placeholder="Feature title" />
-            <span asp-validation-for="Name" class="text-danger small"></span>
+            <input asp-for="Feature.Name" class="item-title-input" placeholder="Feature title" />
+            <span asp-validation-for="Feature.Name" class="text-danger small"></span>
 
             <!-- Description Section -->
-            <div class="form-section mb-0">
+            <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+                <div class="form-group">
+                    <textarea asp-for="Feature.Description" class="form-control" placeholder="Describe the feature's specific requirements..." rows="8"></textarea>
+                    <span asp-validation-for="Feature.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Attachments Section -->
+            <div class="form-section mb-0">
+                <h3 class="form-section-title"><i class="fas fa-paperclip"></i> Initial Attachments</h3>
                 <div class="form-group mb-0">
-                    <textarea asp-for="Description" class="form-control" placeholder="Describe the feature's specific requirements..." rows="8"></textarea>
-                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <input asp-for="Attachments" type="file" class="form-control" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
             </div>
         </div>
@@ -36,11 +45,11 @@
             <div class="sidebar-panel">
                 <h3 class="sidebar-panel-title">Details</h3>
                 <div class="form-group mb-0">
-                    <label asp-for="EpicId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Epic</label>
-                    <select asp-for="EpicId" class="form-select" asp-items="ViewBag.EpicId">
+                    <label asp-for="Feature.EpicId" class="control-label fw-bold" style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase;">Epic</label>
+                    <select asp-for="Feature.EpicId" class="form-select" asp-items="ViewBag.EpicId">
                         <option value="">-- Select Epic --</option>
                     </select>
-                    <span asp-validation-for="EpicId" class="text-danger small"></span>
+                    <span asp-validation-for="Feature.EpicId" class="text-danger small"></span>
                 </div>
             </div>
 

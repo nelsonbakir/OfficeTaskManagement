@@ -60,7 +60,7 @@ namespace OfficeTaskManagement.Models
         public ICollection<TaskItem> SubTasks { get; set; } = new List<TaskItem>();
 
         public ICollection<TaskHistory> History { get; set; } = new List<TaskHistory>();
-        public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
         public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
     }
 }

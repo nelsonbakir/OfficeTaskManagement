@@ -24,5 +24,6 @@ namespace OfficeTaskManagement.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<Feature> Features { get; set; } = new List<Feature>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

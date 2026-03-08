@@ -1,4 +1,6 @@
 @model OfficeTaskManagement.Models.TestCase
+@using OfficeTaskManagement.Services
+@inject IMediaService MediaService
 
 @{
     ViewData["Title"] = "Test Case Details";
@@ -29,6 +31,35 @@
             </div>
             <div class="card-body">
                 <div style="white-space: pre-wrap;">@Model.ExpectedResult</div>
+            </div>
+        </div>
+
+        <!-- Attachments Section -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Attachments (@(Model.Attachments?.Count ?? 0))</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.Attachments != null && Model.Attachments.Any())
+                {
+                    <div class="list-group list-group-flush">
+                        @foreach (var attachment in Model.Attachments)
+                        {
+                            <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-file me-2 text-primary"></i>
+                                    @attachment.FileName
+                                    <small class="text-muted ms-2">Uploaded by @(attachment.UploadedBy?.FullName ?? "Unknown") on @attachment.UploadedAt.ToString("MMM dd")</small>
+                                </div>
+                                <i class="fas fa-external-link-alt text-muted small"></i>
+                            </a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted">No attachments.</div>
+                }
             </div>
         </div>
     </div>

@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Models.Settings;
+using OfficeTaskManagement.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +40,19 @@ builder.Services.AddAuthentication()
     });
 
 builder.Services.AddHttpClient<OfficeTaskManagement.Services.IGeminiAnalyticsService, OfficeTaskManagement.Services.GeminiAnalyticsService>();
+
+// Media Service Configuration
+builder.Services.Configure<MediaSettings>(builder.Configuration.GetSection(MediaSettings.SectionName));
+var mediaProvider = builder.Configuration.GetValue<string>("MediaSettings:Provider") ?? "Local";
+
+if (mediaProvider.Equals("S3", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IMediaService, S3MediaService>();
+}
+else
+{
+    builder.Services.AddScoped<IMediaService, LocalMediaService>();
+}
 
 builder.Services.AddControllersWithViews();
 

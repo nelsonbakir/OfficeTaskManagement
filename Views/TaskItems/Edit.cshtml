@@ -1,6 +1,7 @@
 @model OfficeTaskManagement.ViewModels.TaskItemViewModel
 @using OfficeTaskManagement.Data
 @inject ApplicationDbContext DbContext
+@inject OfficeTaskManagement.Services.IMediaService MediaService
 @{ 
     ViewData["Title"] = "Edit Task"; 
     var allUsers = DbContext.Users.ToList();
@@ -494,9 +495,9 @@
                 </h3>
                 
                 <div class="form-group">
-                    <label class="form-label">Upload New File</label>
-                    <input asp-for="Attachment" class="form-control" type="file" />
-                    <span asp-validation-for="Attachment" class="text-danger small"></span>
+                    <label class="form-label">Upload New Files</label>
+                    <input asp-for="Attachments" class="form-control" type="file" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
 
                 @if (Model.TaskItem.Attachments.Any())
@@ -507,7 +508,7 @@
                             <div class="attachment-item">
                                 <i class="fas fa-file-alt"></i>
                                 <div class="attachment-info">
-                                    <a href="@attachment.FilePath" target="_blank" class="attachment-name">@attachment.FileName</a>
+                                    <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank" class="attachment-name">@attachment.FileName</a>
                                     <div class="attachment-meta">
                                         Uploaded by @(attachment.UploadedBy?.FullName ?? "Unknown") on @attachment.UploadedAt.ToString("MMM dd, yyyy HH:mm")
                                     </div>

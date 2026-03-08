@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.ViewModels;
+using OfficeTaskManagement.Services;
 using TaskStatus = OfficeTaskManagement.Models.Enums.TaskStatus;
 
 namespace OfficeTaskManagement.Controllers
@@ -22,11 +23,13 @@ namespace OfficeTaskManagement.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly IMediaService _mediaService;
 
-        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env)
+        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService)
         {
             _context = context;
             _env = env;
+            _mediaService = mediaService;
         }
 
         // GET: TaskItems
@@ -187,51 +190,27 @@ namespace OfficeTaskManagement.Controllers
                     Timestamp = DateTime.UtcNow
                 });
 
-                // Handle Attachment
-                if (vm.Attachment != null)
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
                 {
-                    string uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
-                    if (!Directory.Exists(uploadsFolder))
+                    foreach (var file in vm.Attachments)
                     {
-                        Directory.CreateDirectory(uploadsFolder);
-                    }
-
-                    var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt" };
-                    var extension = Path.GetExtension(vm.Attachment.FileName).ToLowerInvariant();
-                    
-                    if (allowedExtensions.Contains(extension))
-                    {
-                        string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(vm.Attachment.FileName);
-                        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
+                        using (var stream = file.OpenReadStream())
                         {
-                            await vm.Attachment.CopyToAsync(fileStream);
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                TaskItemId = vm.TaskItem.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = currentUserId,
+                                UploadedAt = DateTime.UtcNow
+                            });
                         }
-
-                        _context.TaskAttachments.Add(new TaskAttachment
-                        {
-                            TaskItemId = vm.TaskItem.Id,
-                            FileName = vm.Attachment.FileName,
-                            FilePath = "/uploads/" + uniqueFileName,
-                            UploadedById = User.FindFirstValue(ClaimTypes.NameIdentifier)
-                        });
                     }
-                    else
-                    {
-                        ModelState.AddModelError("Attachment", "Invalid file type.");
-                        vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
-                        vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
-                        vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
-                        vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
-                        vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
-                        vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
-                        vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
-                        return View(vm);
-                    }
+                    await _context.SaveChangesAsync();
                 }
 
-                await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
             
@@ -447,55 +426,31 @@ namespace OfficeTaskManagement.Controllers
                         }
                     }
 
-                    // Handle Attachment
-                    if (vm.Attachment != null)
+                    // Handle Attachments
+                    if (vm.Attachments != null && vm.Attachments.Any())
                     {
-                        string uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
-                        if (!Directory.Exists(uploadsFolder))
+                        foreach (var file in vm.Attachments)
                         {
-                            Directory.CreateDirectory(uploadsFolder);
-                        }
-
-                        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt" };
-                        var extension = Path.GetExtension(vm.Attachment.FileName).ToLowerInvariant();
-                        
-                        if (allowedExtensions.Contains(extension))
-                        {
-                            string uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(vm.Attachment.FileName);
-                            string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                            using (var fileStream = new FileStream(filePath, FileMode.Create))
+                            using (var stream = file.OpenReadStream())
                             {
-                                await vm.Attachment.CopyToAsync(fileStream);
+                                var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                _context.Attachments.Add(new Attachment
+                                {
+                                    TaskItemId = existingTask.Id,
+                                    FileName = file.FileName,
+                                    FilePath = filePath,
+                                    UploadedById = userId,
+                                    UploadedAt = DateTime.UtcNow
+                                });
                             }
-
-                            _context.TaskAttachments.Add(new TaskAttachment
-                            {
-                                TaskItemId = vm.TaskItem.Id,
-                                FileName = vm.Attachment.FileName,
-                                FilePath = "/uploads/" + uniqueFileName,
-                                UploadedById = userId
-                            });
-                            
-                            _context.TaskHistories.Add(new TaskHistory
-                            {
-                                TaskItemId = vm.TaskItem.Id,
-                                ChangedById = userId,
-                                ChangeDescription = "Attachment added."
-                            });
                         }
-                        else
+                        
+                        _context.TaskHistories.Add(new TaskHistory
                         {
-                            ModelState.AddModelError("Attachment", "Invalid file type.");
-                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
-                            vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
-                            vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
-                            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
-                            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
-                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
-                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
-                            return View(vm);
-                        }
+                            TaskItemId = vm.TaskItem.Id,
+                            ChangedById = userId,
+                            ChangeDescription = "Attachments added."
+                        });
                     }
 
                     await _context.SaveChangesAsync();
@@ -565,36 +520,33 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         public async Task<IActionResult> DeleteAttachment(int id)
         {
-            var attachment = await _context.TaskAttachments.FindAsync(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
             if (attachment == null) return NotFound();
 
             var taskId = attachment.TaskItemId;
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
+            if (taskId == null) return BadRequest("Attachment is not linked to a task.");
+            
             // Access check: only the uploader, or Manager/ProjectLead can delete it
             if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
             {
                 return Forbid();
             }
 
-            var filePath = Path.Combine(_env.WebRootPath, attachment.FilePath.TrimStart('/'));
-            if (System.IO.File.Exists(filePath))
-            {
-                System.IO.File.Delete(filePath);
-            }
+            await _mediaService.DeleteAsync(attachment.FilePath);
 
-            _context.TaskAttachments.Remove(attachment);
+            _context.Attachments.Remove(attachment);
             
             _context.TaskHistories.Add(new TaskHistory
             {
-                TaskItemId = taskId,
+                TaskItemId = taskId.Value,
                 ChangedById = userId,
                 ChangeDescription = $"Attachment '{attachment.FileName}' deleted.",
                 Timestamp = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Edit), new { id = taskId });
+            return RedirectToAction(nameof(Edit), new { id = taskId.Value });
         }
 
         // POST: TaskItems/AddComment
@@ -609,7 +561,7 @@ namespace OfficeTaskManagement.Controllers
             var comment = new TaskComment
             {
                 TaskId = taskId,
-                UserId = userId,
+                UserId = userId!,
                 CommentText = text,
                 CreatedAt = DateTime.UtcNow
             };

@@ -14,6 +14,7 @@ namespace OfficeTaskManagement.Models
         public string Name { get; set; } = string.Empty;
 
         public string? Description { get; set; }
+        public string? LogoPath { get; set; }
 
         public string? CreatedById { get; set; }
         public User? CreatedBy { get; set; }
@@ -22,5 +23,6 @@ namespace OfficeTaskManagement.Models
 
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
         public ICollection<Epic> Epics { get; set; } = new List<Epic>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

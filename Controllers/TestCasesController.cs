@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
+using OfficeTaskManagement.ViewModels;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -15,10 +18,12 @@ namespace OfficeTaskManagement.Controllers
     public class TestCasesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public TestCasesController(ApplicationDbContext context)
+        public TestCasesController(ApplicationDbContext context, IMediaService mediaService)
         {
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: TestCases
@@ -38,6 +43,7 @@ namespace OfficeTaskManagement.Controllers
 
             var testCase = await _context.TestCases
                 .Include(t => t.UserStory)
+                .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (testCase == null)
             {
@@ -48,25 +54,48 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: TestCases/Create
-        public IActionResult Create()
+        public IActionResult Create(int? userStoryId)
         {
-            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title");
-            return View();
+            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", userStoryId);
+            return View(new TestCaseViewModel { TestCase = new TestCase { UserStoryId = userStoryId ?? 0 } });
         }
 
         // POST: TestCases/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,UserStoryId,Title,Steps,ExpectedResult,IsAutomated")] TestCase testCase)
+        public async Task<IActionResult> Create(TestCaseViewModel vm)
         {
             if (ModelState.IsValid)
             {
-                _context.Add(testCase);
+                _context.Add(vm.TestCase);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
+                {
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    foreach (var file in vm.Attachments)
+                    {
+                        using (var stream = file.OpenReadStream())
+                        {
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                TestCaseId = vm.TestCase.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = userId,
+                                UploadedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
+                return RedirectToAction(nameof(Details), new { id = vm.TestCase.Id });
             }
-            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", testCase.UserStoryId);
-            return View(testCase);
+            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", vm.TestCase.UserStoryId);
+            return View(vm);
         }
 
         // GET: TestCases/Edit/5
@@ -77,21 +106,23 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var testCase = await _context.TestCases.FindAsync(id);
+            var testCase = await _context.TestCases
+                .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
+                .FirstOrDefaultAsync(t => t.Id == id);
             if (testCase == null)
             {
                 return NotFound();
             }
             ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", testCase.UserStoryId);
-            return View(testCase);
+            return View(new TestCaseViewModel { TestCase = testCase });
         }
 
         // POST: TestCases/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,UserStoryId,Title,Steps,ExpectedResult,IsAutomated")] TestCase testCase)
+        public async Task<IActionResult> Edit(int id, TestCaseViewModel vm)
         {
-            if (id != testCase.Id)
+            if (id != vm.TestCase.Id)
             {
                 return NotFound();
             }
@@ -100,12 +131,34 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    _context.Update(testCase);
+                    _context.Update(vm.TestCase);
+                    
+                    // Handle new attachments
+                    if (vm.Attachments != null && vm.Attachments.Any())
+                    {
+                        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        foreach (var file in vm.Attachments)
+                        {
+                            using (var stream = file.OpenReadStream())
+                            {
+                                var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                _context.Attachments.Add(new Attachment
+                                {
+                                    TestCaseId = vm.TestCase.Id,
+                                    FileName = file.FileName,
+                                    FilePath = filePath,
+                                    UploadedById = userId,
+                                    UploadedAt = DateTime.UtcNow
+                                });
+                            }
+                        }
+                    }
+
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!TestCaseExists(testCase.Id))
+                    if (!TestCaseExists(vm.TestCase.Id))
                     {
                         return NotFound();
                     }
@@ -114,10 +167,10 @@ namespace OfficeTaskManagement.Controllers
                         throw;
                     }
                 }
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Details), new { id = vm.TestCase.Id });
             }
-            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", testCase.UserStoryId);
-            return View(testCase);
+            ViewData["UserStoryId"] = new SelectList(_context.UserStories, "Id", "Title", vm.TestCase.UserStoryId);
+            return View(vm);
         }
 
         // GET: TestCases/Delete/5
@@ -152,6 +205,30 @@ namespace OfficeTaskManagement.Controllers
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
+        }
+
+        // POST: TestCases/DeleteAttachment/5
+        [HttpPost]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var testCaseId = attachment.TestCaseId;
+            if (testCaseId == null) return BadRequest("Attachment is not linked to a test case.");
+            
+            // Access check
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            await _mediaService.DeleteAsync(attachment.FilePath);
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Edit), new { id = testCaseId.Value });
         }
 
         private bool TestCaseExists(int id)

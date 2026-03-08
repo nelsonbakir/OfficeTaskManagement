@@ -30,5 +30,6 @@ namespace OfficeTaskManagement.Models
 
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
         public ICollection<TestCase> TestCases { get; set; } = new List<TestCase>();
+        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

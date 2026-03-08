@@ -1,4 +1,7 @@
 @model OfficeTaskManagement.Models.Project
+@using OfficeTaskManagement.Services
+@inject IMediaService MediaService
+
 @{ 
     ViewData["Title"] = Model.Name;
     var sprints = Model.Sprints ?? new List<OfficeTaskManagement.Models.Sprint>();
@@ -17,8 +20,24 @@
     .project-title-section {
         display: flex;
         justify-content: space-between;
-        align-items: start;
+        align-items: center;
         margin-bottom: 1.5rem;
+    }
+
+    .project-title-container {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .project-logo-large {
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+        border: 1px solid #EDEBE9;
+        border-radius: 8px;
+        padding: 4px;
+        background: white;
     }
 
     .project-title-section h1 {
@@ -294,33 +313,86 @@
     .btn-inline-secondary:hover {
         background: #F3F2F1;
     }
+
+    .attachment-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid #EDEBE9;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .attachment-card:hover {
+        background: #F3F2F1;
+        border-color: #0078D4;
+    }
+
+    .attachment-icon {
+        font-size: 1.5rem;
+        color: #0078D4;
+        margin-right: 1.25rem;
+    }
+
+    .attachment-details {
+        flex: 1;
+    }
+
+    .attachment-name {
+        font-weight: 600;
+        display: block;
+    }
+
+    .attachment-meta {
+        font-size: 0.8rem;
+        color: #605E5C;
+    }
 </style>
 
 <div class="project-header">
     <div class="project-title-section">
-        <h1>
-            <i class="fas fa-folder-open"></i> @Model.Name
-        </h1>
+        <div class="project-title-container">
+            @if (!string.IsNullOrEmpty(Model.LogoPath))
+            {
+                <img src="@MediaService.GetUrl(Model.LogoPath)" alt="@Model.Name Logo" class="project-logo-large" />
+            }
+            <h1>
+                @if (string.IsNullOrEmpty(Model.LogoPath))
+                {
+                    <i class="fas fa-folder-open"></i>
+                }
+                @Model.Name
+            </h1>
+        </div>
         <div class="project-header-actions">
             @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
                 <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-pen-to-square"></i> Edit
                 </a>
-                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            } else {
-                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
             }
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
         </div>
     </div>
 
     <div class="project-info">
         <div class="info-item">
             <span class="info-label">Owner</span>
-            <span class="info-value">@Html.DisplayFor(model => model.CreatedBy.FullName)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;" class="info-value">
+                @if (Model.CreatedBy != null && !string.IsNullOrEmpty(Model.CreatedBy.AvatarPath))
+                {
+                    <img src="@MediaService.GetUrl(Model.CreatedBy.AvatarPath)" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;" alt="@Model.CreatedBy.FullName" />
+                }
+                else
+                {
+                    <i class="fas fa-user-circle text-muted"></i>
+                }
+                @Html.DisplayFor(model => model.CreatedBy.FullName)
+            </div>
         </div>
         <div class="info-item">
             <span class="info-label">Sprints</span>
@@ -359,9 +431,51 @@
             <i class="fas fa-check-circle"></i> All Tasks
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#attachments">
+            <i class="fas fa-paperclip"></i> Attachments (@(Model.Attachments?.Count ?? 0))
+        </a>
+    </li>
 </ul>
 
 <div class="tab-content" style="background: white; padding: 2rem;">
+    <!-- Attachments Tab -->
+    <div id="attachments" class="tab-pane fade">
+        <div class="section-header" style="margin-top: 1.5rem;">
+            <h2>Project Attachments</h2>
+            @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-plus"></i> Add Attachments
+                </a>
+            }
+        </div>
+
+        @if (Model.Attachments != null && Model.Attachments.Any()) {
+            <div style="margin-top: 1.5rem;">
+                @foreach (var attachment in Model.Attachments) {
+                    <a href="@MediaService.GetUrl(attachment.FilePath)" target="_blank" class="attachment-card">
+                        <div class="attachment-icon">
+                            @if (attachment.FileName.EndsWith(".pdf")) { <i class="fas fa-file-pdf"></i> }
+                            else if (attachment.FileName.EndsWith(".jpg") || attachment.FileName.EndsWith(".jpeg") || attachment.FileName.EndsWith(".png")) { <i class="fas fa-file-image"></i> }
+                            else { <i class="fas fa-file"></i> }
+                        </div>
+                        <div class="attachment-details">
+                            <span class="attachment-name">@attachment.FileName</span>
+                            <span class="attachment-meta">
+                                Uploaded by @(attachment.UploadedBy?.FullName ?? "Unknown") on @attachment.UploadedAt.ToString("MMM dd, yyyy")
+                            </span>
+                        </div>
+                        <i class="fas fa-external-link-alt text-muted"></i>
+                    </a>
+                }
+            </div>
+        } else {
+            <div class="empty-list" style="margin-top: 1.5rem;">
+                <i class="fas fa-paperclip"></i>
+                No attachments yet
+            </div>
+        }
+    </div>
     <!-- Epics Tab -->
     <div id="epics" class="tab-pane fade">
         @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {

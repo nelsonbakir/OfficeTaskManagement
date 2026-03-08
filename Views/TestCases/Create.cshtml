@@ -1,4 +1,4 @@
-@model OfficeTaskManagement.Models.TestCase
+@model OfficeTaskManagement.ViewModels.TestCaseViewModel
 
 @{
     ViewData["Title"] = "Create Test Case";
@@ -10,33 +10,40 @@
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <form asp-action="Create">
+                <form asp-action="Create" enctype="multipart/form-data">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <div class="mb-3">
-                        <label asp-for="UserStoryId" class="form-label font-weight-bold">User Story</label>
-                        <select asp-for="UserStoryId" class="form-select" asp-items="ViewBag.UserStoryId">
+                        <label asp-for="TestCase.UserStoryId" class="form-label font-weight-bold">User Story</label>
+                        <select asp-for="TestCase.UserStoryId" class="form-select" asp-items="ViewBag.UserStoryId">
                             <option value="">-- Select User Story --</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Title" class="form-label font-weight-bold"></label>
-                        <input asp-for="Title" class="form-control" placeholder="Test Case Title" />
-                        <span asp-validation-for="Title" class="text-danger"></span>
+                        <label asp-for="TestCase.Title" class="form-label font-weight-bold"></label>
+                        <input asp-for="TestCase.Title" class="form-control" placeholder="Test Case Title" />
+                        <span asp-validation-for="TestCase.Title" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Steps" class="form-label font-weight-bold"></label>
-                        <textarea asp-for="Steps" class="form-control" rows="5" placeholder="1. Go to...&#10;2. Click..."></textarea>
-                        <span asp-validation-for="Steps" class="text-danger"></span>
+                        <label asp-for="TestCase.Steps" class="form-label font-weight-bold"></label>
+                        <textarea asp-for="TestCase.Steps" class="form-control" rows="5" placeholder="1. Go to...&#10;2. Click..."></textarea>
+                        <span asp-validation-for="TestCase.Steps" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="ExpectedResult" class="form-label font-weight-bold">Expected Result</label>
-                        <textarea asp-for="ExpectedResult" class="form-control" rows="3"></textarea>
-                        <span asp-validation-for="ExpectedResult" class="text-danger"></span>
+                        <label asp-for="TestCase.ExpectedResult" class="form-label font-weight-bold">Expected Result</label>
+                        <textarea asp-for="TestCase.ExpectedResult" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="TestCase.ExpectedResult" class="text-danger"></span>
                     </div>
                     <div class="form-check mb-3">
-                        <input asp-for="IsAutomated" class="form-check-input" />
-                        <label asp-for="IsAutomated" class="form-check-label font-weight-bold">Is Automated?</label>
+                        <input asp-for="TestCase.IsAutomated" class="form-check-input" />
+                        <label asp-for="TestCase.IsAutomated" class="form-check-label font-weight-bold">Is Automated?</label>
                     </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Attachments" class="form-label font-weight-bold">Initial Attachments</label>
+                        <input asp-for="Attachments" type="file" class="form-control" multiple />
+                        <span asp-validation-for="Attachments" class="text-danger small"></span>
+                    </div>
+
                     <div class="mt-4">
                         <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Create</button>
                         <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>

@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.ViewModels;
+using OfficeTaskManagement.Services;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -16,10 +20,12 @@ namespace OfficeTaskManagement.Controllers
     public class UserStoriesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public UserStoriesController(ApplicationDbContext context)
+        public UserStoriesController(ApplicationDbContext context, IMediaService mediaService)
         {
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: UserStories
@@ -42,6 +48,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(u => u.Feature)
                 .Include(u => u.Tasks)
                 .Include(u => u.TestCases)
+                .Include(u => u.Attachments)
+                    .ThenInclude(a => a.UploadedBy)
                 .FirstOrDefaultAsync(m => m.Id == id);
             if (userStory == null)
             {
@@ -61,18 +69,42 @@ namespace OfficeTaskManagement.Controllers
         // POST: UserStories/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,FeatureId,Title,Description,AcceptanceCriteria,Priority")] UserStory userStory)
+        public async Task<IActionResult> Create(UserStoryViewModel vm)
         {
             if (ModelState.IsValid)
             {
-                userStory.CreatedById = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                userStory.CreatedAt = DateTime.UtcNow;
-                _context.Add(userStory);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                vm.UserStory.CreatedById = userId;
+                vm.UserStory.CreatedAt = DateTime.UtcNow;
+
+                _context.Add(vm.UserStory);
                 await _context.SaveChangesAsync();
+
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
+                {
+                    foreach (var file in vm.Attachments)
+                    {
+                        using (var stream = file.OpenReadStream())
+                        {
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                UserStoryId = vm.UserStory.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = userId,
+                                UploadedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["FeatureId"] = new SelectList(_context.Features, "Id", "Name", userStory.FeatureId);
-            return View(userStory);
+            ViewData["FeatureId"] = new SelectList(_context.Features, "Id", "Name", vm.UserStory.FeatureId);
+            return View(vm);
         }
 
         // GET: UserStories/Edit/5
@@ -83,21 +115,23 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var userStory = await _context.UserStories.FindAsync(id);
+            var userStory = await _context.UserStories
+                .Include(u => u.Attachments)
+                .FirstOrDefaultAsync(m => m.Id == id);
             if (userStory == null)
             {
                 return NotFound();
             }
             ViewData["FeatureId"] = new SelectList(_context.Features, "Id", "Name", userStory.FeatureId);
-            return View(userStory);
+            return View(new UserStoryViewModel { UserStory = userStory });
         }
 
         // POST: UserStories/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,FeatureId,Title,Description,AcceptanceCriteria,Priority")] UserStory userStory)
+        public async Task<IActionResult> Edit(int id, UserStoryViewModel vm)
         {
-            if (id != userStory.Id)
+            if (id != vm.UserStory.Id)
             {
                 return NotFound();
             }
@@ -106,18 +140,44 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    var existing = await _context.UserStories.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+                    var existing = await _context.UserStories
+                        .Include(u => u.Attachments)
+                        .FirstOrDefaultAsync(u => u.Id == id);
                     if (existing == null) return NotFound();
                     
-                    userStory.CreatedById = existing.CreatedById;
-                    userStory.CreatedAt = existing.CreatedAt;
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    existing.Title = vm.UserStory.Title;
+                    existing.Description = vm.UserStory.Description;
+                    existing.AcceptanceCriteria = vm.UserStory.AcceptanceCriteria;
+                    existing.FeatureId = vm.UserStory.FeatureId;
+                    existing.Priority = vm.UserStory.Priority;
                     
-                    _context.Update(userStory);
+                    // Handle New Attachments
+                    if (vm.Attachments != null && vm.Attachments.Any())
+                    {
+                        foreach (var file in vm.Attachments)
+                        {
+                            using (var stream = file.OpenReadStream())
+                            {
+                                var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                _context.Attachments.Add(new Attachment
+                                {
+                                    UserStoryId = existing.Id,
+                                    FileName = file.FileName,
+                                    FilePath = filePath,
+                                    UploadedById = userId,
+                                    UploadedAt = DateTime.UtcNow
+                                });
+                            }
+                        }
+                    }
+
+                    _context.Update(existing);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!UserStoryExists(userStory.Id))
+                    if (!UserStoryExists(vm.UserStory.Id))
                     {
                         return NotFound();
                     }
@@ -128,8 +188,31 @@ namespace OfficeTaskManagement.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["FeatureId"] = new SelectList(_context.Features, "Id", "Name", userStory.FeatureId);
-            return View(userStory);
+            ViewData["FeatureId"] = new SelectList(_context.Features, "Id", "Name", vm.UserStory.FeatureId);
+            return View(vm);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var userStoryId = attachment.UserStoryId;
+            if (userStoryId == null) return BadRequest();
+
+            // Access check
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            await _mediaService.DeleteAsync(attachment.FilePath);
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Edit), new { id = userStoryId.Value });
         }
 
         // GET: UserStories/Delete/5

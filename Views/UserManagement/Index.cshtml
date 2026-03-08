@@ -1,4 +1,5 @@
 @model List<OfficeTaskManagement.ViewModels.UserManagement.UserListViewModel>
+@inject OfficeTaskManagement.Services.IMediaService MediaService
 
 @{
     ViewData["Title"] = "User Management";
@@ -208,9 +209,16 @@
                             <tr class="@(!user.IsActive ? "opacity-50 bg-light" : "")">
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
-                                        <div style="width: 40px; height: 40px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem;">
-                                            @(string.IsNullOrWhiteSpace(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
-                                        </div>
+                                        @if (!string.IsNullOrEmpty(user.AvatarPath))
+                                        {
+                                            <img src="@MediaService.GetUrl(user.AvatarPath)" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="@user.FullName" />
+                                        }
+                                        else
+                                        {
+                                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem;">
+                                                @(string.IsNullOrWhiteSpace(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
+                                            </div>
+                                        }
                                         <div>
                                             <div style="font-weight: 600; color: #252424;">@user.FullName</div>
                                             <div style="font-size: 0.85rem; color: #605E5C;">@user.Email</div>

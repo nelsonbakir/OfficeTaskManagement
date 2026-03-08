@@ -1,4 +1,4 @@
-@model OfficeTaskManagement.Models.UserStory
+@model OfficeTaskManagement.ViewModels.UserStoryViewModel
 
 @{
     ViewData["Title"] = "Create User Story";
@@ -10,33 +10,38 @@
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <form asp-action="Create">
+                <form asp-action="Create" enctype="multipart/form-data">
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <div class="mb-3">
-                        <label asp-for="FeatureId" class="form-label font-weight-bold">Feature</label>
-                        <select asp-for="FeatureId" class="form-select" asp-items="ViewBag.FeatureId">
+                        <label asp-for="UserStory.FeatureId" class="form-label font-weight-bold">Feature</label>
+                        <select asp-for="UserStory.FeatureId" class="form-select" asp-items="ViewBag.FeatureId">
                             <option value="">-- Select Feature --</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Title" class="form-label font-weight-bold"></label>
-                        <input asp-for="Title" class="form-control" placeholder="User Story Title" />
-                        <span asp-validation-for="Title" class="text-danger"></span>
+                        <label asp-for="UserStory.Title" class="form-label font-weight-bold"></label>
+                        <input asp-for="UserStory.Title" class="form-control" placeholder="User Story Title" />
+                        <span asp-validation-for="UserStory.Title" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Description" class="form-label font-weight-bold"></label>
-                        <textarea asp-for="Description" class="form-control" rows="3" placeholder="I want to... so that..."></textarea>
-                        <span asp-validation-for="Description" class="text-danger"></span>
+                        <label asp-for="UserStory.Description" class="form-label font-weight-bold"></label>
+                        <textarea asp-for="UserStory.Description" class="form-control" rows="3" placeholder="I want to... so that..."></textarea>
+                        <span asp-validation-for="UserStory.Description" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="AcceptanceCriteria" class="form-label font-weight-bold">Acceptance Criteria</label>
-                        <textarea asp-for="AcceptanceCriteria" class="form-control" rows="4"></textarea>
-                        <span asp-validation-for="AcceptanceCriteria" class="text-danger"></span>
+                        <label asp-for="UserStory.AcceptanceCriteria" class="form-label font-weight-bold">Acceptance Criteria</label>
+                        <textarea asp-for="UserStory.AcceptanceCriteria" class="form-control" rows="4"></textarea>
+                        <span asp-validation-for="UserStory.AcceptanceCriteria" class="text-danger"></span>
                     </div>
                     <div class="mb-3">
-                        <label asp-for="Priority" class="form-label font-weight-bold"></label>
-                        <select asp-for="Priority" class="form-select" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskPriority>()"></select>
-                        <span asp-validation-for="Priority" class="text-danger"></span>
+                        <label asp-for="UserStory.Priority" class="form-label font-weight-bold"></label>
+                        <select asp-for="UserStory.Priority" class="form-select" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskPriority>()"></select>
+                        <span asp-validation-for="UserStory.Priority" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Attachments" class="form-label font-weight-bold">Initial Attachments</label>
+                        <input asp-for="Attachments" type="file" class="form-control" multiple />
+                        <span asp-validation-for="Attachments" class="text-danger small"></span>
                     </div>
                     <div class="mt-4">
                         <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Create</button>

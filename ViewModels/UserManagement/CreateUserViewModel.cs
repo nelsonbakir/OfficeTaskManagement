@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using System.Collections.Generic;
+
 namespace OfficeTaskManagement.ViewModels.UserManagement
 {
     public class CreateUserViewModel
@@ -8,5 +11,6 @@ namespace OfficeTaskManagement.ViewModels.UserManagement
         public string ConfirmPassword { get; set; }
         public List<string> SelectedRoles { get; set; } = new List<string>();
         public List<string> AvailableRoles { get; set; } = new List<string>();
+        public IFormFile? Avatar { get; set; }
     }
 }

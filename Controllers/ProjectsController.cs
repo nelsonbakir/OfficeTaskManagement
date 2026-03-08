@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
+using OfficeTaskManagement.ViewModels;
+using Microsoft.AspNetCore.Http;
+using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -16,10 +20,12 @@ namespace OfficeTaskManagement.Controllers
     public class ProjectsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public ProjectsController(ApplicationDbContext context)
+        public ProjectsController(ApplicationDbContext context, IMediaService mediaService)
         {
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: Projects
@@ -54,6 +60,8 @@ namespace OfficeTaskManagement.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Projects
                 .Include(p => p.CreatedBy)
+                .Include(p => p.Attachments)
+                    .ThenInclude(a => a.UploadedBy)
                 .Include(p => p.Epics)
                 .Include(p => p.Sprints)
                     .ThenInclude(s => s.Tasks)
@@ -93,17 +101,50 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Create([Bind("Id,Name,Description")] Project project)
+        public async Task<IActionResult> Create(ProjectViewModel vm)
         {
             if (ModelState.IsValid)
             {
-                project.CreatedById = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                project.CreatedAt = DateTime.UtcNow;
-                _context.Add(project);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                vm.Project.CreatedById = userId;
+                vm.Project.CreatedAt = DateTime.UtcNow;
+
+                // Handle Logo
+                if (vm.Logo != null)
+                {
+                    using (var stream = vm.Logo.OpenReadStream())
+                    {
+                        vm.Project.LogoPath = await _mediaService.UploadAsync(stream, vm.Logo.FileName, vm.Logo.ContentType);
+                    }
+                }
+
+                _context.Add(vm.Project);
                 await _context.SaveChangesAsync();
+
+                // Handle Attachments
+                if (vm.Attachments != null && vm.Attachments.Any())
+                {
+                    foreach (var file in vm.Attachments)
+                    {
+                        using (var stream = file.OpenReadStream())
+                        {
+                            var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                            _context.Attachments.Add(new Attachment
+                            {
+                                ProjectId = vm.Project.Id,
+                                FileName = file.FileName,
+                                FilePath = filePath,
+                                UploadedById = userId,
+                                UploadedAt = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Index));
             }
-            return View(project);
+            return View(vm);
         }
 
         // GET: Projects/Edit/5
@@ -115,21 +156,23 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var project = await _context.Projects.FindAsync(id);
+            var project = await _context.Projects
+                .Include(p => p.Attachments)
+                .FirstOrDefaultAsync(p => p.Id == id);
             if (project == null)
             {
                 return NotFound();
             }
-            return View(project);
+            return View(new ProjectViewModel { Project = project });
         }
 
         // POST: Projects/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Description")] Project project)
+        public async Task<IActionResult> Edit(int id, ProjectViewModel vm)
         {
-            if (id != project.Id)
+            if (id != vm.Project.Id)
             {
                 return NotFound();
             }
@@ -138,18 +181,57 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    var existingProject = await _context.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+                    var existingProject = await _context.Projects
+                        .Include(p => p.Attachments)
+                        .FirstOrDefaultAsync(p => p.Id == id);
+
                     if(existingProject != null)
                     {
-                        project.CreatedById = existingProject.CreatedById;
-                        project.CreatedAt = existingProject.CreatedAt;
-                        _context.Update(project);
+                        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                        
+                        existingProject.Name = vm.Project.Name;
+                        existingProject.Description = vm.Project.Description;
+
+                        // Handle Logo Update
+                        if (vm.Logo != null)
+                        {
+                            if (!string.IsNullOrEmpty(existingProject.LogoPath))
+                            {
+                                await _mediaService.DeleteAsync(existingProject.LogoPath);
+                            }
+                            using (var stream = vm.Logo.OpenReadStream())
+                            {
+                                existingProject.LogoPath = await _mediaService.UploadAsync(stream, vm.Logo.FileName, vm.Logo.ContentType);
+                            }
+                        }
+
+                        // Handle New Attachments
+                        if (vm.Attachments != null && vm.Attachments.Any())
+                        {
+                            foreach (var file in vm.Attachments)
+                            {
+                                using (var stream = file.OpenReadStream())
+                                {
+                                    var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
+                                    _context.Attachments.Add(new Attachment
+                                    {
+                                        ProjectId = existingProject.Id,
+                                        FileName = file.FileName,
+                                        FilePath = filePath,
+                                        UploadedById = userId,
+                                        UploadedAt = DateTime.UtcNow
+                                    });
+                                }
+                            }
+                        }
+
+                        _context.Update(existingProject);
                         await _context.SaveChangesAsync();
                     }
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!ProjectExists(project.Id))
+                    if (!ProjectExists(vm.Project.Id))
                     {
                         return NotFound();
                     }
@@ -160,7 +242,31 @@ namespace OfficeTaskManagement.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View(project);
+            return View(vm);
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "Manager,Project Lead")]
+        public async Task<IActionResult> DeleteAttachment(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var attachment = await _context.Attachments.FindAsync(id);
+            if (attachment == null) return NotFound();
+
+            var projectId = attachment.ProjectId;
+            if (projectId == null) return BadRequest();
+
+            // Access check
+            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            {
+                return Forbid();
+            }
+
+            await _mediaService.DeleteAsync(attachment.FilePath);
+            _context.Attachments.Remove(attachment);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Edit), new { id = projectId.Value });
         }
 
         // GET: Projects/Delete/5

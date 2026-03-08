@@ -1,4 +1,4 @@
-@model OfficeTaskManagement.Models.Project
+@model OfficeTaskManagement.ViewModels.ProjectViewModel
 @{ ViewData["Title"] = "Create Project"; }
 
 <style>
@@ -109,22 +109,40 @@
     </a>
 </div>
 
-<form asp-action="Create">
+<form asp-action="Create" enctype="multipart/form-data">
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
 
             <!-- Title -->
-            <input asp-for="Name" class="item-title-input" placeholder="Project name" />
-            <span asp-validation-for="Name" class="text-danger small"></span>
+            <input asp-for="Project.Name" class="item-title-input" placeholder="Project name" />
+            <span asp-validation-for="Project.Name" class="text-danger small"></span>
+
+            <!-- Logo Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-image"></i> Project Logo</h3>
+                <div class="form-group">
+                    <input asp-for="Logo" type="file" class="form-control" accept="image/*" />
+                    <span asp-validation-for="Logo" class="text-danger small"></span>
+                </div>
+            </div>
 
             <!-- Description Section -->
-            <div class="form-section mb-0">
+            <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>
+                <div class="form-group">
+                    <textarea asp-for="Project.Description" class="form-control" placeholder="Describe the project's goals and scope..." rows="8"></textarea>
+                    <span asp-validation-for="Project.Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <!-- Initial Attachments Section -->
+            <div class="form-section mb-0">
+                <h3 class="form-section-title"><i class="fas fa-paperclip"></i> Initial Attachments</h3>
                 <div class="form-group mb-0">
-                    <textarea asp-for="Description" class="form-control" placeholder="Describe the project's goals and scope..." rows="8"></textarea>
-                    <span asp-validation-for="Description" class="text-danger small"></span>
+                    <input asp-for="Attachments" type="file" class="form-control" multiple />
+                    <span asp-validation-for="Attachments" class="text-danger small"></span>
                 </div>
             </div>
         </div>

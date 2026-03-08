@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.ViewModels.UserManagement;
+using OfficeTaskManagement.Services;
 
 namespace OfficeTaskManagement.Controllers
 {
@@ -18,12 +19,14 @@ namespace OfficeTaskManagement.Controllers
         private readonly UserManager<User> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ApplicationDbContext _context;
+        private readonly IMediaService _mediaService;
 
-        public UserManagementController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext context)
+        public UserManagementController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext context, IMediaService mediaService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
+            _mediaService = mediaService;
         }
 
         // GET: UserManagement
@@ -45,7 +48,7 @@ namespace OfficeTaskManagement.Controllers
                     FullName = user.FullName,
                     Roles = roles.ToList(),
                     IsActive = !user.LockoutEnd.HasValue || user.LockoutEnd < DateTime.UtcNow,
-                    CreatedDate = user.Id != null ? DateTime.UtcNow : null,
+                    AvatarPath = user.AvatarPath,
                     TotalTasks = totalTasks,
                     CompletedTasks = completedTasks
                 });
@@ -98,6 +101,15 @@ namespace OfficeTaskManagement.Controllers
                 EmailConfirmed = true
             };
 
+            // Handle Avatar
+            if (vm.Avatar != null)
+            {
+                using (var stream = vm.Avatar.OpenReadStream())
+                {
+                    user.AvatarPath = await _mediaService.UploadAsync(stream, vm.Avatar.FileName, vm.Avatar.ContentType);
+                }
+            }
+
             var result = await _userManager.CreateAsync(user, vm.Password);
             if (!result.Succeeded)
             {
@@ -149,7 +161,8 @@ namespace OfficeTaskManagement.Controllers
                 FullName = user.FullName,
                 SelectedRoles = roles.ToList(),
                 AvailableRoles = availableRoles,
-                IsActive = !user.LockoutEnd.HasValue || user.LockoutEnd < DateTime.UtcNow
+                IsActive = !user.LockoutEnd.HasValue || user.LockoutEnd < DateTime.UtcNow,
+                AvatarPath = user.AvatarPath
             };
 
             return View(vm);
@@ -180,6 +193,20 @@ namespace OfficeTaskManagement.Controllers
 
             // Update user details
             user.FullName = vm.FullName;
+
+            // Handle Avatar
+            if (vm.Avatar != null)
+            {
+                if (!string.IsNullOrEmpty(user.AvatarPath))
+                {
+                    await _mediaService.DeleteAsync(user.AvatarPath);
+                }
+
+                using (var stream = vm.Avatar.OpenReadStream())
+                {
+                    user.AvatarPath = await _mediaService.UploadAsync(stream, vm.Avatar.FileName, vm.Avatar.ContentType);
+                }
+            }
 
             // Update lock status
             if (vm.IsActive && user.LockoutEnd.HasValue && user.LockoutEnd > DateTime.UtcNow)
