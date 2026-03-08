@@ -106,7 +106,7 @@ namespace OfficeTaskManagement.Services
 
             var json = JsonSerializer.Serialize(usersData);
             
-            string prompt = $"You are a technical team lead and agile coach. Review the workload data. The workflow is: New, ToDo, InProgress, Committed (Delivered), Tested (QA), Done. Identify any team members who might be at risk of burnout. Point out specific names and why. Be concise and format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a technical team lead and agile coach. Review the workload data. The workflow is: New, Approved, ToDo, InProgress, Committed (Delivered), Tested (QA), Done. Identify any team members who might be at risk of burnout. Point out specific names and why. Be concise and format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }
@@ -138,7 +138,7 @@ namespace OfficeTaskManagement.Services
         {
             var tasks = await _context.Tasks
                 .Include(t => t.Comments)
-                .Where(t => t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.New)
+                .Where(t => t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.New && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Approved)
                 .Select(t => new
                 {
                     TaskTitle = t.Title,
@@ -150,7 +150,7 @@ namespace OfficeTaskManagement.Services
 
             var json = JsonSerializer.Serialize(tasks);
 
-            string prompt = $"You are a Senior Architect. Review these active tasks. The workflow is: New, ToDo, InProgress, Committed (Delivered for testing), Tested (QA), Done. Flag any tasks that represent potential Technical Debt or poorly defined requirements. For example, tasks with high comment counts stuck in 'InProgress' or 'Committed' indicate friction. Format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a Senior Architect. Review these active tasks. The workflow is: New, Approved, ToDo, InProgress, Committed (Delivered for testing), Tested (QA), Done. Flag any tasks that represent potential Technical Debt or poorly defined requirements. For example, tasks with high comment counts stuck in 'InProgress' or 'Committed' indicate friction. Format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }

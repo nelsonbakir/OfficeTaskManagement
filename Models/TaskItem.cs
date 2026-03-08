@@ -16,7 +16,7 @@ namespace OfficeTaskManagement.Models
 
         public string? Description { get; set; }
 
-        public Enums.TaskStatus Status { get; set; } = Enums.TaskStatus.ToDo;
+        public Enums.TaskStatus Status { get; set; } = Enums.TaskStatus.New;
 
         public TaskType Type { get; set; } = TaskType.NewRequest;
 

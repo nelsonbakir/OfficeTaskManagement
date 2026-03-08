@@ -113,7 +113,7 @@ namespace OfficeTaskManagement.Controllers
                 TaskTitle = t.Title,
                 Date = t.DueDate ?? DateTime.Today,
                 Hours = t.EstimatedHours,
-                IsToDo = t.Status == TaskStatus.New || t.Status == TaskStatus.ToDo
+                IsToDo = t.Status == TaskStatus.New || t.Status == TaskStatus.Approved || t.Status == TaskStatus.ToDo
             }).ToList();
 
             var currentUtc = DateTime.UtcNow;
@@ -374,7 +374,7 @@ namespace OfficeTaskManagement.Controllers
             metrics.TotalTasks = allTasks.Count;
             metrics.CompletedTasks = allTasks.Count(t => t.Status == TaskStatus.Done);
             metrics.InProgressTasks = allTasks.Count(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested);
-            metrics.ToDoTasks = allTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.New);
+            metrics.ToDoTasks = allTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.Approved || t.Status == TaskStatus.New);
             metrics.UnassignedTasks = allTasks.Count(t => t.AssigneeId == null);
             metrics.OverdueTasks = allTasks.Count(t => t.DueDate.HasValue && t.DueDate < DateTime.Now && t.Status != TaskStatus.Done);
             metrics.TaskCompletionRate = allTasks.Any() ? (decimal)metrics.CompletedTasks / allTasks.Count * 100 : 0;
@@ -440,7 +440,7 @@ namespace OfficeTaskManagement.Controllers
             metrics.AssignedTasks = myTasks.Count;
             metrics.CompletedTasks = myTasks.Count(t => t.Status == TaskStatus.Done);
             metrics.InProgressTasks = myTasks.Count(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested);
-            metrics.ToDoTasks = myTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.New);
+            metrics.ToDoTasks = myTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.Approved || t.Status == TaskStatus.New);
             metrics.TaskCompletion = myTasks.Any() ? (decimal)metrics.CompletedTasks / myTasks.Count * 100 : 0;
             metrics.CurrentWeekload = myTasks.Where(t => t.Status != TaskStatus.Done).Sum(t => t.EstimatedHours);
             metrics.MyProjects = myTasks.Select(t => t.Project?.Name).Distinct().Where(n => n != null).Cast<string>().ToList();

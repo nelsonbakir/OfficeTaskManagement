@@ -34,7 +34,16 @@
         font-size: 1.5rem;
         font-weight: 600;
     }
-    
+       .status-badge.approved {
+        background: #F3F2F1;
+        color: #0078D4;
+        border: 1px solid #0078D4;
+    }
+ 
+    .status-badge.todo {
+        padding: 2rem;
+    }
+
     .delete-body {
         padding: 2rem;
     }
@@ -114,7 +123,8 @@
                 <div class="meta-row">
                     <span class="badge bg-secondary">@Model.Type</span>
                     <span class="badge @(Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : 
-                                               (Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : "bg-primary")">
+                                               (Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : 
+                                               Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Approved ? "bg-info text-dark" : "bg-primary")">
                         @Model.Status
                     </span>
                 </div>

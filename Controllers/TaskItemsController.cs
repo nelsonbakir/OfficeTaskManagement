@@ -61,7 +61,14 @@ namespace OfficeTaskManagement.Controllers
                 }
             }
             
-            query = query.Where(t => t.IsBacklog == showBacklog);
+            if (showBacklog)
+            {
+                query = query.Where(t => t.Status == TaskStatus.New || t.Status == TaskStatus.Approved);
+            }
+            else
+            {
+                query = query.Where(t => t.Status >= TaskStatus.ToDo);
+            }
             
             return View(await query.ToListAsync());
         }
@@ -298,6 +305,32 @@ namespace OfficeTaskManagement.Controllers
 
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
                     var userRole = User.IsInRole("Project Lead") || User.IsInRole("Manager");
+
+                    // Validation: only approved item can be assigned to someone for 'todo'
+                    if (vm.TaskItem.Status == TaskStatus.ToDo)
+                    {
+                        if (existingTask.Status != TaskStatus.Approved && existingTask.Status != TaskStatus.ToDo)
+                        {
+                            ModelState.AddModelError("", "Only Approved items can be moved to ToDo.");
+                            // Re-populate lists and return view as done below for other errors
+                        }
+                        if (string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
+                        {
+                            ModelState.AddModelError("", "Tasks in ToDo must have an assignee.");
+                        }
+                    }
+
+                    if (!ModelState.IsValid)
+                    {
+                        vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                        vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                        vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                        vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                        vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                        vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
+                        vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                        return View(vm);
+                    }
                     
                     // Logic to enforce who can mark as done
                     if (vm.TaskItem.Status == TaskStatus.Done)

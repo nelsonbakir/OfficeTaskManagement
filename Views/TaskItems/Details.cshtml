@@ -95,6 +95,11 @@
         background: #F3F2F1;
         color: #605E5C;
     }
+    .status-badge.approved {
+        background: #F3F2F1;
+        color: #0078D4;
+        border: 1px solid #0078D4;
+    }
  
     .status-badge.todo {
         background: #E1DFDD;
@@ -279,7 +284,8 @@
                                 <strong>@subTask.Title</strong>
                             </div>
                             <span class="badge @(subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : 
-                                               (subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : "bg-primary") rounded-pill">
+                                               (subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : 
+                                               subTask.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Approved ? "bg-info text-dark" : "bg-primary") rounded-pill">
                                 @subTask.Status
                             </span>
                         </a>

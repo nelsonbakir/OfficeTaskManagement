@@ -256,14 +256,15 @@
     <!-- Kanban Board View -->
     <div class="kanban-board" id="kanbanView">
         @{
-            var statuses = new[] { 
-                OfficeTaskManagement.Models.Enums.TaskStatus.New,
-                OfficeTaskManagement.Models.Enums.TaskStatus.ToDo,
-                OfficeTaskManagement.Models.Enums.TaskStatus.InProgress,
-                OfficeTaskManagement.Models.Enums.TaskStatus.Committed,
-                OfficeTaskManagement.Models.Enums.TaskStatus.Tested,
-                OfficeTaskManagement.Models.Enums.TaskStatus.Done
-            };
+            var statuses = isBacklog 
+                ? new[] { OfficeTaskManagement.Models.Enums.TaskStatus.New, OfficeTaskManagement.Models.Enums.TaskStatus.Approved }
+                : new[] { 
+                    OfficeTaskManagement.Models.Enums.TaskStatus.ToDo,
+                    OfficeTaskManagement.Models.Enums.TaskStatus.InProgress,
+                    OfficeTaskManagement.Models.Enums.TaskStatus.Committed,
+                    OfficeTaskManagement.Models.Enums.TaskStatus.Tested,
+                    OfficeTaskManagement.Models.Enums.TaskStatus.Done
+                };
         }
 
         @foreach (var status in statuses) {
@@ -373,7 +374,7 @@
                     <td>@task.Project?.Name</td>
                     <td>@task.Sprint?.Name</td>
                     <td>
-                        <span class="badge @(task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress ? "bg-warning text-dark" : "bg-primary")">
+                        <span class="badge @(task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : (task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : "bg-primary")">
                             @task.Status
                         </span>
                     </td>
