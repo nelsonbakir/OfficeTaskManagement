@@ -1,0 +1,132 @@
+@model OfficeTaskManagement.Models.UserStory
+
+@{
+    ViewData["Title"] = "User Story Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-book text-primary"></i> User Story: @Model.Title</h1>
+    <div>
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary me-2"><i class="fas fa-edit"></i> Edit</a>
+        <a asp-action="Index" class="btn btn-outline-secondary"><i class="fas fa-arrow-left"></i> Back to List</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Description</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">@Model.Description</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Acceptance Criteria</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text" style="white-space: pre-wrap;">@Model.AcceptanceCriteria</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Test Cases</h5>
+                <a asp-controller="TestCases" asp-action="Create" asp-route-userStoryId="@Model.Id" class="btn btn-sm btn-outline-primary">Add Test Case</a>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.TestCases != null && Model.TestCases.Any())
+                {
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Automated</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tc in Model.TestCases)
+                            {
+                                <tr>
+                                    <td><a asp-controller="TestCases" asp-action="Details" asp-route-id="@tc.Id">@tc.Title</a></td>
+                                    <td>@(tc.IsAutomated ? "Yes" : "No")</td>
+                                    <td class="text-end">
+                                        <a asp-controller="TestCases" asp-action="Edit" asp-route-id="@tc.Id" class="btn btn-sm btn-link"><i class="fas fa-edit"></i></a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="p-3 text-muted">No test cases defined.</div>
+                }
+            </div>
+        </div>
+        
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Linked Tasks</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Tasks != null && Model.Tasks.Any())
+                {
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in Model.Tasks)
+                            {
+                                <tr>
+                                    <td>Task-@task.Id</td>
+                                    <td><a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id">@task.Title</a></td>
+                                    <td><span class="badge bg-secondary">@task.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="p-3 text-muted">No tasks linked.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small text-uppercase">Feature</label>
+                    <div class="fw-bold">@(Model.Feature?.Name ?? "None")</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small text-uppercase">Priority</label>
+                    <div class="fw-bold">@Model.Priority</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small text-uppercase">Created By</label>
+                    <div class="fw-bold">@Model.CreatedBy?.FullName</div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small text-uppercase">Created At</label>
+                    <div class="fw-bold">@Model.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -20,6 +20,9 @@ namespace OfficeTaskManagement.Data
         public DbSet<TaskAttachment> TaskAttachments { get; set; }
         public DbSet<TaskComment> TaskComments { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Area> Areas { get; set; }
+        public DbSet<UserStory> UserStories { get; set; }
+        public DbSet<TestCase> TestCases { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -116,6 +119,39 @@ namespace OfficeTaskManagement.Data
                 .WithMany()
                 .HasForeignKey(tc => tc.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Areas many-to-many
+            builder.Entity<TaskItem>()
+                .HasMany(t => t.Areas)
+                .WithMany(a => a.Tasks)
+                .UsingEntity(j => j.ToTable("TaskAreas"));
+
+            // Configure UserStories
+            builder.Entity<UserStory>()
+                .HasOne(us => us.Feature)
+                .WithMany(f => f.UserStories)
+                .HasForeignKey(us => us.FeatureId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserStory>()
+                .HasOne(us => us.CreatedBy)
+                .WithMany()
+                .HasForeignKey(us => us.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure TestCases
+            builder.Entity<TestCase>()
+                .HasOne(tc => tc.UserStory)
+                .WithMany(us => us.TestCases)
+                .HasForeignKey(tc => tc.UserStoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure TaskItem UserStory relationship
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.UserStory)
+                .WithMany(us => us.Tasks)
+                .HasForeignKey(t => t.UserStoryId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

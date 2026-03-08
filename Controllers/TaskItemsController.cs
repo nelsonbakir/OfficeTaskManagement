@@ -40,6 +40,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.Project)
                 .Include(t => t.Sprint)
                 .Include(t => t.Feature)
+                .Include(t => t.UserStory)
+                .Include(t => t.Areas)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -78,6 +80,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.History).ThenInclude(h => h.ChangedBy)
                 .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
                 .Include(t => t.SubTasks)
+                .Include(t => t.UserStory)
+                .Include(t => t.Areas)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -111,6 +115,8 @@ namespace OfficeTaskManagement.Controllers
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name"),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name"),
                 FeaturesList = new SelectList(_context.Features, "Id", "Name"),
+                UserStoriesList = new SelectList(_context.UserStories, "Id", "Title"),
+                AreasList = new MultiSelectList(_context.Areas, "Id", "Name"),
                 ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title")
             };
             return View(vm);
@@ -131,6 +137,19 @@ namespace OfficeTaskManagement.Controllers
                 vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
 
                 _context.Add(vm.TaskItem);
+
+                // Handle Areas
+                if (vm.SelectedAreaIds != null)
+                {
+                    foreach (var areaId in vm.SelectedAreaIds)
+                    {
+                        var area = await _context.Areas.FindAsync(areaId);
+                        if (area != null)
+                        {
+                            vm.TaskItem.Areas.Add(area);
+                        }
+                    }
+                }
                 
                 // If this is a sub-task and its status is worked on (InProgress/Committed/Tested), ensure parent is also InProgress
                 if (vm.TaskItem.ParentTaskId.HasValue && (vm.TaskItem.Status == TaskStatus.InProgress || vm.TaskItem.Status == TaskStatus.Committed || vm.TaskItem.Status == TaskStatus.Tested))
@@ -205,6 +224,8 @@ namespace OfficeTaskManagement.Controllers
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                         vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                        vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                        vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                         vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                         return View(vm);
                     }
@@ -218,6 +239,8 @@ namespace OfficeTaskManagement.Controllers
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
         }
@@ -230,7 +253,9 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            var taskItem = await _context.Tasks.FindAsync(id);
+            var taskItem = await _context.Tasks
+                .Include(t => t.Areas)
+                .FirstOrDefaultAsync(t => t.Id == id);
             if (taskItem == null)
             {
                 return NotFound();
@@ -243,6 +268,9 @@ namespace OfficeTaskManagement.Controllers
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
                 FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId),
+                UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", taskItem.UserStoryId),
+                AreasList = new MultiSelectList(_context.Areas, "Id", "Name", taskItem.Areas.Select(a => a.Id)),
+                SelectedAreaIds = taskItem.Areas.Select(a => a.Id).ToList(),
                 ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != taskItem.Id), "Id", "Title", taskItem.ParentTaskId)
             };
             
@@ -279,7 +307,9 @@ namespace OfficeTaskManagement.Controllers
             {
                 try
                 {
-                    var existingTask = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+                    var existingTask = await _context.Tasks
+                        .Include(t => t.Areas)
+                        .FirstOrDefaultAsync(t => t.Id == id);
                     if (existingTask == null) return NotFound();
 
                     // Ensure existing and incoming DateTimes are normalized to UTC
@@ -300,6 +330,8 @@ namespace OfficeTaskManagement.Controllers
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                             return View(vm);
                         }
@@ -313,6 +345,8 @@ namespace OfficeTaskManagement.Controllers
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                             return View(vm);
                         }
@@ -374,9 +408,24 @@ namespace OfficeTaskManagement.Controllers
                     existingTask.ProjectId = vm.TaskItem.ProjectId;
                     existingTask.SprintId = vm.TaskItem.SprintId;
                     existingTask.FeatureId = vm.TaskItem.FeatureId;
+                    existingTask.UserStoryId = vm.TaskItem.UserStoryId;
                     existingTask.AssigneeId = vm.TaskItem.AssigneeId;
                     existingTask.ParentTaskId = vm.TaskItem.ParentTaskId;
                     existingTask.Type = vm.TaskItem.Type;
+
+                    // Update Areas
+                    existingTask.Areas.Clear();
+                    if (vm.SelectedAreaIds != null)
+                    {
+                        foreach (var areaId in vm.SelectedAreaIds)
+                        {
+                            var area = await _context.Areas.FindAsync(areaId);
+                            if (area != null)
+                            {
+                                existingTask.Areas.Add(area);
+                            }
+                        }
+                    }
 
                     _context.Update(existingTask);
                     
@@ -442,6 +491,8 @@ namespace OfficeTaskManagement.Controllers
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                             return View(vm);
                         }
@@ -466,6 +517,8 @@ namespace OfficeTaskManagement.Controllers
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
         }

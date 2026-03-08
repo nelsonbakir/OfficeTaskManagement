@@ -41,6 +41,11 @@ namespace OfficeTaskManagement.Models
         public int? FeatureId { get; set; }
         public Feature? Feature { get; set; }
 
+        public int? UserStoryId { get; set; }
+        public UserStory? UserStory { get; set; }
+
+        public ICollection<Area> Areas { get; set; } = new List<Area>();
+
         public string? AssigneeId { get; set; }
         public User? Assignee { get; set; }
 

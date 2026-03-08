@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/modern-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OfficeTaskManagement.styles.css" asp-append-version="true" />
 </head>
@@ -18,14 +19,16 @@
         </a>
 
         <ul class="navbar-nav">
+            <!-- GENERAL -->
+            <li class="nav-section-title">General</li>
+            <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
             @if (!User.IsInRole("Employee") || User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
             {
-                <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Dashboard</span>
-                    </a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Reports">
                         <i class="fas fa-chart-pie"></i>
@@ -34,21 +37,39 @@
                 </li>
                 <li class="nav-item">
                     <a class="nav-link text-info fw-bold" asp-area="" asp-controller="Analytics" asp-action="AIInsights">
-                        <i class="bi bi-robot"></i>
+                        <i class="fas fa-robot"></i>
                         <span>AI Insights</span>
                     </a>
                 </li>
             }
+
+            <!-- WORK -->
+            <li class="nav-section-title">Work</li>
             <li class="nav-item">
-                <a class="nav-link" asp-area="" asp-controller="Projects" asp-action="Index">
-                    <i class="fas fa-folder"></i>
-                    <span>Projects</span>
+                <a class="nav-link" asp-area="" asp-controller="TaskItems" asp-action="Index">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Tasks</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="TaskItems" asp-action="Index" asp-route-showBacklog="true">
+                    <i class="fas fa-archive"></i>
+                    <span>Backlog</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" asp-area="" asp-controller="Sprints" asp-action="Index">
                     <i class="fas fa-rocket"></i>
                     <span>Sprints</span>
+                </a>
+            </li>
+
+            <!-- PLANNING -->
+            <li class="nav-section-title">Planning</li>
+            <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="Projects" asp-action="Index">
+                    <i class="fas fa-folder"></i>
+                    <span>Projects</span>
                 </a>
             </li>
             <li class="nav-item">
@@ -64,13 +85,25 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" asp-area="" asp-controller="TaskItems" asp-action="Index">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Tasks</span>
+                <a class="nav-link" asp-area="" asp-controller="UserStories" asp-action="Index">
+                    <i class="fas fa-book"></i>
+                    <span>User Stories</span>
                 </a>
             </li>
+
+            <!-- QUALITY -->
+            <li class="nav-section-title">Quality</li>
+            <li class="nav-item">
+                <a class="nav-link" asp-area="" asp-controller="TestCases" asp-action="Index">
+                    <i class="fas fa-vial"></i>
+                    <span>Test Cases</span>
+                </a>
+            </li>
+
+            <!-- SYSTEM -->
             @if (User.IsInRole("Manager"))
             {
+                <li class="nav-section-title">System</li>
                 <li class="nav-item">
                     <a class="nav-link" asp-area="" asp-controller="UserManagement" asp-action="Index">
                         <i class="fas fa-users"></i>
@@ -196,6 +229,7 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script>
         // Sidebar toggle for mobile

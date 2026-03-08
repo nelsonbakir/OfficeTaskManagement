@@ -1,0 +1,54 @@
+@model OfficeTaskManagement.Models.TestCase
+
+@{
+    ViewData["Title"] = "Edit Test Case";
+}
+
+<h1>Edit Test Case</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form asp-action="Edit">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    <input type="hidden" asp-for="Id" />
+                    
+                    <div class="mb-3">
+                        <label asp-for="UserStoryId" class="form-label font-weight-bold">User Story</label>
+                        <select asp-for="UserStoryId" class="form-select" asp-items="ViewBag.UserStoryId">
+                            <option value="">-- Select User Story --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label font-weight-bold"></label>
+                        <input asp-for="Title" class="form-control" />
+                        <span asp-validation-for="Title" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Steps" class="form-label font-weight-bold"></label>
+                        <textarea asp-for="Steps" class="form-control" rows="5"></textarea>
+                        <span asp-validation-for="Steps" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="ExpectedResult" class="form-label font-weight-bold">Expected Result</label>
+                        <textarea asp-for="ExpectedResult" class="form-control" rows="3"></textarea>
+                        <span asp-validation-for="ExpectedResult" class="text-danger"></span>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input asp-for="IsAutomated" class="form-check-input" />
+                        <label asp-for="IsAutomated" class="form-check-label font-weight-bold">Is Automated?</label>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Save Changes</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

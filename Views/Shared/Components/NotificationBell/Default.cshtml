@@ -1,13 +1,12 @@
 @model OfficeTaskManagement.ViewComponents.NotificationViewModel
 
-<div class="dropdown me-3 notification-dropdown">
-    <a class="nav-link dropdown-toggle position-relative text-dark" href="#" id="navbarDropdownNotification" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+<div class="dropdown me-2 notification-dropdown">
+    <a class="topbar-icon-button dropdown-toggle position-relative" href="#" id="navbarDropdownNotification" role="button" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="fas fa-bell"></i>
         @if (Model.UnreadCount > 0)
         {
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.25em 0.4em;">
+            <span class="notification-badge">
                 @Model.UnreadCount
-                <span class="visually-hidden">unread messages</span>
             </span>
         }
     </a>
@@ -91,9 +90,6 @@
 </script>
 
 <style>
-    .notification-dropdown .dropdown-toggle::after {
-        display: none;
-    }
     .notification-item:hover {
         background-color: #F8F8F8 !important;
     }

@@ -32,6 +32,7 @@ namespace OfficeTaskManagement.Controllers.Api
                 .Include(t => t.Project)
                 .Include(t => t.Feature)
                 .ThenInclude(f => f.Epic)
+                .Include(t => t.Areas)
                 .Where(t => t.AssigneeId == userId);
 
             if (projectId.HasValue)
@@ -52,7 +53,8 @@ namespace OfficeTaskManagement.Controllers.Api
                 t.DueDate,
                 ProjectName = t.Project != null ? t.Project.Name : "Independent",
                 FeatureName = t.Feature != null ? t.Feature.Name : null,
-                t.EstimatedHours
+                t.EstimatedHours,
+                Areas = t.Areas.Select(a => new { a.Id, a.Name }).ToList()
             }).ToListAsync();
 
             return Ok(tasks);
@@ -65,6 +67,7 @@ namespace OfficeTaskManagement.Controllers.Api
             var task = await _context.Tasks
                 .Include(t => t.Project)
                 .Include(t => t.Feature)
+                .Include(t => t.Areas)
                 .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null) return NotFound();
@@ -84,7 +87,8 @@ namespace OfficeTaskManagement.Controllers.Api
                 ProjectName = task.Project != null ? task.Project.Name : "Independent",
                 FeatureName = task.Feature != null ? task.Feature.Name : null,
                 task.EstimatedHours,
-                task.IsBacklog
+                task.IsBacklog,
+                Areas = task.Areas.Select(a => new { a.Id, a.Name }).ToList()
             });
         }
 

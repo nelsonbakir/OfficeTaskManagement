@@ -38,6 +38,21 @@ namespace OfficeTaskManagement.Data
                     await userManager.AddToRoleAsync(user, "Manager");
                 }
             }
+
+            // Seed Areas
+            var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
+            if (!context.Areas.Any())
+            {
+                context.Areas.AddRange(new List<Area>
+                {
+                    new Area { Name = "Web API" },
+                    new Area { Name = "Frontend" },
+                    new Area { Name = "Database" },
+                    new Area { Name = "Mobile" },
+                    new Area { Name = "Full-stack" }
+                });
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

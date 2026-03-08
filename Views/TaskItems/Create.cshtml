@@ -153,7 +153,8 @@
             <div asp-validation-summary="ModelOnly" class="alert alert-danger" style="margin-bottom: 1.5rem;"></div>
 
             <!-- Title -->
-            <input asp-for="TaskItem.Title" class="task-title-input" placeholder="Task title" />
+            <input asp-for="TaskItem.Title" class="task-title-input" placeholder="Task title" style="margin-bottom: 0.25rem;" />
+            <div id="areas-badges-preview" class="areas-preview"></div>
             <span asp-validation-for="TaskItem.Title" class="text-danger small"></span>
 
             <!-- Compact Header Fields -->
@@ -183,19 +184,24 @@
                 </div>
 
                 <div class="compact-field">
+                    <label>Areas</label>
+                    <select asp-for="SelectedAreaIds" class="form-select" asp-items="Model.AreasList" multiple id="areas-selector" style="height: 38px;"></select>
+                </div>
+
+                <div class="compact-field">
+                    <label>User Story</label>
+                    <select asp-for="TaskItem.UserStoryId" class="form-select" asp-items="Model.UserStoriesList">
+                        <option value="">-- Select User Story --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.UserStoryId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
                     <label>Feature</label>
                     <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList">
                         <option value="">-- Select Feature --</option>
                     </select>
                     <span asp-validation-for="TaskItem.FeatureId" class="text-danger small"></span>
-                </div>
-
-                <div class="compact-field">
-                    <label>Parent Task</label>
-                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
-                        <option value="">-- None (Top Level) --</option>
-                    </select>
-                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
                 </div>
 
                 <div class="compact-field">
@@ -226,6 +232,14 @@
                     <label>Effort (Hrs)</label>
                     <input asp-for="TaskItem.EstimatedHours" class="form-control" type="number" step="0.5" placeholder="0" />
                     <span asp-validation-for="TaskItem.EstimatedHours" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Parent Task</label>
+                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
+                        <option value="">-- None (Top Level) --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
                 </div>
             </div>
 
@@ -283,4 +297,30 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        $(document).ready(function() {
+            const areaSelector = $('#areas-selector');
+            const badgesPreview = document.getElementById('areas-badges-preview');
+
+            // Initialize Select2
+            areaSelector.select2({
+                placeholder: "-- Select Areas --",
+                width: '100%'
+            });
+
+            function updateBadges() {
+                badgesPreview.innerHTML = '';
+                const selectedOptions = areaSelector.select2('data');
+                selectedOptions.forEach(option => {
+                    const badge = document.createElement('span');
+                    badge.className = 'area-badge';
+                    badge.innerHTML = '<i class="fas fa-tag"></i> ' + option.text;
+                    badgesPreview.appendChild(badge);
+                });
+            }
+
+            areaSelector.on('change', updateBadges);
+            updateBadges(); // Initial call
+        });
+    </script>
 }

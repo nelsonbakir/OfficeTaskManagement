@@ -231,7 +231,17 @@
 <div class="task-editor-container">
     <!-- Main Detail Area -->
     <div class="task-editor-main">
-        <h2 class="task-title">@Model.Title</h2>
+        <h2 class="task-title" style="margin-bottom: 0.25rem;">@Model.Title</h2>
+        <div class="areas-preview">
+            @if (Model.Areas != null && Model.Areas.Any())
+            {
+                @foreach (var area in Model.Areas)
+                {
+                    <span class="area-badge"><i class="fas fa-tag"></i> @area.Name</span>
+                }
+            }
+        </div>
+        
         <div class="task-subtitle">
             <span class="badge bg-secondary me-2">@Model.Type</span>
             @if(Model.ParentTaskId.HasValue && Model.ParentTask != null) {
@@ -367,6 +377,36 @@
                             <i class="fas fa-rocket"></i> @Model.Sprint.Name
                         </a>
                     } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">User Story</div>
+                <div class="info-value">
+                    @if(Model.UserStory != null) {
+                        <a asp-controller="UserStories" asp-action="Details" asp-route-id="@Model.UserStoryId" class="text-decoration-none">
+                            <i class="fas fa-book"></i> @Model.UserStory.Title
+                        </a>
+                    } else {
+                        <span class="text-muted">None</span>
+                    }
+                </div>
+            </div>
+
+            <div class="info-item">
+                <div class="info-label">Areas</div>
+                <div class="info-value">
+                    @if (Model.Areas != null && Model.Areas.Any())
+                    {
+                        @foreach (var area in Model.Areas)
+                        {
+                            <span class="badge bg-light text-dark border me-1">@area.Name</span>
+                        }
+                    }
+                    else
+                    {
                         <span class="text-muted">None</span>
                     }
                 </div>

@@ -1,0 +1,34 @@
+@model OfficeTaskManagement.Models.TestCase
+
+@{
+    ViewData["Title"] = "Delete Test Case";
+}
+
+<div class="container mt-4">
+    <h1 class="text-danger"><i class="fas fa-vial"></i> Delete Test Case</h1>
+    <p class="lead text-muted">Are you sure you want to delete this test case?</p>
+
+    <div class="card border-danger shadow-sm mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">Test Case Confirmation</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3">Title</dt>
+                <dd class="col-sm-9">@Model.Title</dd>
+
+                <dt class="col-sm-3">User Story</dt>
+                <dd class="col-sm-9">@(Model.UserStory?.Title ?? "None")</dd>
+
+                <dt class="col-sm-3">Automated</dt>
+                <dd class="col-sm-9">@(Model.IsAutomated ? "Yes" : "No")</dd>
+            </dl>
+        </div>
+    </div>
+
+    <form asp-action="Delete">
+        <input type="hidden" asp-for="Id" />
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Delete Test Case</button>
+        <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </form>
+</div>

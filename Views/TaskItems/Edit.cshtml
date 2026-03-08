@@ -387,7 +387,8 @@
             <input type="hidden" asp-for="TaskItem.Id" />
 
             <!-- Title -->
-            <input asp-for="TaskItem.Title" class="task-title-input" placeholder="Task title" />
+            <input asp-for="TaskItem.Title" class="task-title-input" placeholder="Task title" style="margin-bottom: 0.25rem;" />
+            <div id="areas-badges-preview" class="areas-preview"></div>
 
             <!-- Compact Header Fields -->
             <div class="compact-field-grid">
@@ -416,19 +417,24 @@
                 </div>
 
                 <div class="compact-field">
+                    <label>Areas</label>
+                    <select asp-for="SelectedAreaIds" class="form-select" asp-items="Model.AreasList" multiple id="areas-selector" style="height: 38px;"></select>
+                </div>
+
+                <div class="compact-field">
+                    <label>User Story</label>
+                    <select asp-for="TaskItem.UserStoryId" class="form-select" asp-items="Model.UserStoriesList">
+                        <option value="">-- Select User Story --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.UserStoryId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
                     <label>Feature</label>
                     <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList">
                         <option value="">-- Select Feature --</option>
                     </select>
                     <span asp-validation-for="TaskItem.FeatureId" class="text-danger small"></span>
-                </div>
-
-                <div class="compact-field">
-                    <label>Parent Task</label>
-                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
-                        <option value="">-- None (Top Level) --</option>
-                    </select>
-                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
                 </div>
 
                 <div class="compact-field">
@@ -460,6 +466,14 @@
                     <input asp-for="TaskItem.EstimatedHours" class="form-control" type="number" step="0.5" placeholder="0" />
                     <span asp-validation-for="TaskItem.EstimatedHours" class="text-danger small"></span>
                 </div>
+
+                <div class="compact-field">
+                    <label>Parent Task</label>
+                    <select asp-for="TaskItem.ParentTaskId" class="form-select" asp-items="Model.ParentTasksList">
+                        <option value="">-- None (Top Level) --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.ParentTaskId" class="text-danger small"></span>
+                </div>
             </div>
 
             <!-- Description Section -->
@@ -470,6 +484,7 @@
                     <span asp-validation-for="TaskItem.Description" class="text-danger small"></span>
                 </div>
             </div>
+
 
             <!-- Attachments Section -->
             <div class="form-section">
@@ -640,7 +655,30 @@
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tributejs/5.1.3/tribute.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
+        $(document).ready(function () {
+            // Areas badges preview & Select2
+            const areaSelector = $('#areas-selector');
+            const badgesPreview = document.getElementById('areas-badges-preview');
+
+            areaSelector.select2({
+                placeholder: "-- Select Areas --",
+                width: '100%'
+            });
+
+            function updateBadges() {
+                badgesPreview.innerHTML = '';
+                const selectedOptions = areaSelector.select2('data');
+                selectedOptions.forEach(option => {
+                    const badge = document.createElement('span');
+                    badge.className = 'area-badge';
+                    badge.innerHTML = '<i class="fas fa-tag"></i> ' + option.text;
+                    badgesPreview.appendChild(badge);
+                });
+            }
+
+            areaSelector.on('change', updateBadges);
+            updateBadges(); // Initial call
+            
             // Fetch users for Tribute mentions
             fetch('/TaskItems/GetEligibleUsersForMention?projectId=' + @(Model.TaskItem.ProjectId ?? 0))
                 .then(response => response.json())
