@@ -107,4 +107,16 @@ class NetworkManager: ObservableObject {
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         return json?["url"] as? String ?? ""
     }
+    
+    func updateTaskStatus(taskId: Int, statusId: Int) async throws {
+        let url = URL(string: "\(baseURL)/tasksapi/\(taskId)/status")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.allHTTPHeaderFields = defaultHeaders()
+        
+        let body = ["statusId": statusId]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        _ = try await URLSession.shared.data(for: request)
+    }
 }

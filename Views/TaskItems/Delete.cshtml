@@ -113,7 +113,8 @@
             <div class="item-preview-meta">
                 <div class="meta-row">
                     <span class="badge bg-secondary">@Model.Type</span>
-                    <span class="badge @(Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress ? "bg-warning text-dark" : "bg-primary")">
+                    <span class="badge @(Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success" : 
+                                               (Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Committed || Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested) ? "bg-warning text-dark" : "bg-primary")">
                         @Model.Status
                     </span>
                 </div>

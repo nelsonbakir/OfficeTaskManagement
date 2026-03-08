@@ -113,7 +113,7 @@ namespace OfficeTaskManagement.Controllers
                 TaskTitle = t.Title,
                 Date = t.DueDate ?? DateTime.Today,
                 Hours = t.EstimatedHours,
-                IsToDo = t.Status == TaskStatus.ToDo
+                IsToDo = t.Status == TaskStatus.New || t.Status == TaskStatus.ToDo
             }).ToList();
 
             var currentUtc = DateTime.UtcNow;
@@ -196,7 +196,7 @@ namespace OfficeTaskManagement.Controllers
             var completedTasks = allTasks.Count(t => t.Status == TaskStatus.Done);
             metrics.OverallTaskCompletion = allTasks.Any() ? (int)((completedTasks * 100) / allTasks.Count) : 0;
             metrics.OverdueTasks = allTasks.Count(t => t.DueDate.HasValue && t.DueDate < DateTime.Now && t.Status != TaskStatus.Done);
-            metrics.AtRiskTasks = allTasks.Count(t => t.Status == TaskStatus.InProgress && t.DueDate.HasValue && t.DueDate < DateTime.Now.AddDays(3));
+            metrics.AtRiskTasks = allTasks.Count(t => (t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested) && t.DueDate.HasValue && t.DueDate < DateTime.Now.AddDays(3));
 
             // Project metrics
             foreach (var project in projects)
@@ -305,8 +305,10 @@ namespace OfficeTaskManagement.Controllers
 
                 metrics.TotalTasks = allProjectTasks.Count;
                 metrics.CompletedTasks = allProjectTasks.Count(t => t.Status == TaskStatus.Done);
-                metrics.InProgressTasks = allProjectTasks.Count(t => t.Status == TaskStatus.InProgress);
-                metrics.BlockedTasks = allProjectTasks.Count(t => t.Status == TaskStatus.InProgress && t.DueDate.HasValue && t.DueDate < DateTime.Now);
+                metrics.InProgressTasks = allProjectTasks.Count(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested);
+                metrics.BlockedTasks = metrics.InProgressTasks > 0 && allProjectTasks.Count(t => (t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested) && t.DueDate.HasValue && t.DueDate < DateTime.Now) > 0 
+                    ? allProjectTasks.Count(t => (t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested) && t.DueDate.HasValue && t.DueDate < DateTime.Now) 
+                    : 0;
                 metrics.ProjectCompletion = allProjectTasks.Any() ? (decimal)metrics.CompletedTasks / metrics.TotalTasks * 100 : 0;
                 metrics.TeamSize = allProjectTasks.Select(t => t.AssigneeId).Distinct().Count();
 
@@ -371,8 +373,8 @@ namespace OfficeTaskManagement.Controllers
 
             metrics.TotalTasks = allTasks.Count;
             metrics.CompletedTasks = allTasks.Count(t => t.Status == TaskStatus.Done);
-            metrics.InProgressTasks = allTasks.Count(t => t.Status == TaskStatus.InProgress);
-            metrics.ToDoTasks = allTasks.Count(t => t.Status == TaskStatus.ToDo);
+            metrics.InProgressTasks = allTasks.Count(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested);
+            metrics.ToDoTasks = allTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.New);
             metrics.UnassignedTasks = allTasks.Count(t => t.AssigneeId == null);
             metrics.OverdueTasks = allTasks.Count(t => t.DueDate.HasValue && t.DueDate < DateTime.Now && t.Status != TaskStatus.Done);
             metrics.TaskCompletionRate = allTasks.Any() ? (decimal)metrics.CompletedTasks / allTasks.Count * 100 : 0;
@@ -437,8 +439,8 @@ namespace OfficeTaskManagement.Controllers
 
             metrics.AssignedTasks = myTasks.Count;
             metrics.CompletedTasks = myTasks.Count(t => t.Status == TaskStatus.Done);
-            metrics.InProgressTasks = myTasks.Count(t => t.Status == TaskStatus.InProgress);
-            metrics.ToDoTasks = myTasks.Count(t => t.Status == TaskStatus.ToDo);
+            metrics.InProgressTasks = myTasks.Count(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested);
+            metrics.ToDoTasks = myTasks.Count(t => t.Status == TaskStatus.ToDo || t.Status == TaskStatus.New);
             metrics.TaskCompletion = myTasks.Any() ? (decimal)metrics.CompletedTasks / myTasks.Count * 100 : 0;
             metrics.CurrentWeekload = myTasks.Where(t => t.Status != TaskStatus.Done).Sum(t => t.EstimatedHours);
             metrics.MyProjects = myTasks.Select(t => t.Project?.Name).Distinct().Where(n => n != null).Cast<string>().ToList();
@@ -466,9 +468,9 @@ namespace OfficeTaskManagement.Controllers
         {
             if (!tasks.Any()) return 0;
 
-            var inProgressHours = tasks.Where(t => t.Status == TaskStatus.InProgress).Sum(t => t.EstimatedHours);
+            var inProgressHours = tasks.Where(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested).Sum(t => t.EstimatedHours);
             var totalHours = tasks.Sum(t => t.EstimatedHours);
-
+ 
             return totalHours > 0 ? (inProgressHours / totalHours) * 100 : 0;
         }
 

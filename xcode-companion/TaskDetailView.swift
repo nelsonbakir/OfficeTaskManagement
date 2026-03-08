@@ -7,6 +7,13 @@ struct TaskDetailView: View {
     @State private var comments: [TaskComment] = []
     @State private var newComment: String = ""
     @State private var isPortalLoading = false
+    @State private var currentStatus: Int
+    
+    init(task: TaskItem, onBack: @escaping () -> Void) {
+        self.task = task
+        self.onBack = onBack
+        self._currentStatus = State(initialValue: task.status)
+    }
     
     var body: some View {
         VStack(alignment: .leading) {
@@ -34,9 +41,25 @@ struct TaskDetailView: View {
                     .font(.caption)
                     .padding(4)
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.gray, lineWidth: 1))
+            HStack {
+                Text("Status:")
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                Picker("", selection: $currentStatus) {
+                    Text("New").tag(0)
+                    Text("To Do").tag(1)
+                    Text("In Progress").tag(2)
+                    Text("Committed").tag(3)
+                    Text("Tested").tag(4)
+                    Text("Done").tag(5)
+                }
+                .pickerStyle(.menu)
+                .onChange(of: currentStatus) { newValue in
+                    updateStatus(newValue)
+                }
             }
             .padding(.bottom, 8)
-            
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(task.description ?? "No description provided.")
@@ -122,6 +145,17 @@ struct TaskDetailView: View {
             }
             DispatchQueue.main.async {
                 isPortalLoading = false
+            }
+        }
+    }
+
+    private func updateStatus(_ newStatus: Int) {
+        Task {
+            do {
+                try await NetworkManager.shared.updateTaskStatus(taskId: task.id, statusId: newStatus)
+                print("Status updated successfully")
+            } catch {
+                print("Failed to update status: \(error)")
             }
         }
     }

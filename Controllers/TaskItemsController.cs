@@ -132,11 +132,11 @@ namespace OfficeTaskManagement.Controllers
 
                 _context.Add(vm.TaskItem);
                 
-                // If this is a sub-task and its status is InProgress, ensure parent is also InProgress
-                if (vm.TaskItem.ParentTaskId.HasValue && vm.TaskItem.Status == TaskStatus.InProgress)
+                // If this is a sub-task and its status is worked on (InProgress/Committed/Tested), ensure parent is also InProgress
+                if (vm.TaskItem.ParentTaskId.HasValue && (vm.TaskItem.Status == TaskStatus.InProgress || vm.TaskItem.Status == TaskStatus.Committed || vm.TaskItem.Status == TaskStatus.Tested))
                 {
                     var parent = await _context.Tasks.FindAsync(vm.TaskItem.ParentTaskId);
-                    if (parent != null && parent.Status != TaskStatus.InProgress)
+                    if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Committed && parent.Status != TaskStatus.Tested && parent.Status != TaskStatus.Done)
                     {
                         parent.Status = TaskStatus.InProgress;
                         _context.Update(parent);
@@ -380,11 +380,11 @@ namespace OfficeTaskManagement.Controllers
 
                     _context.Update(existingTask);
                     
-                    // If a sub-task is moving to InProgress, parent must be InProgress
-                    if (existingTask.ParentTaskId.HasValue && existingTask.Status == TaskStatus.InProgress)
+                    // If a sub-task is moving into a worked state, parent must be at least InProgress
+                    if (existingTask.ParentTaskId.HasValue && (existingTask.Status == TaskStatus.InProgress || existingTask.Status == TaskStatus.Committed || existingTask.Status == TaskStatus.Tested))
                     {
                         var parent = await _context.Tasks.FindAsync(existingTask.ParentTaskId);
-                        if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Done)
+                        if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Committed && parent.Status != TaskStatus.Tested && parent.Status != TaskStatus.Done)
                         {
                             parent.Status = TaskStatus.InProgress;
                             _context.Update(parent);

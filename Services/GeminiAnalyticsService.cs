@@ -106,7 +106,7 @@ namespace OfficeTaskManagement.Services
 
             var json = JsonSerializer.Serialize(usersData);
             
-            string prompt = $"You are a technical team lead and agile coach. Review the following JSON of developer workload data. Identify any team members who might be at risk of burnout (e.g. exceptionally high estimated hours left, excessive commenting indicating they might be stuck, or too many assignments). Point out specific names and why you think they are at risk. Be concise and format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a technical team lead and agile coach. Review the workload data. The workflow is: New, ToDo, InProgress, Committed (Delivered), Tested (QA), Done. Identify any team members who might be at risk of burnout. Point out specific names and why. Be concise and format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }
@@ -129,7 +129,7 @@ namespace OfficeTaskManagement.Services
 
             var json = JsonSerializer.Serialize(recentDoneTasks);
 
-            string prompt = $"You are a Scrum Master. Write an automated Sprint Retrospective based on this JSON representing tasks completed in the last 2 weeks. Summarize what the team accomplished. If certain tasks had an unusually high comments count, mention that they might have faced technical hurdles. Be encouraging, concise and format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a Scrum Master. Write a Sprint Retrospective based on these tasks marked as 'Done' (PO Confirmed). Summarize accomplishments. Format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }
@@ -138,7 +138,7 @@ namespace OfficeTaskManagement.Services
         {
             var tasks = await _context.Tasks
                 .Include(t => t.Comments)
-                .Where(t => t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress || t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Tested)
+                .Where(t => t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.New)
                 .Select(t => new
                 {
                     TaskTitle = t.Title,
@@ -150,7 +150,7 @@ namespace OfficeTaskManagement.Services
 
             var json = JsonSerializer.Serialize(tasks);
 
-            string prompt = $"You are a Senior Architect. Review this JSON of currently active tasks. Flag any tasks that represent potential Technical Debt or poorly defined requirements. For example, tasks with excessively high comment counts while stuck in 'In Progress' or 'Tested' often indicate friction or churn. Briefly suggest managerial action for these specific tasks. Format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a Senior Architect. Review these active tasks. The workflow is: New, ToDo, InProgress, Committed (Delivered for testing), Tested (QA), Done. Flag any tasks that represent potential Technical Debt or poorly defined requirements. For example, tasks with high comment counts stuck in 'InProgress' or 'Committed' indicate friction. Format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }

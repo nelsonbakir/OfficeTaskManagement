@@ -37,12 +37,12 @@
         border-color: #0078D4;
     }
 
-    /* Kanban Board */
     .kanban-board {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        display: flex;
         gap: 1.5rem;
         margin-top: 1.5rem;
+        overflow-x: auto;
+        padding-bottom: 1rem;
     }
 
     .kanban-column {
@@ -254,8 +254,10 @@
     <div class="kanban-board" id="kanbanView">
         @{
             var statuses = new[] { 
+                OfficeTaskManagement.Models.Enums.TaskStatus.New,
                 OfficeTaskManagement.Models.Enums.TaskStatus.ToDo,
                 OfficeTaskManagement.Models.Enums.TaskStatus.InProgress,
+                OfficeTaskManagement.Models.Enums.TaskStatus.Committed,
                 OfficeTaskManagement.Models.Enums.TaskStatus.Tested,
                 OfficeTaskManagement.Models.Enums.TaskStatus.Done
             };
