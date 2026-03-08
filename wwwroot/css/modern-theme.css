@@ -146,7 +146,85 @@ nav.sidebar {
     margin: 0;
 }
 
-/* Area Badges & Previews */
+/* Planning Guide Hierarchy Diagram */
+.hierarchy-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem 0;
+}
+
+.hierarchy-node {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    width: 220px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.hierarchy-node:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 120, 212, 0.1);
+}
+
+.hierarchy-node i {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.hierarchy-node .node-name {
+    font-weight: 700;
+    display: block;
+    color: var(--text-primary);
+}
+
+.hierarchy-node .node-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.hierarchy-connector {
+    width: 2px;
+    height: 1.5rem;
+    background: var(--border-color);
+}
+
+.hierarchy-node.project {
+    border-left: 4px solid #0078D4;
+}
+
+.hierarchy-node.epic {
+    border-left: 4px solid #8E44AD;
+}
+
+.hierarchy-node.feature {
+    border-left: 4px solid #2980B9;
+}
+
+.hierarchy-node.userstory {
+    border-left: 4px solid #27AE60;
+}
+
+.hierarchy-node.testcase {
+    border-left: 4px solid #F39C12;
+}
+
+.hierarchy-node.task {
+    border-left: 4px solid #E74C3C;
+}
+
+.hierarchy-node.sprint {
+    border-left: 4px solid #1ABC9C;
+    background: #F4FBF9;
+}
+
 .area-badge {
     background: #E2F6F9;
     color: #005A9E;

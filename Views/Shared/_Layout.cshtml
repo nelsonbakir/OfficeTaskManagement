@@ -65,7 +65,12 @@
             </li>
 
             <!-- PLANNING -->
-            <li class="nav-section-title">Planning</li>
+            <li class="nav-section-title d-flex justify-content-between align-items-center">
+                <span>Planning</span>
+                <button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="modal" data-bs-target="#planningGuideModal" title="Planning Guide">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+            </li>
             <li class="nav-item">
                 <a class="nav-link" asp-area="" asp-controller="Projects" asp-action="Index">
                     <i class="fas fa-folder"></i>
@@ -206,22 +211,80 @@
         <p class="mb-0">&copy; 2024 TaskFlow - Modern Project Management. All rights reserved.</p>
     </footer>
 
-    <!-- Profile Modal -->
-    <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+    <!-- Planning Guide Modal -->
+    <div class="modal fade" id="planningGuideModal" tabindex="-1" aria-labelledby="planningGuideModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="profileModalLabel">User Profile</h5>
+                    <h5 class="modal-title" id="planningGuideModalLabel"><i class="fas fa-map"></i> Planning & Execution Guide</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="text-center mb-3">
-                        <div class="user-avatar mx-auto" style="width: 80px; height: 80px; font-size: 2rem;">
-                            <i class="fas fa-user"></i>
+                    <div class="row">
+                        <div class="col-md-5">
+                            <div class="hierarchy-container">
+                                <div class="hierarchy-node project">
+                                    <i class="fas fa-folder text-primary"></i>
+                                    <span class="node-name">Project</span>
+                                    <span class="node-desc">Top-level Goal/Client</span>
+                                </div>
+                                <div class="hierarchy-connector"></div>
+                                <div class="hierarchy-node epic">
+                                    <i class="fas fa-layer-group" style="color: #8E44AD;"></i>
+                                    <span class="node-name">Epic</span>
+                                    <span class="node-desc">Large Deliverable</span>
+                                </div>
+                                <div class="hierarchy-connector"></div>
+                                <div class="hierarchy-node feature">
+                                    <i class="fas fa-cube" style="color: #2980B9;"></i>
+                                    <span class="node-name">Feature</span>
+                                    <span class="node-desc">Specific Module</span>
+                                </div>
+                                <div class="hierarchy-connector"></div>
+                                <div class="hierarchy-node userstory">
+                                    <i class="fas fa-book" style="color: #27AE60;"></i>
+                                    <span class="node-name">User Story</span>
+                                    <span class="node-desc">End-user Need</span>
+                                </div>
+                                <div class="hierarchy-connector" style="height: 1rem; border-left-style: dashed;"></div>
+                                <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                                    <div style="display: flex; flex-direction: column; align-items: center;">
+                                        <div class="hierarchy-node testcase" style="width: 140px; padding: 0.5rem;">
+                                            <i class="fas fa-vial" style="color: #F39C12;"></i>
+                                            <span class="node-name" style="font-size: 0.8rem;">Test Case</span>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; align-items: center;">
+                                        <div class="hierarchy-node task" style="width: 140px; padding: 0.5rem;">
+                                            <i class="fas fa-check-square" style="color: #E74C3C;"></i>
+                                            <span class="node-name" style="font-size: 0.8rem;">Task</span>
+                                        </div>
+                                        <div class="hierarchy-connector"></div>
+                                        <div class="hierarchy-node sprint" style="width: 140px; padding: 0.5rem; border: 2px dashed #1ABC9C;">
+                                            <i class="fas fa-rocket" style="color: #1ABC9C;"></i>
+                                            <span class="node-name" style="font-size: 0.8rem;">Sprint</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="guide-details" style="font-size: 0.9rem;">
+                                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary"></i> Recommended Usage</h6>
+                                <p><strong>1. Projects:</strong> Create a project for each major engagement or client. It acts as the umbrella for all work.</p>
+                                <p><strong>2. Epics:</strong> Use Epics for large features or milestones that take multiple sprints to complete (e.g., "Mobile Authentication").</p>
+                                <p><strong>3. Features:</strong> Break Epics down into Features (e.g., "FaceID Integration", "OAuth2 Login").</p>
+                                <p><strong>4. User Stories:</strong> Write stories from the user's perspective. <em>"As a user, I want to..."</em>. These are the functional requirements.</p>
+                                <p><strong>5. Test Cases:</strong> Link Test Cases to User Stories to ensure quality and track acceptance criteria.</p>
+                                <p><strong>6. Tasks:</strong> Break down stories into technical tasks for developers. <strong>Only Approved tasks</strong> should move to Sprints.</p>
+                                <p><strong>7. Sprints:</strong> Organize tasks into time-boxed Sprints (usually 2 weeks) for delivery.</p>
+                                
+                                <div class="alert alert-info py-2 px-3 mt-3" style="font-size: 0.85rem;">
+                                    <i class="fas fa-lightbulb"></i> <strong>Pro Tip:</strong> Link everything back up to the Project to get accurate progress tracking in the Analytics dashboard.
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <p><strong>Email:</strong> @User.Identity?.Name</p>
-                    <p><strong>Status:</strong> <span class="badge badge-success">Active</span></p>
                 </div>
             </div>
         </div>
