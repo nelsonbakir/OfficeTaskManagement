@@ -213,78 +213,191 @@
 
     <!-- Planning Guide Modal -->
     <div class="modal fade" id="planningGuideModal" tabindex="-1" aria-labelledby="planningGuideModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="planningGuideModalLabel"><i class="fas fa-map"></i> Planning & Execution Guide</h5>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light border-bottom-0 pb-3">
+                    <h5 class="modal-title fw-bold" id="planningGuideModalLabel">
+                        <span class="bg-primary bg-opacity-10 text-primary p-2 rounded me-2">
+                            <i class="fas fa-route"></i>
+                        </span>
+                        Delivery Journey Guide
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-5">
-                            <div class="hierarchy-container">
-                                <div class="hierarchy-node project">
-                                    <i class="fas fa-folder text-primary"></i>
-                                    <span class="node-name">Project</span>
-                                    <span class="node-desc">Top-level Goal/Client</span>
-                                </div>
-                                <div class="hierarchy-connector"></div>
-                                <div class="hierarchy-node epic">
-                                    <i class="fas fa-layer-group" style="color: #8E44AD;"></i>
-                                    <span class="node-name">Epic</span>
-                                    <span class="node-desc">Large Deliverable</span>
-                                </div>
-                                <div class="hierarchy-connector"></div>
-                                <div class="hierarchy-node feature">
-                                    <i class="fas fa-cube" style="color: #2980B9;"></i>
-                                    <span class="node-name">Feature</span>
-                                    <span class="node-desc">Specific Module</span>
-                                </div>
-                                <div class="hierarchy-connector"></div>
-                                <div class="hierarchy-node userstory">
-                                    <i class="fas fa-book" style="color: #27AE60;"></i>
-                                    <span class="node-name">User Story</span>
-                                    <span class="node-desc">End-user Need</span>
-                                </div>
-                                <div class="hierarchy-connector" style="height: 1rem; border-left-style: dashed;"></div>
-                                <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                                    <div style="display: flex; flex-direction: column; align-items: center;">
-                                        <div class="hierarchy-node testcase" style="width: 140px; padding: 0.5rem;">
-                                            <i class="fas fa-vial" style="color: #F39C12;"></i>
-                                            <span class="node-name" style="font-size: 0.8rem;">Test Case</span>
-                                        </div>
+                <div class="modal-body p-0">
+                    <div class="row g-0">
+                        <!-- Left Side: Visual Journey -->
+                        <div class="col-lg-5 bg-light p-4 p-md-5 border-end">
+                            <h6 class="text-uppercase text-muted fw-bold mb-4 ls-1" style="letter-spacing: 1px; font-size: 0.8rem;">The TaskFlow Hierarchy</h6>
+
+                            <div class="position-relative ms-3">
+                                <!-- Vertical Line -->
+                                <div class="position-absolute h-100" style="left: 1.25rem; top: 0; width: 2px; background: linear-gradient(180deg, #0d6efd 0%, #8e44ad 25%, #2980b9 50%, #27ae60 75%, #e74c3c 100%);"></div>
+
+                                <!-- Project -->
+                                <div class="position-relative d-flex align-items-center mb-4">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 2.5rem; height: 2.5rem; z-index: 2;">
+                                        <i class="fas fa-folder"></i>
                                     </div>
-                                    <div style="display: flex; flex-direction: column; align-items: center;">
-                                        <div class="hierarchy-node task" style="width: 140px; padding: 0.5rem;">
-                                            <i class="fas fa-check-square" style="color: #E74C3C;"></i>
-                                            <span class="node-name" style="font-size: 0.8rem;">Task</span>
+                                    <div class="ms-3 bg-white p-2 px-3 rounded shadow-sm border" style="width: 100%;">
+                                        <div class="fw-bold text-dark">Project</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Top-level Goal</div>
+                                    </div>
+                                </div>
+
+                                <!-- Epic -->
+                                <div class="position-relative d-flex align-items-center mb-4">
+                                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 2.5rem; height: 2.5rem; z-index: 2; background-color: #8E44AD;">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <div class="ms-3 bg-white p-2 px-3 rounded shadow-sm border" style="width: 100%;">
+                                        <div class="fw-bold text-dark">Epic</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Large Deliverable</div>
+                                    </div>
+                                </div>
+
+                                <!-- Feature -->
+                                <div class="position-relative d-flex align-items-center mb-4">
+                                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 2.5rem; height: 2.5rem; z-index: 2; background-color: #2980B9;">
+                                        <i class="fas fa-cube"></i>
+                                    </div>
+                                    <div class="ms-3 bg-white p-2 px-3 rounded shadow-sm border" style="width: 100%;">
+                                        <div class="fw-bold text-dark">Feature</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Specific Module</div>
+                                    </div>
+                                </div>
+
+                                <!-- User Story -->
+                                <div class="position-relative d-flex align-items-center mb-4">
+                                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 2.5rem; height: 2.5rem; z-index: 2; background-color: #27AE60;">
+                                        <i class="fas fa-book"></i>
+                                    </div>
+                                    <div class="ms-3 bg-white p-2 px-3 rounded shadow-sm border" style="width: 100%;">
+                                        <div class="fw-bold text-dark">User Story</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">End-user Need</div>
+                                    </div>
+                                </div>
+
+                                <!-- Fork: Task & Test Case -->
+                                <div class="position-relative mb-4">
+                                    <div class="d-flex align-items-start">
+                                        <div class="text-white rounded-circle d-flex align-items-center justify-content-center shadow-sm mt-1" style="width: 2.5rem; height: 2.5rem; z-index: 2; background-color: #E74C3C;">
+                                            <i class="fas fa-check-square"></i>
                                         </div>
-                                        <div class="hierarchy-connector"></div>
-                                        <div class="hierarchy-node sprint" style="width: 140px; padding: 0.5rem; border: 2px dashed #1ABC9C;">
-                                            <i class="fas fa-rocket" style="color: #1ABC9C;"></i>
-                                            <span class="node-name" style="font-size: 0.8rem;">Sprint</span>
+                                        <div class="ms-3 d-flex flex-column gap-2" style="width: 100%;">
+                                            <div class="bg-white p-2 px-3 rounded shadow-sm border d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <div class="fw-bold text-dark">Task</div>
+                                                    <div class="text-muted" style="font-size: 0.75rem;">Technical Step</div>
+                                                </div>
+                                                <i class="fas fa-arrow-right text-muted mx-2"></i>
+                                                <div class="text-center p-1 px-2 rounded" style="background-color: #f8f9fa; border: 1px dashed #1ABC9C;">
+                                                    <i class="fas fa-rocket text-success mb-1" style="font-size: 0.8rem;"></i>
+                                                    <div class="fw-bold" style="font-size: 0.7rem; color: #1ABC9C;">Sprint</div>
+                                                </div>
+                                            </div>
+                                            <div class="bg-white p-2 px-3 rounded shadow-sm border d-flex align-items-center">
+                                                <div class="text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 1.75rem; height: 1.75rem; background-color: #F39C12; font-size: 0.7rem;">
+                                                    <i class="fas fa-vial"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold text-dark" style="font-size:0.9rem;">Test Case</div>
+                                                    <div class="text-muted" style="font-size: 0.75rem;">Validation Criteria</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-7">
-                            <div class="guide-details" style="font-size: 0.9rem;">
-                                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle text-primary"></i> Recommended Usage</h6>
-                                <p><strong>1. Projects:</strong> Create a project for each major engagement or client. It acts as the umbrella for all work.</p>
-                                <p><strong>2. Epics:</strong> Use Epics for large features or milestones that take multiple sprints to complete (e.g., "Mobile Authentication").</p>
-                                <p><strong>3. Features:</strong> Break Epics down into Features (e.g., "FaceID Integration", "OAuth2 Login").</p>
-                                <p><strong>4. User Stories:</strong> Write stories from the user's perspective. <em>"As a user, I want to..."</em>. These are the functional requirements.</p>
-                                <p><strong>5. Test Cases:</strong> Link Test Cases to User Stories to ensure quality and track acceptance criteria.</p>
-                                <p><strong>6. Tasks:</strong> Break down stories into technical tasks for developers. <strong>Only Approved tasks</strong> should move to Sprints.</p>
-                                <p><strong>7. Sprints:</strong> Organize tasks into time-boxed Sprints (usually 2 weeks) for delivery.</p>
-                                
-                                <div class="alert alert-info py-2 px-3 mt-3" style="font-size: 0.85rem;">
-                                    <i class="fas fa-lightbulb"></i> <strong>Pro Tip:</strong> Link everything back up to the Project to get accurate progress tracking in the Analytics dashboard.
+
+                        <!-- Right Side: Detailed Guide -->
+                        <div class="col-lg-7 p-4 p-md-5">
+                            <h6 class="text-uppercase text-muted fw-bold mb-4 ls-1" style="letter-spacing: 1px; font-size: 0.8rem;">How to Execute</h6>
+
+                            <div class="accordion accordion-flush" id="journeyAccordion">
+                                <!-- Phase 1 -->
+                                <div class="accordion-item mb-3 border rounded shadow-sm">
+                                    <h2 class="accordion-header" id="headingOne">
+                                        <button class="accordion-button rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;"><i class="fas fa-lightbulb"></i></div>
+                                                <div class="fw-bold">1. Ideation & Planning (Projects & Epics)</div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#journeyAccordion">
+                                        <div class="accordion-body text-muted" style="font-size: 0.9rem;">
+                                            Start by creating a <strong>Project</strong> for each major engagement or client. Within that project, create <strong>Epics</strong> to represent large milestones or overarching features that will naturally span across multiple sprints.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Phase 2 -->
+                                <div class="accordion-item mb-3 border rounded shadow-sm">
+                                    <h2 class="accordion-header" id="headingTwo">
+                                        <button class="accordion-button collapsed rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-info bg-opacity-10 text-info rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;"><i class="fas fa-sitemap"></i></div>
+                                                <div class="fw-bold">2. Structuring Work (Features & Stories)</div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#journeyAccordion">
+                                        <div class="accordion-body text-muted" style="font-size: 0.9rem;">
+                                            Break Epics down into logical <strong>Features</strong> (e.g., "Authentication Module"). For each Feature, define <strong>User Stories</strong> written from the end-user's perspective to capture functional requirements (e.g., <em>"As a user, I want to login with FaceID..."</em>).
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Phase 3 -->
+                                <div class="accordion-item mb-3 border rounded shadow-sm">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-danger bg-opacity-10 text-danger rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;"><i class="fas fa-hammer"></i></div>
+                                                <div class="fw-bold">3. Execution (Tasks) & Quality (Test Cases)</div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#journeyAccordion">
+                                        <div class="accordion-body text-muted" style="font-size: 0.9rem;">
+                                            Decompose User Stories into technical <strong>Tasks</strong> for developers to pick up. Concurrent with task creation, define <strong>Test Cases</strong> ensuring validation criteria are documented. Tasks should undergo an approval process before they are considered sprint-ready.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Phase 4 -->
+                                <div class="accordion-item border rounded shadow-sm">
+                                    <h2 class="accordion-header" id="headingFour">
+                                        <button class="accordion-button collapsed rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                            <div class="d-flex align-items-center">
+                                                <div class="bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 32px; height: 32px;"><i class="fas fa-flag-checkered"></i></div>
+                                                <div class="fw-bold">4. Delivery (Sprints)</div>
+                                            </div>
+                                        </button>
+                                    </h2>
+                                    <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#journeyAccordion">
+                                        <div class="accordion-body text-muted" style="font-size: 0.9rem;">
+                                            Organize approved Tasks into time-boxed <strong>Sprints</strong>. As developers complete tasks, burn-down charts and overall progress naturally roll up to the Project level, driving transparent analytics.
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
+                            <div class="d-flex align-items-center mt-5 p-3 rounded" style="background-color: #f8f9fa; border-left: 4px solid #0d6efd;">
+                                <i class="fas fa-chart-line fa-2x text-primary me-3 opacity-75"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-1">Stay Connected</h6>
+                                    <p class="text-muted mb-0" style="font-size: 0.85rem;">Maintaining links between tasks, stories, and epics ensures your Dashboard Analytics remain perfectly accurate.</p>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+                </div>
+                <div class="modal-footer border-top-0 d-md-none p-3">
+                    <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Close Guide</button>
                 </div>
             </div>
         </div>
