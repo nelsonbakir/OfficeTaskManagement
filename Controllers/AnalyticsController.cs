@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
+using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Enums;
 using OfficeTaskManagement.ViewModels.Analytics;
 
@@ -24,6 +25,215 @@ namespace OfficeTaskManagement.Controllers
         {
             _context = context;
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // STRATEGIC HUB — Manager/C-Suite Command Centre
+        // ─────────────────────────────────────────────────────────────────────
+        [Authorize(Roles = "Manager")]
+        public async Task<IActionResult> StrategicHub()
+        {
+            var vm = await GetPortfolioIntelligence();
+
+            vm.AllUsers = (await _context.Users.OrderBy(u => u.FullName).ToListAsync())
+                .Select(u => new SelectListItem(u.FullName ?? u.Email, u.Id)).ToList();
+
+            vm.AllProjects = (await _context.Projects.OrderBy(p => p.Name).ToListAsync())
+                .Select(p => new SelectListItem(p.Name, p.Id.ToString())).ToList();
+
+            vm.AllActiveSprints = (await _context.Sprints
+                .Where(s => s.IsActive)
+                .Include(s => s.Project)
+                .OrderBy(s => s.Name)
+                .ToListAsync())
+                .Select(s => new SelectListItem($"{s.Name} ({s.Project?.Name})", s.Id.ToString())).ToList();
+
+            vm.ActiveTasksForReassign = (await _context.Tasks
+                .Where(t => t.Status != TaskStatus.Done)
+                .Include(t => t.Project)
+                .OrderBy(t => t.Title)
+                .ToListAsync())
+                .Select(t => new SelectListItem($"{t.Title} [{t.Project?.Name ?? "No Project"}]", t.Id.ToString())).ToList();
+
+            return View(vm);
+        }
+
+        private async Task<StrategicHubViewModel> GetPortfolioIntelligence()
+        {
+            var vm = new StrategicHubViewModel();
+            var now = DateTime.UtcNow;
+            var weekStart = now.Date.AddDays(-(int)now.DayOfWeek);
+            var lastWeekStart = weekStart.AddDays(-7);
+
+            // ── Fetch core data ──────────────────────────────────────────────
+            var allUsers = await _context.Users.ToListAsync();
+            var allProjects = await _context.Projects
+                .Include(p => p.Sprints)
+                .Include(p => p.PortfolioDecisions)
+                .ToListAsync();
+
+            var allTasks = await _context.Tasks
+                .Include(t => t.Assignee)
+                .Include(t => t.Project)
+                .Include(t => t.Sprint)
+                .Include(t => t.PausedBy)
+                .Include(t => t.History)
+                .ToListAsync();
+
+            var activeSprints = await _context.Sprints
+                .Where(s => s.IsActive)
+                .Include(s => s.Project)
+                .ToListAsync();
+
+            // ── Org Capacity ─────────────────────────────────────────────────
+            const decimal hoursPerPersonPerSprint = 40m;
+            var committedHours = allTasks
+                .Where(t => t.Status != TaskStatus.Done && !t.IsPaused)
+                .Sum(t => t.EstimatedHours);
+            var availableHours = allUsers.Count * hoursPerPersonPerSprint;
+
+            var utilPct = availableHours > 0 ? committedHours / availableHours * 100 : 0;
+            vm.CapacitySnapshot = new OrgCapacity
+            {
+                CommittedHours = committedHours,
+                AvailableHours = availableHours,
+                TeamSize = allUsers.Count,
+                ActiveProjects = allProjects.Count(p => p.StrategicStatus == ProjectStrategicStatus.Active),
+                Status = utilPct < 50 ? CapacityStatus.Free
+                    : utilPct < 80 ? CapacityStatus.Balanced
+                    : utilPct <= 100 ? CapacityStatus.AtRisk
+                    : CapacityStatus.Overloaded
+            };
+
+            var atRiskProjectCount = allProjects.Count(p => p.StrategicStatus == ProjectStrategicStatus.Active
+                && allTasks.Where(t => t.ProjectId == p.Id).Any(t => t.DueDate < now && t.Status != TaskStatus.Done));
+
+            vm.CanStartNewProject = utilPct < 70 && atRiskProjectCount == 0;
+            vm.NewProjectRecommendation = vm.CanStartNewProject
+                ? $"✅ Yes — team is at {utilPct:F0}% capacity with no at-risk projects. Good time to onboard a new project."
+                : utilPct >= 70 && atRiskProjectCount == 0
+                    ? $"⚠️ Cautious — team is at {utilPct:F0}% capacity. Resolve load before adding new projects."
+                    : $"🔴 No — {atRiskProjectCount} project(s) are at risk and team is at {utilPct:F0}% capacity. Stabilise first.";
+
+            // ── Project Health Cards ────────────────────────────────────────
+            foreach (var project in allProjects)
+            {
+                var pTasks = allTasks.Where(t => t.ProjectId == project.Id).ToList();
+                if (!pTasks.Any()) { /* still show empty projects */ }
+
+                var completed = pTasks.Count(t => t.Status == TaskStatus.Done);
+                var overdue = pTasks.Count(t => t.DueDate < now && t.Status != TaskStatus.Done);
+                var totalPTasks = pTasks.Count;
+
+                var completionPct = totalPTasks > 0 ? (decimal)completed / totalPTasks * 100 : 0;
+                var onTimePct = totalPTasks > 0 ? (decimal)(totalPTasks - overdue) / totalPTasks * 100 : 100;
+
+                var activeMembers = pTasks
+                    .Where(t => t.Status != TaskStatus.Done && t.AssigneeId != null && t.CreatedAt >= weekStart)
+                    .Select(t => t.AssigneeId)
+                    .Distinct().Count();
+                var teamSize = pTasks.Select(t => t.AssigneeId).Distinct().Count(id => id != null);
+                var engagementPct = teamSize > 0 ? (decimal)activeMembers / teamSize * 100 : 0;
+
+                var healthScore = (completionPct * 0.4m) + (onTimePct * 0.4m) + (engagementPct * 0.2m);
+
+                vm.ProjectHealthCards.Add(new ProjectHealthCard
+                {
+                    ProjectId = project.Id,
+                    ProjectName = project.Name,
+                    StrategicStatus = project.StrategicStatus,
+                    CompletionPercent = Math.Round(completionPct, 1),
+                    OnTimeRate = Math.Round(onTimePct, 1),
+                    TeamEngagement = Math.Round(engagementPct, 1),
+                    TotalTasks = totalPTasks,
+                    CompletedTasks = completed,
+                    OverdueTasks = overdue,
+                    TeamSize = teamSize,
+                    HealthScore = Math.Round(healthScore, 1),
+                    StrategicStatusReason = project.StrategicStatusReason,
+                    StrategicStatusChangedAt = project.StrategicStatusChangedAt
+                });
+            }
+
+            // ── Individual Engagement Scorecards ────────────────────────────
+            foreach (var user in allUsers)
+            {
+                var userTasks = allTasks.Where(t => t.AssigneeId == user.Id).ToList();
+                var closedThisWeek = userTasks.Count(t =>
+                    t.Status == TaskStatus.Done &&
+                    t.History.Any(h => h.Timestamp >= weekStart));
+                var closedLastWeek = userTasks.Count(t =>
+                    t.Status == TaskStatus.Done &&
+                    t.History.Any(h => h.Timestamp >= lastWeekStart && h.Timestamp < weekStart));
+
+                var overdue = userTasks.Count(t => t.DueDate < now && t.Status != TaskStatus.Done);
+                var committed = userTasks.Where(t => t.Status != TaskStatus.Done).Sum(t => t.EstimatedHours);
+
+                var level = committed == 0 ? "Idle"
+                    : committed > hoursPerPersonPerSprint ? "Overloaded"
+                    : "Engaged";
+
+                vm.MemberScorecards.Add(new EngagementScorecard
+                {
+                    UserId = user.Id,
+                    UserName = user.FullName ?? user.Email ?? "Unknown",
+                    TasksClosedThisWeek = closedThisWeek,
+                    TasksClosedLastWeek = closedLastWeek,
+                    OverdueTasks = overdue,
+                    CommittedHours = committed,
+                    EngagementLevel = level
+                });
+            }
+
+            // ── Suggested Reallocations ─────────────────────────────────────
+            var idleMembers = vm.MemberScorecards.Where(m => m.EngagementLevel == "Idle").ToList();
+            var atRiskProjects = vm.ProjectHealthCards
+                .Where(p => p.RagStatus == "Red" && p.StrategicStatus == ProjectStrategicStatus.Active)
+                .OrderBy(p => p.HealthScore)
+                .ToList();
+
+            foreach (var idle in idleMembers)
+            {
+                var target = atRiskProjects.FirstOrDefault();
+                if (target != null)
+                {
+                    vm.SuggestedReallocations.Add(new SuggestedReallocation
+                    {
+                        UserId = idle.UserId,
+                        UserName = idle.UserName,
+                        CurrentEngagementLevel = idle.EngagementLevel,
+                        SuggestedProjectId = target.ProjectId,
+                        SuggestedProjectName = target.ProjectName,
+                        Reason = $"{idle.UserName} has no committed work. {target.ProjectName} is at {target.HealthScore:F0}/100 health."
+                    });
+                }
+            }
+
+            // ── Paused Tasks ────────────────────────────────────────────────
+            vm.PausedTasks = allTasks
+                .Where(t => t.IsPaused)
+                .Select(t => new PausedTaskCard
+                {
+                    TaskId = t.Id,
+                    TaskTitle = t.Title,
+                    AssigneeName = t.Assignee?.FullName ?? "Unassigned",
+                    ProjectName = t.Project?.Name ?? "No Project",
+                    PauseReason = t.PauseReason ?? "",
+                    PausedAt = t.PausedAt,
+                    PausedByName = t.PausedBy?.FullName ?? "Unknown"
+                })
+                .ToList();
+
+            // ── Recent Decisions (audit trail) ──────────────────────────────
+            vm.RecentDecisions = await _context.PortfolioDecisions
+                .Include(d => d.MadeBy)
+                .Include(d => d.Project)
+                .OrderByDescending(d => d.MadeAt)
+                .Take(20)
+                .ToListAsync();
+
+            return vm;
+        }
+
 
         public async Task<IActionResult> Index(string? assigneeId, int? projectId)
         {

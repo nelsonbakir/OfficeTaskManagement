@@ -23,6 +23,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<Area> Areas { get; set; }
         public DbSet<UserStory> UserStories { get; set; }
         public DbSet<TestCase> TestCases { get; set; }
+        public DbSet<PortfolioDecision> PortfolioDecisions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -182,6 +183,33 @@ namespace OfficeTaskManagement.Data
                 .WithMany(us => us.Tasks)
                 .HasForeignKey(t => t.UserStoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure TaskItem PausedBy relationship
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.PausedBy)
+                .WithMany()
+                .HasForeignKey(t => t.PausedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure Project StrategicStatusChangedBy relationship
+            builder.Entity<Project>()
+                .HasOne(p => p.StrategicStatusChangedBy)
+                .WithMany()
+                .HasForeignKey(p => p.StrategicStatusChangedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure PortfolioDecision relationships
+            builder.Entity<PortfolioDecision>()
+                .HasOne(pd => pd.Project)
+                .WithMany(p => p.PortfolioDecisions)
+                .HasForeignKey(pd => pd.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PortfolioDecision>()
+                .HasOne(pd => pd.MadeBy)
+                .WithMany()
+                .HasForeignKey(pd => pd.MadeById)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

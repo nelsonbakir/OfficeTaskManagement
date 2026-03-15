@@ -62,5 +62,17 @@ namespace OfficeTaskManagement.Models
         public ICollection<TaskHistory> History { get; set; } = new List<TaskHistory>();
         public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
         public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
+
+        // ── Strategic Management Fields ──────────────────────────────────────
+        /// <summary>Manager-set pause flag. Task remains in its status but is flagged as blocked by decision.</summary>
+        public bool IsPaused { get; set; } = false;
+
+        public string? PauseReason { get; set; }
+
+        public DateTime? PausedAt { get; set; }
+
+        public string? PausedById { get; set; }
+        public User? PausedBy { get; set; }
+        // ────────────────────────────────────────────────────────────────────
     }
 }

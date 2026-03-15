@@ -224,7 +224,7 @@ class TaskFlowSidebarProvider {
         }
         else {
             tasks.forEach(t => {
-                const isDone = t.status === 3;
+                const isDone = t.status === 5;
                 taskItems += `
                 <div style="border: 1px solid var(--vscode-widget-border); border-radius: 6px; padding: 12px; margin-bottom: 12px; background: ${isDone ? 'var(--vscode-list-hoverBackground)' : 'var(--vscode-editor-background)'}; transition: transform 0.2s;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -239,10 +239,12 @@ class TaskFlowSidebarProvider {
                     <div style="display: flex; align-items: center; justify-content: space-between;">
                         <label style="font-size: 11px; font-weight: 500; color: var(--vscode-descriptionForeground);">STATUS</label>
                         <select onchange="updateStatus(${t.id}, this.value)" style="padding: 4px; border-radius: 4px; border: 1px solid var(--vscode-input-border); font-size: 11px; font-family: inherit; background: var(--vscode-input-background); color: var(--vscode-input-foreground); cursor: pointer; min-width: 100px;">
-                            <option value="0" ${t.status === 0 ? 'selected' : ''}>To Do</option>
-                            <option value="1" ${t.status === 1 ? 'selected' : ''}>In Progress</option>
-                            <option value="2" ${t.status === 2 ? 'selected' : ''}>Tested</option>
-                            <option value="3" ${t.status === 3 ? 'selected' : ''}>Done</option>
+                            <option value="0" ${t.status === 0 ? 'selected' : ''}>New</option>
+                            <option value="1" ${t.status === 1 ? 'selected' : ''}>To Do</option>
+                            <option value="2" ${t.status === 2 ? 'selected' : ''}>In Progress</option>
+                            <option value="3" ${t.status === 3 ? 'selected' : ''}>Committed</option>
+                            <option value="4" ${t.status === 4 ? 'selected' : ''}>Tested</option>
+                            <option value="5" ${t.status === 5 ? 'selected' : ''}>Done</option>
                         </select>
                         <button onclick="showDetails(${t.id})" style="background:transparent; border:none; color:var(--vscode-textLink-foreground); cursor:pointer; font-size:11px; padding: 4px;">Details</button>
                     </div>

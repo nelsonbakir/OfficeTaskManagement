@@ -1,0 +1,922 @@
+@model OfficeTaskManagement.ViewModels.Analytics.StrategicHubViewModel
+@using OfficeTaskManagement.Models.Enums
+@using OfficeTaskManagement.ViewModels.Analytics
+
+@{
+    ViewData["Title"] = "Strategic Hub";
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    // ── Utility: show toast ───────────────────────────────────────────────
+    function showToast(msg, isError) {
+        var el = document.getElementById('stratToast');
+        var body = document.getElementById('stratToastBody');
+        body.textContent = msg;
+        el.classList.remove('bg-success', 'bg-danger');
+        el.classList.add(isError ? 'bg-danger' : 'bg-success');
+        var toast = new bootstrap.Toast(el, { delay: 4000 });
+        toast.show();
+    }
+
+    // ── Utility: API call ─────────────────────────────────────────────────
+    async function stratApi(url, body) {
+        try {
+            var r = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            var d = await r.json();
+            if (r.ok) {
+                showToast(d.message, false);
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(d.message || 'Action failed', true);
+            }
+        } catch (e) {
+            showToast('Network error — please try again', true);
+        }
+    }
+
+    // ── Modal helpers ─────────────────────────────────────────────────────
+    window.submitHoldProject = function () {
+        var id = document.getElementById('holdProjectId').value;
+        var notes = document.getElementById('holdProjectNotes').value;
+        stratApi('/api/strategic/project/' + id + '/hold', { notes });
+    };
+    window.submitResumeProject = function () {
+        var id = document.getElementById('resumeProjectId').value;
+        stratApi('/api/strategic/project/' + id + '/resume', { notes: '' });
+    };
+    window.submitDelayProject = function () {
+        var id = document.getElementById('delayProjectId').value;
+        var notes = document.getElementById('delayProjectNotes').value;
+        stratApi('/api/strategic/project/' + id + '/delay', { notes });
+    };
+    window.submitAccelerateProject = function () {
+        var id = document.getElementById('accelProjectId').value;
+        var notes = document.getElementById('accelProjectNotes').value;
+        stratApi('/api/strategic/project/' + id + '/accelerate', { notes });
+    };
+    window.submitNewProject = function () {
+        var name = document.getElementById('newProjName').value;
+        var desc = document.getElementById('newProjDesc').value;
+        var week = document.getElementById('newProjWeek').value;
+        stratApi('/api/strategic/project/plan-new', { name, description: desc, plannedStartWeek: +week || null });
+    };
+    window.submitPauseTask = function () {
+        var id = document.getElementById('pauseTaskId').value;
+        var notes = document.getElementById('pauseTaskNotes').value;
+        stratApi('/api/strategic/task/' + id + '/pause', { notes });
+    };
+    window.submitResumeTask = function (id) {
+        stratApi('/api/strategic/task/' + id + '/resume', { notes: 'Resumed from Strategic Hub' });
+    };
+    window.submitReassignTask = function () {
+        var taskId = document.getElementById('reassignTaskId').value;
+        var userId = document.getElementById('reassignUserId').value;
+        var notes = document.getElementById('reassignNotes').value;
+        stratApi('/api/strategic/task/' + taskId + '/reassign', { newAssigneeId: userId, notes });
+    };
+    window.submitMoveTask = function () {
+        var taskId = document.getElementById('moveTaskId').value;
+        var sprintId = document.getElementById('moveSprintId').value;
+        stratApi('/api/strategic/task/' + taskId + '/move-sprint', { newSprintId: +sprintId || null, notes: '' });
+    };
+    window.submitPriorityTask = function () {
+        var body = {
+            title: document.getElementById('ptTitle').value,
+            description: document.getElementById('ptDesc').value,
+            assigneeId: document.getElementById('ptAssignee').value || null,
+            projectId: +document.getElementById('ptProject').value || null,
+            sprintId: +document.getElementById('ptSprint').value || null,
+            dueDate: document.getElementById('ptDue').value || null,
+            estimatedHours: +document.getElementById('ptHours').value || 0
+        };
+        stratApi('/api/strategic/task/add-priority', body);
+    };
+    window.submitShiftResources = function () {
+        var body = {
+            userId: document.getElementById('shiftUser').value,
+            fromProjectId: +document.getElementById('shiftFrom').value,
+            toProjectId: +document.getElementById('shiftTo').value,
+            toSprintId: +document.getElementById('shiftSprint').value || null,
+            notes: document.getElementById('shiftNotes').value
+        };
+        stratApi('/api/strategic/team/shift-resources', body);
+    };
+
+    // ── Charts ────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        // Capacity gauge (doughnut)
+        var ctxCap = document.getElementById('capacityGauge');
+        if (ctxCap) {
+            var utilPct = @Model.CapacitySnapshot.UtilizationPercent.ToString("F1");
+            var free = Math.max(0, 100 - utilPct);
+            new Chart(ctxCap.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [utilPct, free],
+                        backgroundColor: [
+                            utilPct < 50 ? '#20c997' : utilPct < 80 ? '#ffc107' : '#dc3545',
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '75%',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
+                }
+            });
+        }
+
+        // Portfolio Health bar chart
+        var ctxHealth = document.getElementById('portfolioHealthChart');
+        if (ctxHealth) {
+            var labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProjectHealthCards.Select(p => p.ProjectName)));
+            var scores = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProjectHealthCards.Select(p => p.HealthScore)));
+            var colors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProjectHealthCards.Select(p =>
+                p.RagStatus == "Green" ? "#20c997" : p.RagStatus == "Amber" ? "#ffc107" : "#dc3545")));
+            new Chart(ctxHealth.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Health Score',
+                        data: scores,
+                        backgroundColor: colors,
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,0.04)' } }, y: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // Engagement chart
+        var ctxEng = document.getElementById('engagementChart');
+        if (ctxEng) {
+            var engLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MemberScorecards.Select(m => m.UserName)));
+            var engThis = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MemberScorecards.Select(m => m.CommittedHours)));
+            var engColors = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.MemberScorecards.Select(m =>
+                m.EngagementLevel == "Idle" ? "#adb5bd" : m.EngagementLevel == "Overloaded" ? "#dc3545" : "#0d6efd")));
+            new Chart(ctxEng.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: engLabels,
+                    datasets: [{
+                        label: 'Committed Hours',
+                        data: engThis,
+                        backgroundColor: engColors,
+                        borderRadius: 4,
+                        borderWidth: 0
+                    }, {
+                        label: 'Capacity (40h)',
+                        data: engLabels.map(() => 40),
+                        type: 'line',
+                        borderColor: '#6c757d',
+                        borderDash: [5,5],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true } },
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } }
+                }
+            });
+        }
+    });
+})();
+</script>
+}
+
+<style>
+.hub-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); color: white; padding: 28px 32px; border-radius: 16px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; }
+.hub-header h1 { font-size: 1.7rem; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
+.hub-header .subtitle { opacity: 0.65; font-size: 0.9rem; margin-top: 4px; }
+.hub-grid { display: grid; gap: 20px; }
+.hub-grid-top { grid-template-columns: 280px 1fr 1fr; }
+.hub-grid-mid { grid-template-columns: 1fr 1fr; }
+.hub-card { background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; }
+.hub-card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.capacity-center { position: relative; width: 140px; height: 140px; margin: 0 auto; }
+.capacity-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.capacity-pct { font-size: 1.8rem; font-weight: 800; line-height: 1; }
+.capacity-sub { font-size: 0.7rem; color: #888; }
+.capacity-status { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-top: 10px; }
+.cs-free { background: #d1faee; color: #0a6640; }
+.cs-balanced { background: #fff3cd; color: #856404; }
+.cs-atrisk { background: #ffe5e5; color: #a62828; }
+.cs-overloaded { background: #f8d7da; color: #842029; }
+
+.recommendation-box { padding: 14px 18px; border-radius: 10px; font-size: 0.88rem; background: #f7f7ff; border-left: 4px solid #6610f2; margin-top: 14px; line-height: 1.5; }
+
+.health-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+.health-row:last-child { border-bottom: none; }
+.rag-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.rag-green { background: #20c997; }
+.rag-amber { background: #ffc107; }
+.rag-red { background: #dc3545; }
+.project-name { font-weight: 600; font-size: 0.9rem; flex: 1; }
+.score-badge { font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+.score-green { background: #d1faee; color: #0a6640; }
+.score-amber { background: #fff3cd; color: #856404; }
+.score-red { background: #ffe5e5; color: #a62828; }
+.strategic-status-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.ss-active { background: #d1e7dd; color: #0a3622; }
+.ss-onhold { background: #fff3cd; color: #664d03; }
+.ss-delayed { background: #ffe5d0; color: #7d3c00; }
+.ss-accelerate { background: #cfe2ff; color: #0a367a; }
+.ss-planning { background: #e9ecef; color: #495057; }
+.ss-cancelled { background: #f8d7da; color: #58151c; }
+
+.eng-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #f5f5f5; gap: 10px; }
+.eng-row:last-child { border-bottom: none; }
+.eng-name { font-weight: 600; font-size: 0.88rem; flex: 1; }
+.eng-badge { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+.eb-idle { background: #e9ecef; color: #555; }
+.eb-engaged { background: #d0f0fd; color: #0554a5; }
+.eb-overloaded { background: #ffe5e5; color: #a62828; }
+
+.decision-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f7f7f7; font-size: 0.84rem; }
+.decision-row:last-child { border-bottom: none; }
+.decision-type-badge { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 10px; background: #eef2ff; color: #3730a3; white-space: nowrap; flex-shrink: 0; }
+.decision-meta { color: #888; font-size: 0.78rem; margin-top: 2px; }
+
+.paused-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+.paused-row:last-child { border-bottom: none; }
+
+.action-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.action-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; }
+.action-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.ab-hold { background: #fff3cd; color: #856404; }
+.ab-delay { background: #ffe5d0; color: #7d3c00; }
+.ab-accel { background: #d0f0fd; color: #0554a5; }
+.ab-new { background: #d1e7dd; color: #0a3622; }
+.ab-pause { background: #f8d7da; color: #842029; }
+.ab-reassign { background: #e9ecef; color: #212529; }
+.ab-move { background: #e0cffc; color: #3d0787; }
+.ab-priority { background: linear-gradient(135deg, #ffcc02, #ff6b35); color: #1a1a1a; }
+.ab-shift { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+
+.suggestion-card { background: linear-gradient(135deg, #fff9e6, #fffbf0); border: 1px solid #ffe59e; border-radius: 10px; padding: 14px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 12px; }
+
+@@media (max-width: 1199px) {
+    .hub-grid-top { grid-template-columns: 1fr 1fr; }
+    .hub-grid-top > :first-child { grid-column: 1 / -1; }
+    .hub-grid-mid { grid-template-columns: 1fr; }
+}
+@@media print {
+    .action-bar, .sidebar, header, footer { display: none !important; }
+    .hub-card { box-shadow: none; border: 1px solid #ddd; }
+}
+</style>
+
+<div class="hub-header">
+    <div>
+        <h1><i class="fas fa-chess-king me-3" style="opacity:0.85;"></i>Strategic Decision Hub</h1>
+        <div class="subtitle">Real-time portfolio intelligence for executive decisions &mdash; @DateTime.Now.ToString("dddd, d MMMM yyyy • HH:mm")</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-light btn-sm"><i class="fas fa-chart-bar me-1"></i>Dashboard</a>
+        <button onclick="window.print()" class="btn btn-outline-light btn-sm"><i class="fas fa-print me-1"></i>Export PDF</button>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+    <div id="stratToast" class="toast text-white" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="stratToastBody"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<!-- ── STRATEGIC ACTION BAR ──────────────────────────────────────────── -->
+<div class="action-bar">
+    <button class="action-btn ab-hold" data-bs-toggle="modal" data-bs-target="#holdProjectModal">
+        <i class="fas fa-pause-circle"></i> Pause Project
+    </button>
+    <button class="action-btn ab-delay" data-bs-toggle="modal" data-bs-target="#delayProjectModal">
+        <i class="fas fa-hourglass-half"></i> Delay Project
+    </button>
+    <button class="action-btn ab-accel" data-bs-toggle="modal" data-bs-target="#accelProjectModal">
+        <i class="fas fa-rocket"></i> Accelerate Project
+    </button>
+    <button class="action-btn ab-new" data-bs-toggle="modal" data-bs-target="#newProjectModal">
+        <i class="fas fa-plus-circle"></i> Plan New Project
+    </button>
+    <button class="action-btn ab-pause" data-bs-toggle="modal" data-bs-target="#pauseTaskModal">
+        <i class="fas fa-hand-paper"></i> Pause Task
+    </button>
+    <button class="action-btn ab-reassign" data-bs-toggle="modal" data-bs-target="#reassignModal">
+        <i class="fas fa-user-edit"></i> Reassign Task
+    </button>
+    <button class="action-btn ab-move" data-bs-toggle="modal" data-bs-target="#moveSprintModal">
+        <i class="fas fa-exchange-alt"></i> Move Sprint
+    </button>
+    <button class="action-btn ab-priority" data-bs-toggle="modal" data-bs-target="#priorityTaskModal">
+        <i class="fas fa-bolt"></i> Add Priority Task
+    </button>
+    <button class="action-btn ab-shift" data-bs-toggle="modal" data-bs-target="#shiftResourcesModal">
+        <i class="fas fa-people-arrows"></i> Shift Resources
+    </button>
+</div>
+
+<!-- ── TOP ROW: Capacity + Portfolio Health + Engagement ─────────────── -->
+<div class="hub-grid hub-grid-top mb-4">
+    <!-- Org Capacity Gauge -->
+    <div class="hub-card text-center">
+        <div class="hub-card-title justify-content-center position-relative">
+            <div><i class="fas fa-tachometer-alt text-primary"></i> Org Capacity</div>
+            <button class="btn btn-link p-0 position-absolute end-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoOrgCapacityModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+        </div>
+        <div class="capacity-center">
+            <canvas id="capacityGauge"></canvas>
+            <div class="capacity-label">
+                <div class="capacity-pct">@Model.CapacitySnapshot.UtilizationPercent.ToString("F0")%</div>
+                <div class="capacity-sub">utilised</div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <span class="capacity-status @(Model.CapacitySnapshot.Status == CapacityStatus.Free ? "cs-free" : Model.CapacitySnapshot.Status == CapacityStatus.Balanced ? "cs-balanced" : Model.CapacitySnapshot.Status == CapacityStatus.AtRisk ? "cs-atrisk" : "cs-overloaded")">
+                @Model.CapacitySnapshot.Status
+            </span>
+        </div>
+        <div class="text-muted mt-2" style="font-size:0.8rem;">
+            @Model.CapacitySnapshot.CommittedHours.ToString("F0") committed / @Model.CapacitySnapshot.AvailableHours.ToString("F0") available hrs<br/>
+            @Model.CapacitySnapshot.TeamSize members &bull; @Model.CapacitySnapshot.ActiveProjects active projects
+        </div>
+        <div class="recommendation-box">@Model.NewProjectRecommendation</div>
+    </div>
+
+    <!-- Portfolio Health Chart -->
+    <div class="hub-card">
+        <div class="hub-card-title d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-heartbeat text-danger"></i> Portfolio Health Scores</span>
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoPortHealthModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+        </div>
+        <div style="position:relative; height: 280px;">
+            <canvas id="portfolioHealthChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Project Health Cards List -->
+    <div class="hub-card" style="overflow-y: auto; max-height: 360px;">
+        <div class="hub-card-title d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-folder-open text-warning"></i> Project Status</span>
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoProjStatusModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+        </div>
+        @if (!Model.ProjectHealthCards.Any())
+        {
+            <p class="text-muted text-center py-4">No projects found.</p>
+        }
+        @foreach (var p in Model.ProjectHealthCards.OrderBy(x => x.HealthScore))
+        {
+            var ragClass = p.RagStatus == "Green" ? "rag-green" : p.RagStatus == "Amber" ? "rag-amber" : "rag-red";
+            var scoreClass = p.RagStatus == "Green" ? "score-green" : p.RagStatus == "Amber" ? "score-amber" : "score-red";
+            var ssClass = p.StrategicStatus switch {
+                ProjectStrategicStatus.OnHold => "ss-onhold",
+                ProjectStrategicStatus.Delayed => "ss-delayed",
+                ProjectStrategicStatus.Accelerate => "ss-accelerate",
+                ProjectStrategicStatus.Planning => "ss-planning",
+                ProjectStrategicStatus.Cancelled => "ss-cancelled",
+                _ => "ss-active"
+            };
+            <div class="health-row">
+                <div class="rag-dot @ragClass"></div>
+                <div class="project-name">
+                    @p.ProjectName
+                    <div style="margin-top:3px;">
+                        <span class="strategic-status-badge @ssClass">@p.StrategicStatus</span>
+                        <span class="ms-1 text-muted" style="font-size:0.72rem;">@p.CompletedTasks/@p.TotalTasks tasks &bull; @p.OverdueTasks overdue</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(p.StrategicStatusReason) && p.StrategicStatus != ProjectStrategicStatus.Active)
+                    {
+                        <div style="font-size:0.72rem; color:#888; margin-top:2px;"><i class="fas fa-comment-dots"></i> @p.StrategicStatusReason</div>
+                    }
+                </div>
+                <span class="score-badge @scoreClass">@p.HealthScore/100</span>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ── MIDDLE ROW: Engagement + Suggestions ──────────────────────────── -->
+<div class="hub-grid hub-grid-mid mb-4">
+    <!-- Team Engagement -->
+    <div class="hub-card">
+        <div class="hub-card-title d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-user-clock text-info"></i> Team Engagement &amp; Workload</span>
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoTeamEngModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+        </div>
+        <div style="position:relative; height: 240px; margin-bottom: 16px;">
+            <canvas id="engagementChart"></canvas>
+        </div>
+        <div style="max-height: 220px; overflow-y: auto;">
+            @foreach (var m in Model.MemberScorecards.OrderBy(x => x.EngagementLevel == "Engaged" ? 1 : x.EngagementLevel == "Overloaded" ? 0 : 2))
+            {
+                var ebClass = m.EngagementLevel == "Idle" ? "eb-idle" : m.EngagementLevel == "Overloaded" ? "eb-overloaded" : "eb-engaged";
+                <div class="eng-row">
+                    <div class="eng-name">@m.UserName</div>
+                    <span class="eng-badge @ebClass">@m.EngagementLevel</span>
+                    <span class="text-muted" style="font-size:0.78rem;">@m.CommittedHours.ToString("F0")h committed</span>
+                    @if (m.OverdueTasks > 0)
+                    {
+                        <span class="badge bg-danger ms-1">@m.OverdueTasks overdue</span>
+                    }
+                    @if (m.TasksClosedThisWeek > 0)
+                    {
+                        <span class="text-success" style="font-size:0.78rem;"><i class="fas fa-check-circle"></i> @m.TasksClosedThisWeek this wk</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- System Suggestions + Paused Tasks -->
+    <div>
+        <!-- Suggested Reallocations -->
+        <div class="hub-card mb-4">
+            <div class="hub-card-title d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-lightbulb" style="color:#f59e0b;"></i> System Recommendations</span>
+                <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoSysRecModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+            </div>
+            @if (Model.SuggestedReallocations.Any())
+            {
+                @foreach (var s in Model.SuggestedReallocations)
+                {
+                    <div class="suggestion-card">
+                        <i class="fas fa-people-arrows text-warning mt-1"></i>
+                        <div>
+                            <div style="font-size:0.88rem; font-weight:600;">@s.Reason</div>
+                            <button class="btn btn-sm btn-outline-warning mt-2"
+                                    onclick="document.getElementById('shiftUser').value='@s.UserId'; document.getElementById('shiftFrom').value='';"
+                                    data-bs-toggle="modal" data-bs-target="#shiftResourcesModal">
+                                Act: Shift Resources →
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted py-3 text-center" style="font-size:0.88rem;">
+                    <i class="fas fa-check-circle text-success me-1"></i>
+                    No immediate reallocation recommendations. Team balance looks good.
+                </p>
+            }
+        </div>
+
+        <!-- Paused Tasks -->
+        <div class="hub-card">
+            <div class="hub-card-title"><i class="fas fa-pause-circle text-danger"></i> Paused Tasks (@Model.PausedTasks.Count)</div>
+            @if (!Model.PausedTasks.Any())
+            {
+                <p class="text-muted py-3 text-center" style="font-size:0.88rem;"><i class="fas fa-play-circle text-success me-1"></i>No tasks currently paused.</p>
+            }
+            @foreach (var pt in Model.PausedTasks)
+            {
+                <div class="paused-row">
+                    <i class="fas fa-pause text-warning mt-1"></i>
+                    <div style="flex:1;">
+                        <div style="font-weight:600; font-size:0.88rem;">@pt.TaskTitle</div>
+                        <div class="text-muted" style="font-size:0.77rem;">@pt.ProjectName &bull; @pt.AssigneeName &bull; Paused by @pt.PausedByName</div>
+                        <div style="font-size:0.77rem; color:#888;"><i class="fas fa-comment-dots"></i> @pt.PauseReason</div>
+                    </div>
+                    <button class="btn btn-xs btn-outline-success btn-sm" onclick="submitResumeTask(@pt.TaskId)">
+                        <i class="fas fa-play"></i> Resume
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ── DECISION AUDIT TRAIL ──────────────────────────────────────────── -->
+<div class="hub-card mb-4">
+    <div class="hub-card-title"><i class="fas fa-history text-primary"></i> Decision Audit Trail (last 20)</div>
+    @if (!Model.RecentDecisions.Any())
+    {
+        <p class="text-muted text-center py-4">No decisions recorded yet. Strategic actions you take will appear here.</p>
+    }
+    else
+    {
+        <div style="max-height: 320px; overflow-y: auto;">
+            @foreach (var d in Model.RecentDecisions)
+            {
+                <div class="decision-row">
+                    <span class="decision-type-badge">@d.DecisionType</span>
+                    <div style="flex:1;">
+                        <div style="font-weight: 600; font-size: 0.85rem;">
+                            @(d.Project?.Name ?? "—")
+                            @if (!string.IsNullOrEmpty(d.Notes)) { <span class="text-muted fw-normal"> — @d.Notes</span> }
+                        </div>
+                        <div class="decision-meta">by @(d.MadeBy?.FullName ?? d.MadeBy?.Email ?? "Unknown") &bull; @d.MadeAt.ToLocalTime().ToString("d MMM yyyy, HH:mm")</div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     MODALS
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- Pause (Hold) Project -->
+<div class="modal fade" id="holdProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-pause-circle text-warning me-2"></i>Put Project On Hold</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project</label>
+                    <select id="holdProjectId" class="form-select">
+                        @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+                    <textarea id="holdProjectNotes" class="form-control" rows="3" placeholder="Why is this project being paused? (required for audit log)"></textarea>
+                </div>
+                <div class="alert alert-warning py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-magic me-1"></i> System Action</h6>
+                    <ul class="mb-0 ps-3">
+                        <li>Project Strategic Status becomes <span class="badge bg-warning text-dark">On Hold</span></li>
+                        <li><strong>All active in-progress tasks</strong> across the entire project will be instantly soft-paused.</li>
+                        <li>Committed hours for these tasks will be <strong>removed from Org Capacity</strong> until resumed.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-warning" onclick="submitHoldProject()"><i class="fas fa-pause me-1"></i>Confirm Hold</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Delay Project -->
+<div class="modal fade" id="delayProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-hourglass-half text-orange me-2" style="color:#e67e22;"></i>Delay Project</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project</label>
+                    <select id="delayProjectId" class="form-select">
+                        @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Reason / New Timeline Notes</label>
+                    <textarea id="delayProjectNotes" class="form-control" rows="3" placeholder="Describe reason for delay and any revised timeline"></textarea>
+                </div>
+                <div class="alert alert-info py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-info-circle me-1"></i> System Action</h6>
+                    <p class="mb-0">Project Strategic Status becomes <span class="badge" style="background-color:#e67e22;">Delayed</span>. Tasks and capacity remain unaffected, but this signals an officially recognized timeline extension to stakeholders.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-warning" onclick="submitDelayProject()">Confirm Delay</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Accelerate Project -->
+<div class="modal fade" id="accelProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-rocket text-primary me-2"></i>Accelerate Project</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Project</label>
+                    <select id="accelProjectId" class="form-select">
+                        @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Strategic Reason</label>
+                    <textarea id="accelProjectNotes" class="form-control" rows="2" placeholder="Why is this project being prioritised?"></textarea>
+                </div>
+                <div class="alert alert-primary py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-rocket me-1"></i> System Action</h6>
+                    <p class="mb-0">Project Strategic Status becomes <span class="badge bg-primary">Accelerate</span>. This flags the project as highest structural priority during resource allocation reviews.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="submitAccelerateProject()">Flag for Acceleration</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Plan New Project -->
+<div class="modal fade" id="newProjectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-plus-circle text-success me-2"></i>Plan New Project</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 mb-3" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-robot me-1"></i> AI Recommendation</h6>
+                    <p class="mb-2"><strong>@Model.NewProjectRecommendation</strong></p>
+                    <hr class="my-1 border-info opacity-25">
+                    <p class="mb-0 mt-1"><i class="fas fa-magic me-1"></i> Project will be created in <span class="badge bg-secondary">Planning</span> status. It will not impact Org Capacity until tasks are officially structured and assigned to sprints.</p>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">Project Name <span class="text-danger">*</span></label><input id="newProjName" class="form-control" placeholder="e.g. CRM Phase 2" /></div>
+                <div class="mb-3"><label class="form-label fw-semibold">Description</label><textarea id="newProjDesc" class="form-control" rows="2"></textarea></div>
+                <div class="mb-3"><label class="form-label fw-semibold">Planned Start (ISO Week #)</label><input id="newProjWeek" type="number" class="form-control" placeholder="e.g. 14 (week 14 of this year)" min="1" max="52" /></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-success" onclick="submitNewProject()"><i class="fas fa-check me-1"></i>Create Project (Planning Status)</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Pause Task -->
+<div class="modal fade" id="pauseTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-hand-paper text-danger me-2"></i>Pause a Task</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label fw-semibold">Task</label>
+                    <select id="pauseTaskId" class="form-select">
+                        @foreach (var t in Model.ActiveTasksForReassign) { <option value="@t.Value">@t.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">Pause Reason <span class="text-danger">*</span></label><textarea id="pauseTaskNotes" class="form-control" rows="2"></textarea></div>
+                <div class="alert alert-warning py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-balance-scale me-1"></i> Capacity Impact</h6>
+                    <p class="mb-0">The estimated hours for this task will be <strong>immediately removed</strong> from the user's workload scorecard and the global Org Capacity metrics.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-danger" onclick="submitPauseTask()">Pause Task</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Task -->
+<div class="modal fade" id="reassignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Reassign Task</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label fw-semibold">Task</label>
+                    <select id="reassignTaskId" class="form-select">
+                        @foreach (var t in Model.ActiveTasksForReassign) { <option value="@t.Value">@t.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">New Assignee</label>
+                    <select id="reassignUserId" class="form-select">
+                        @foreach (var u in Model.AllUsers) { <option value="@u.Value">@u.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">Reason</label><input id="reassignNotes" class="form-control" /></div>
+                <div class="alert alert-dark py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-exchange-alt me-1"></i> Capacity Impact</h6>
+                    <p class="mb-0">The task workload (hours) will immediately transfer to the new assignee's scorecard. Ensure the new assignee has sufficient <span class="text-success fw-bold">Free</span> capacity before proceeding.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-dark" onclick="submitReassignTask()">Reassign</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Move to Sprint -->
+<div class="modal fade" id="moveSprintModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="fas fa-exchange-alt me-2" style="color:#6610f2;"></i>Move Task to Sprint</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3"><label class="form-label fw-semibold">Task</label>
+                    <select id="moveTaskId" class="form-select">
+                        @foreach (var t in Model.ActiveTasksForReassign) { <option value="@t.Value">@t.Text</option> }
+                    </select>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">Target Sprint</label>
+                    <select id="moveSprintId" class="form-select">
+                        <option value="">-- Backlog (no sprint) --</option>
+                        @foreach (var s in Model.AllActiveSprints) { <option value="@s.Value">@s.Text</option> }
+                    </select>
+                </div>
+                <div class="alert alert-secondary py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-calendar-check me-1"></i> Sprint Scope Impact</h6>
+                    <p class="mb-0">Moving a task adds/removes scope from the respective Sprints immediately, recalculating the Sprint burn-down predictions.</p>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="submitMoveTask()">Move Task</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Priority Task -->
+<div class="modal fade" id="priorityTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(135deg,#ff6b35,#ffcc02);"><h5 class="modal-title"><i class="fas fa-bolt me-2"></i>Add Priority Task</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-warning py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i> Executive Level Override</h6>
+                    <p class="mb-0">This task bypasses the normal backlog estimation review. It will be created as <strong>Critical priority</strong> and instantly set to <strong>Approved</strong>. The estimated hours will immediately deduct from available Org Capacity.</p>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12"><label class="form-label fw-semibold">Task Title <span class="text-danger">*</span></label><input id="ptTitle" class="form-control" /></div>
+                    <div class="col-12"><label class="form-label fw-semibold">Description</label><textarea id="ptDesc" class="form-control" rows="2"></textarea></div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Assign To</label>
+                        <select id="ptAssignee" class="form-select">
+                            <option value="">-- Unassigned --</option>
+                            @foreach (var u in Model.AllUsers) { <option value="@u.Value">@u.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">Project</label>
+                        <select id="ptProject" class="form-select">
+                            <option value="">-- No Project --</option>
+                            @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label fw-semibold">Sprint</label>
+                        <select id="ptSprint" class="form-select">
+                            <option value="">-- Backlog --</option>
+                            @foreach (var s in Model.AllActiveSprints) { <option value="@s.Value">@s.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label fw-semibold">Due Date</label><input id="ptDue" class="form-control" type="date" /></div>
+                    <div class="col-md-4"><label class="form-label fw-semibold">Estimated Hours</label><input id="ptHours" class="form-control" type="number" min="0" step="0.5" value="4" /></div>
+                </div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-warning fw-bold" onclick="submitPriorityTask()"><i class="fas fa-bolt me-1"></i>Create Critical Task</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- Shift Resources -->
+<div class="modal fade" id="shiftResourcesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background:linear-gradient(135deg,#667eea,#764ba2); color:white;"><h5 class="modal-title"><i class="fas fa-people-arrows me-2"></i>Shift Resources</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2" style="font-size: 0.85rem;">
+                    <h6 class="alert-heading fw-bold mb-1"><i class="fas fa-project-diagram me-1"></i> Bulk Shift Algorithm</h6>
+                    <p class="mb-0">This action traverses the database for all <em>New</em>, <em>Approved</em>, or <em>To Do</em> tasks assigned to this user on the source project, and bulk-moves them to the destination. Completed/In-review tasks remain on the original project for historical accuracy.</p>
+                </div>
+                <div class="mb-3"><label class="form-label fw-semibold">Team Member</label>
+                    <select id="shiftUser" class="form-select">
+                        @foreach (var u in Model.AllUsers) { <option value="@u.Value">@u.Text</option> }
+                    </select>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label fw-semibold">From Project</label>
+                        <select id="shiftFrom" class="form-select">
+                            @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label fw-semibold">To Project</label>
+                        <select id="shiftTo" class="form-select">
+                            @foreach (var p in Model.AllProjects) { <option value="@p.Value">@p.Text</option> }
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3"><label class="form-label fw-semibold">Assign to Sprint in Target Project</label>
+                    <select id="shiftSprint" class="form-select">
+                        <option value="">-- Backlog (no sprint assigned) --</option>
+                        @foreach (var s in Model.AllActiveSprints) { <option value="@s.Value">@s.Text</option> }
+                    </select>
+                </div>
+                <div class="mt-3"><label class="form-label fw-semibold">Management Rationale</label><textarea id="shiftNotes" class="form-control" rows="2" placeholder="e.g. Re-allocated due to Project X being at risk"></textarea></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn fw-bold text-white" style="background:linear-gradient(135deg,#667eea,#764ba2);" onclick="submitShiftResources()"><i class="fas fa-people-arrows me-1"></i>Confirm Resource Shift</button></div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     INFO / ALGORITHM DATASHEET MODALS
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- Info: Org Capacity -->
+<div class="modal fade" id="infoOrgCapacityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Algorithm: Org Capacity</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> Represents the immediate workload across the entire organization, helping executives determine if teams can absorb new projects or if they are overextended.</p>
+                <h6 class="fw-bold mt-3">Calculations:</h6>
+                <ul>
+                    <li><strong>Available Hours:</strong> Total number of active team members × 40 hours sprint capacity.</li>
+                    <li><strong>Committed Hours:</strong> Sum of <code>EstimatedHours</code> for all tasks that are NOT 'Done' and NOT 'Paused'.</li>
+                    <li><strong>Utilization %:</strong> <code>(Committed Hours / Available Hours) × 100</code></li>
+                </ul>
+                <h6 class="fw-bold mt-3">Status Thresholds:</h6>
+                <ul>
+                    <li><span class="badge bg-success">Free</span>: &lt; 50% utilization</li>
+                    <li><span class="badge bg-warning text-dark">Balanced</span>: 50% – 80% utilization</li>
+                    <li><span class="badge bg-danger bg-opacity-75">At Risk</span>: 80% – 100% utilization</li>
+                    <li><span class="badge bg-danger">Overloaded</span>: &gt; 100% utilization</li>
+                </ul>
+                <h6 class="fw-bold mt-3">New Project Recommendation:</h6>
+                <p class="mb-0 text-muted">A "Yes" is given only if Utilization &lt; 70% AND there are exactly zero projects categorized as "At Risk" (projects having overdue tasks).</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Portfolio Health Scores -->
+<div class="modal fade" id="infoPortHealthModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-danger me-2"></i>Algorithm: Portfolio Health Score</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> A 0-100 composite score indicating the momentum, on-time delivery, and active engagement for each project.</p>
+                <h6 class="fw-bold mt-3">Scoring Weights:</h6>
+                <ul>
+                    <li><strong>Completion Rate (40 points):</strong> % of tasks marked as 'Done' vs Total Tasks.</li>
+                    <li><strong>On-Time Rate (40 points):</strong> % of active tasks that are NOT overdue past their due date.</li>
+                    <li><strong>Team Engagement (20 points):</strong> % of team members assigned to the project who had active task updates within the last 7 rolling days.</li>
+                </ul>
+                <h6 class="fw-bold mt-3">RAG (Red-Amber-Green) Status:</h6>
+                <ul>
+                    <li><span class="rag-dot rag-green d-inline-block me-1"></span> <strong>Green:</strong> Score ≥ 70</li>
+                    <li><span class="rag-dot rag-amber d-inline-block me-1"></span> <strong>Amber:</strong> Score 40 – 69</li>
+                    <li><span class="rag-dot rag-red d-inline-block me-1"></span> <strong>Red:</strong> Score &lt; 40</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Project Status -->
+<div class="modal fade" id="infoProjStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-warning me-2"></i>Guide: Project Strategic Status</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> The executive-designated lifecycle state that dictates how resources should be allocated to the project.</p>
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm table-borderless">
+                        <tbody>
+                            <tr><td><span class="strategic-status-badge ss-active">Active</span></td><td class="text-muted">Normal execution. Tasks flow normally into sprints.</td></tr>
+                            <tr><td><span class="strategic-status-badge ss-onhold">On Hold</span></td><td class="text-muted">Paused by management. <strong>All active tasks are automatically soft-paused</strong> to halt work instantly.</td></tr>
+                            <tr><td><span class="strategic-status-badge ss-delayed">Delayed</span></td><td class="text-muted">Project is running, but the timeline constraints have been extended.</td></tr>
+                            <tr><td><span class="strategic-status-badge ss-accelerate">Accelerate</span></td><td class="text-muted">Critical priority flag. Resources must be shifted here immediately.</td></tr>
+                            <tr><td><span class="strategic-status-badge ss-planning">Planning</span></td><td class="text-muted">Draft project. No active sprints, currently gathering requirements. Gathered via "Plan New Project" action.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Team Engagement -->
+<div class="modal fade" id="infoTeamEngModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-info me-2"></i>Algorithm: Team Engagement</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> Tracks individual member workloads and velocity to identify burnout or surplus capacity.</p>
+                <h6 class="fw-bold mt-3">Engagement Categorization:</h6>
+                <ul>
+                    <li><span class="badge bg-secondary">Idle</span>: exactly <strong>0 committed hours</strong>. This employee has no assigned active work.</li>
+                    <li><span class="badge bg-primary">Engaged</span>: Between <strong>1 and 40 committed hours</strong> of active assigned tasks.</li>
+                    <li><span class="badge bg-danger">Overloaded</span>: Greater than <strong>40 committed hours</strong> of active assigned tasks.</li>
+                </ul>
+                <h6 class="fw-bold mt-3">Velocity Tracking:</h6>
+                <p class="text-muted mb-0">The system analyzes the <code>TaskHistory</code> table to count how many tasks the user successfully moved to 'Done' status in the current rolling 7 days versus the previous 7 days.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: System Recommendations -->
+<div class="modal fade" id="infoSysRecModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle" style="color:#f59e0b;"></i>Algorithm: Recommendations</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> Automated heuristic rules that suggest actions to executives to rapidly resolve bottlenecks and rebalance the portfolio.</p>
+                <h6 class="fw-bold mt-3">Current Rule Engine:</h6>
+                <p><strong>Resource Shift Rule:</strong></p>
+                <ol class="text-muted">
+                    <li>Find all team members with <code>EngagementLevel == "Idle"</code>.</li>
+                    <li>Find all Active projects with a <code>Health Score &lt; 40</code> (Red RAG status).</li>
+                    <li>Generate an actionable recommendation to shift the idle member to the most at-risk project.</li>
+                </ol>
+                <p class="text-muted mb-0"><i class="fas fa-magic me-1"></i> Clicking the "Act" button pre-fills the "Shift Resources" tool based on this algorithm.</p>
+            </div>
+        </div>
+    </div>
+</div>
