@@ -11,6 +11,9 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Enums;
 using OfficeTaskManagement.ViewModels.Analytics;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 using TaskStatus = OfficeTaskManagement.Models.Enums.TaskStatus;
 
@@ -55,6 +58,217 @@ namespace OfficeTaskManagement.Controllers
                 .Select(t => new SelectListItem($"{t.Title} [{t.Project?.Name ?? "No Project"}]", t.Id.ToString())).ToList();
 
             return View(vm);
+        }
+
+        [Authorize(Roles = "Manager")]
+        [HttpGet]
+        public async Task<IActionResult> ExportStrategicReport()
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+            var data = await GetPortfolioIntelligence();
+
+            var pdfData = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(1.5f, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10));
+
+                    page.Header().Row(row =>
+                    {
+                        row.RelativeItem().Column(col => 
+                        {
+                            col.Item().Text("STRATEGIC PORTFOLIO INTELLIGENCE").SemiBold().FontSize(18).FontColor(Colors.Blue.Darken3);
+                            col.Item().Text($"Executive Summary Report • {DateTime.UtcNow.ToLocalTime():dd MMM yyyy HH:mm}").FontSize(11).FontColor(Colors.Grey.Medium);
+                        });
+                        row.ConstantItem(100).AlignRight().Text("STRICTLY CONFIDENTIAL").FontSize(8).FontColor(Colors.Red.Medium).Bold();
+                    });
+
+                    page.Content().PaddingVertical(1, Unit.Centimetre).Column(col =>
+                    {
+                        col.Spacing(25);
+
+                        // 1. Organizational Capacity
+                        col.Item().Text("1. Organizational Capacity & Workload").FontSize(14).SemiBold().FontColor(Colors.Blue.Darken4);
+                        
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                                columns.RelativeColumn();
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("System Status").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Committed Hours").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Available Hours").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Utilization").SemiBold();
+                            });
+
+                            var color = data.CapacitySnapshot.Status == CapacityStatus.Free ? Colors.Green.Medium 
+                                      : data.CapacitySnapshot.Status == CapacityStatus.Balanced ? Colors.Orange.Medium 
+                                      : Colors.Red.Medium;
+
+                            table.Cell().PaddingTop(8).Text(data.CapacitySnapshot.Status.ToString()).FontColor(color).SemiBold();
+                            table.Cell().PaddingTop(8).Text(data.CapacitySnapshot.CommittedHours.ToString("F0")).FontSize(11);
+                            table.Cell().PaddingTop(8).Text(data.CapacitySnapshot.AvailableHours.ToString("F0")).FontSize(11);
+                            table.Cell().PaddingTop(8).Column(c => 
+                            {
+                                c.Item().Text($"{data.CapacitySnapshot.UtilizationPercent:F1}%").FontColor(color).SemiBold();
+                                c.Item().PaddingTop(2).Height(6).Row(rr => {
+                                    float util = (float)Math.Min(100, data.CapacitySnapshot.UtilizationPercent);
+                                    if (util > 0) rr.RelativeItem(util).Background(color);
+                                    if (util < 100) rr.RelativeItem(100 - util).Background(Colors.Grey.Lighten3);
+                                });
+                            });
+                        });
+
+                        // Recommendations
+                        if (data.SuggestedReallocations.Any())
+                        {
+                            col.Item().Background(Colors.Amber.Lighten5).Padding(10).Column(r => 
+                            {
+                                r.Item().Text("AI System Recommendations").FontSize(11).SemiBold().FontColor(Colors.Orange.Darken3);
+                                foreach (var rec in data.SuggestedReallocations)
+                                {
+                                    r.Item().Text($"• {rec.Reason}").FontSize(10);
+                                }
+                            });
+                        }
+
+                        // 2. Project Health overview
+                        col.Item().Text("2. Portfolio Health Summary").FontSize(14).SemiBold().FontColor(Colors.Blue.Darken4);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Project Name").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Strategic Status").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Health Score").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("RAG").SemiBold();
+                            });
+
+                            foreach (var p in data.ProjectHealthCards.OrderBy(x => x.HealthScore))
+                            {
+                                var textcolor = p.RagStatus == "Green" ? Colors.Green.Darken2 : p.RagStatus == "Amber" ? Colors.Orange.Darken2 : Colors.Red.Darken2;
+                                
+                                table.Cell().PaddingTop(8).Text(p.ProjectName);
+                                table.Cell().PaddingTop(8).Text(p.StrategicStatus.ToString());
+                                
+                                table.Cell().PaddingTop(8).PaddingRight(10).Column(c => {
+                                    c.Item().Text($"{p.HealthScore:F1}/100").FontSize(9).FontColor(textcolor).SemiBold();
+                                    c.Item().PaddingTop(2).Height(4).Row(rr => {
+                                        float score = (float)Math.Min(100, Math.Max(0, p.HealthScore));
+                                        if (score > 0) rr.RelativeItem(score).Background(textcolor);
+                                        if (score < 100) rr.RelativeItem(100 - score).Background(Colors.Grey.Lighten4);
+                                    });
+                                });
+
+                                table.Cell().PaddingTop(8).Text(p.RagStatus).FontColor(textcolor).SemiBold();
+                            }
+                        });
+
+
+                        // 3. Team Engagement Risks
+                        var overloaded = data.MemberScorecards.Where(m => m.EngagementLevel == "Overloaded").ToList();
+                        var idle = data.MemberScorecards.Where(m => m.EngagementLevel == "Idle").ToList();
+                        
+                        col.Item().Text("3. Resource Risk Alerts").FontSize(14).SemiBold().FontColor(Colors.Blue.Darken4);
+                        if (!overloaded.Any() && !idle.Any())
+                        {
+                            col.Item().Text("No immediate risks identified. Team capacity is balanced.").FontColor(Colors.Green.Darken2);
+                        }
+                        else 
+                        {
+                            col.Item().Table(table =>
+                            {
+                                table.ColumnsDefinition(columns =>
+                                {
+                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(1);
+                                    columns.RelativeColumn(3);
+                                });
+
+                                table.Header(header =>
+                                {
+                                    header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Team Member").SemiBold();
+                                    header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Risk Status").SemiBold();
+                                    header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Committed Hours").SemiBold();
+                                    header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Impact / Action").SemiBold();
+                                });
+
+                                foreach (var m in overloaded.Concat(idle))
+                                {
+                                    var isOverloaded = m.EngagementLevel == "Overloaded";
+                                    var rowColor = isOverloaded ? Colors.Red.Darken2 : Colors.Grey.Darken3;
+                                    var actionText = isOverloaded 
+                                        ? $"{m.OverdueTasks} tasks currently overdue. Immediate load balancing required." 
+                                        : "0 hours committed. Available for immediate task assignment.";
+
+                                    table.Cell().PaddingTop(8).Text(m.UserName).SemiBold();
+                                    table.Cell().PaddingTop(8).Text(m.EngagementLevel).FontColor(rowColor).SemiBold();
+                                    table.Cell().PaddingTop(8).Text($"{m.CommittedHours:F0} hrs");
+                                    table.Cell().PaddingTop(8).Text(actionText).FontColor(rowColor).FontSize(9);
+                                }
+                            });
+                        }
+
+                        // 4. Recent Decisions
+                        col.Item().Text("4. Recent Strategic Decisions Audit").FontSize(14).SemiBold().FontColor(Colors.Blue.Darken4);
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.ConstantColumn(100);
+                                columns.RelativeColumn(1);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(1);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Date").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Decision Type").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Target Asset").SemiBold();
+                                header.Cell().BorderBottom(2).BorderColor(Colors.Grey.Lighten1).PaddingBottom(5).Text("Approved By").SemiBold();
+                            });
+
+                            foreach (var d in data.RecentDecisions.Take(15))
+                            {
+                                table.Cell().PaddingTop(5).Text(d.MadeAt.ToLocalTime().ToString("dd MMM yy")).FontSize(9).FontColor(Colors.Grey.Darken2);
+                                table.Cell().PaddingTop(5).Text(d.DecisionType).FontSize(9).SemiBold();
+                                table.Cell().PaddingTop(5).Text(d.Project?.Name ?? "Portfolio / Personnel").FontSize(9);
+                                table.Cell().PaddingTop(5).Text(d.MadeBy?.FullName ?? d.MadeBy?.Email ?? "System").FontSize(9);
+                            }
+                        });
+                    });
+
+                    page.Footer()
+                        .AlignCenter()
+                        .Text(x =>
+                        {
+                            x.Span("Generated by Strategic Hub | STRICTLY CONFIDENTIAL | Page ").FontSize(8).FontColor(Colors.Grey.Medium);
+                            x.CurrentPageNumber().FontSize(8).FontColor(Colors.Grey.Medium);
+                        });
+                });
+            }).GeneratePdf();
+
+            return File(pdfData, "application/pdf", $"Strategic_Portfolio_Report_{DateTime.UtcNow.ToLocalTime():yyyyMMdd_HHmm}.pdf");
         }
 
         private async Task<StrategicHubViewModel> GetPortfolioIntelligence()
