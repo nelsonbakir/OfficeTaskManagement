@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>TaskFlow Pro</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div id="auth-container" class="container">
+        <div class="header">
+            <h1 class="gradient-text">TaskFlow Pro</h1>
+            <p>Secure login to manage your tasks</p>
+        </div>
+        <div class="form-group">
+            <input type="email" id="email" placeholder="Email Address">
+        </div>
+        <div class="form-group">
+            <input type="password" id="password" placeholder="Password">
+        </div>
+        <button id="login-btn" class="primary-btn">Sign In</button>
+        <div id="auth-error" class="error-msg"></div>
+    </div>
+
+    <div id="main-container" class="container hidden">
+        <div class="header">
+            <h1 class="gradient-text">Assignments</h1>
+            <div class="header-actions">
+                <button id="refresh-btn" class="icon-btn" title="Refresh">↻</button>
+                <button id="logout-btn" class="secondary-btn">Sign Out</button>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <button class="nav-btn" data-url="http://localhost:5035/">Portal Dashboard</button>
+            <button class="nav-btn" data-url="http://localhost:5035/Projects">Projects</button>
+        </div>
+
+        <div class="filter-section">
+            <label>Workspace Context</label>
+            <select id="project-filter">
+                <option value="0">-- All Projects --</option>
+            </select>
+        </div>
+
+        <div id="loader" class="loader hidden"></div>
+        <div id="task-list" class="task-list"></div>
+    </div>
+
+    <div id="detail-container" class="container hidden">
+        <div class="header">
+            <button id="back-btn" class="text-btn">&larr; Back to Tasks</button>
+            <h2 id="detail-title" class="task-title-large"></h2>
+        </div>
+        
+        <div id="detail-content" class="detail-body">
+            <div id="detail-desc" class="description-box"></div>
+            
+            <button id="detail-portal-btn" class="primary-btn small">Open in Portal for more detail</button>
+            
+            <div class="discussion-section">
+                <h3>Discussions</h3>
+                <div id="comment-list" class="comment-list"></div>
+                
+                <div class="comment-input-wrapper">
+                    <textarea id="comment-box" placeholder="Add a comment... Type @ to mention"></textarea>
+                    <div id="mention-dropdown" class="mention-dropdown hidden"></div>
+                </div>
+                <button id="post-comment-btn" class="primary-btn">Post Comment</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="apiService.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

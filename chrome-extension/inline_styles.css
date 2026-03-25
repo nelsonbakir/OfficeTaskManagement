@@ -1,0 +1,49 @@
+.taskflow-suggestions {
+    position: absolute;
+    z-index: 10000;
+    width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    display: none;
+}
+
+.taskflow-suggestions.visible {
+    display: block;
+}
+
+.taskflow-suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #334155;
+    transition: background 0.2s;
+}
+
+.taskflow-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.taskflow-suggestion-item.selected,
+.taskflow-suggestion-item:hover {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+.taskflow-suggestion-item .title {
+    font-weight: 600;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.taskflow-suggestion-item .meta {
+    font-size: 11px;
+    opacity: 0.8;
+}

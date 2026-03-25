@@ -1,0 +1,332 @@
+:root {
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --primary: #38bdf8;
+    --secondary: #94a3b8;
+    --text: #f8fafc;
+    --error: #ef4444;
+    --border: #334155;
+    --gradient: linear-gradient(135deg, #0ea5e9, #6366f1);
+}
+
+body {
+    width: 350px;
+    margin: 0;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text);
+}
+
+.container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+}
+
+.hidden { display: none !important; }
+
+.header {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.header-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: -10px;
+}
+
+.gradient-text {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 24px;
+    font-weight: 800;
+    margin: 0;
+}
+
+.form-group { margin-bottom: 16px; }
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background-color: var(--card-bg);
+    color: white;
+    box-sizing: border-box;
+}
+
+input:focus { outline: 1px solid var(--primary); }
+
+.primary-btn {
+    background: var(--gradient);
+    border: none;
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.primary-btn:active { transform: scale(0.98); }
+
+.secondary-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--secondary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.error-msg {
+    color: var(--error);
+    font-size: 12px;
+    margin-top: 8px;
+    text-align: center;
+}
+
+.filter-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.filter-section label {
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--secondary);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.task-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.task-item {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+    transition: background 0.2s;
+}
+
+.task-item:hover { background: #2d3a4f; }
+
+.task-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.task-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--secondary);
+}
+
+.tag {
+    padding: 2px 6px;
+    background: rgba(56, 189, 248, 0.1);
+    color: var(--primary);
+    border-radius: 4px;
+    font-size: 10px;
+}
+
+.task-status-container {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-status-select {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    color: var(--primary);
+    border: 1px solid var(--border);
+    cursor: pointer;
+}
+
+.task-status-select:hover { border-color: var(--primary); }
+
+.nav-links {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.nav-btn {
+    flex: 1;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--primary);
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.nav-btn:hover { background: #2d3a4f; }
+
+.task-title-large {
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 10px;
+}
+
+.text-btn {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    padding: 0;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.description-box {
+    background: var(--card-bg);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    white-space: pre-wrap;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.small { padding: 8px; font-size: 12px; width: 100% !important; margin-bottom: 20px;}
+
+.discussion-section h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--secondary);
+    margin-bottom: 12px;
+}
+
+.comment-list {
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.comment-item {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+}
+
+.comment-author {
+    font-size: 10px;
+    color: var(--secondary);
+    margin-bottom: 4px;
+}
+
+.comment-bubble {
+    background: #334155;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.comment-item.self {
+    align-self: flex-end;
+}
+
+.comment-item.self .comment-author {
+    text-align: right;
+}
+
+.comment-item.self .comment-bubble {
+    background: var(--primary);
+    color: #0f172a;
+}
+
+.comment-input-wrapper {
+    position: relative;
+    margin-bottom: 10px;
+}
+
+textarea {
+    width: 100%;
+    min-height: 60px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    box-sizing: border-box;
+    resize: none;
+}
+
+.mention-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+    max-height: 120px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.mention-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+}
+
+.mention-item:hover { background: #334155; }
+.mention-item strong { display: block; font-size: 11px; }
+.mention-item span { font-size: 10px; opacity: 0.7; }
+
+.loader {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

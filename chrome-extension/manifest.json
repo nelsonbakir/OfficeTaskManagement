@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "TaskFlow Pro",
+  "version": "1.0.0",
+  "description": "Task management extension for TaskFlow",
+  "permissions": ["storage", "activeTab", "alarms"],
+  "host_permissions": ["http://localhost:5035/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["inline_styles.css"]
+    }
+  ]
+}
