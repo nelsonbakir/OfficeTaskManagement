@@ -1,0 +1,114 @@
+@model IEnumerable<OfficeTaskManagement.ViewModels.ResourceManagement.ResourceProfileViewModel>
+
+@{
+    ViewData["Title"] = "Resource Pool";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Resource Pool</h2>
+    <div>
+        <a asp-controller="Capacity" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-calendar-event"></i> Capacity Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="resourceTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Resource</th>
+                        <th>Department</th>
+                        <th>Seniority</th>
+                        <th>Skills</th>
+                        <th>Utilization (Current Month)</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        @(string.IsNullOrEmpty(item.FullName) ? "?" : item.FullName.Substring(0, 1).ToUpper())
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">@item.FullName</h6>
+                                        <small class="text-muted">@item.Email</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>@(item.Department ?? "—")</td>
+                            <td><span class="badge bg-info text-dark">@item.SeniorityLevel</span></td>
+                            <td>
+                                @if (item.Skills.Any())
+                                {
+                                    @foreach (var skill in item.Skills.Take(3))
+                                    {
+                                        <span class="badge bg-secondary me-1">@skill.SkillName</span>
+                                    }
+                                    if (item.Skills.Count > 3)
+                                    {
+                                        <span class="badge bg-light text-dark">+@(item.Skills.Count - 3)</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">No skills listed</span>
+                                }
+                            </td>
+                            <td>
+                                @{
+                                    var utilClass = "bg-success";
+                                    var utilMessage = "Available";
+                                    if (item.UtilizationPercent > 100)
+                                    {
+                                        utilClass = "bg-danger";
+                                        utilMessage = "Over-Allocated";
+                                    }
+                                    else if (item.UtilizationPercent >= 80)
+                                    {
+                                        utilClass = "bg-warning";
+                                        utilMessage = "Near Capacity";
+                                    }
+                                    else if (item.UtilizationPercent < 30)
+                                    {
+                                        utilClass = "bg-info text-dark";
+                                        utilMessage = "Bench / Idle";
+                                    }
+                                }
+                                <div class="d-flex flex-column">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="small">@item.UtilizationPercent%</span>
+                                        <span class="badge @utilClass">@utilMessage</span>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar @utilClass" role="progressbar" style="width: @Math.Min(100, item.UtilizationPercent)%;" aria-valuenow="@item.UtilizationPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Profile" asp-route-id="@item.UserId" class="btn btn-sm btn-outline-primary">View Profile</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#resourceTable').DataTable({
+                "pageLength": 25,
+                "order": [[4, "desc"]] // Sort by utilization by default
+            });
+        });
+    </script>
+}

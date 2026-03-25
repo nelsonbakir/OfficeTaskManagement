@@ -116,6 +116,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="PublicHolidays" asp-action="Index">
+                        <i class="fas fa-calendar-check"></i>
+                        <span>Public Holidays</span>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link fw-bold" asp-area="" asp-controller="Analytics" asp-action="StrategicHub"
                        style="background: linear-gradient(135deg, rgba(102,16,242,0.08), rgba(220,53,69,0.06)); border-left: 3px solid #6610f2;">
                         <i class="fas fa-chess-king" style="color: #6610f2;"></i>
@@ -191,6 +197,22 @@
                                             <i class="fas fa-sign-out-alt"></i> Logout
                                         </button>
                                     </form>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <h6 class="dropdown-header">Resource Management</h6>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Resource" asp-action="Index">
+                                        <i class="bi bi-people pe-2"></i>Resource Pool
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-controller="Capacity" asp-action="Index">
+                                        <i class="bi bi-calendar-event pe-2"></i>Capacity Dashboard
+                                    </a>
                                 </li>
                             </ul>
                         </div>

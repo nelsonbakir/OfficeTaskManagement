@@ -94,19 +94,23 @@ namespace OfficeTaskManagement.Services
 
         public async Task<string> DetectBurnoutAsync()
         {
+            var now = DateTime.UtcNow;
             var usersData = await _context.Users
                 .Select(u => new
                 {
                     FullName = u.FullName,
                     AssignedTasksCount = _context.Tasks.Count(t => t.AssigneeId == u.Id && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done),
                     TotalEstimatedHours = _context.Tasks.Where(t => t.AssigneeId == u.Id && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done).Sum(t => t.EstimatedHours),
-                    CommentsMade = _context.TaskComments.Count(c => c.UserId == u.Id && c.CreatedAt >= DateTime.UtcNow.AddDays(-14))
+                    CommentsMade = _context.TaskComments.Count(c => c.UserId == u.Id && c.CreatedAt >= now.AddDays(-14)),
+                    CurrentTotalAllocationPct = _context.ProjectResourceAllocations
+                        .Where(a => a.UserId == u.Id && a.StartDate <= now && (a.EndDate == null || a.EndDate >= now))
+                        .Sum(a => a.AllocationPercentage)
                 })
                 .ToListAsync();
 
             var json = JsonSerializer.Serialize(usersData);
             
-            string prompt = $"You are a technical team lead and agile coach. Review the workload data. The workflow is: New, Approved, ToDo, InProgress, Committed (Delivered), Tested (QA), Done. Identify any team members who might be at risk of burnout. Point out specific names and why. Be concise and format your response in markdown. JSON data: {json}";
+            string prompt = $"You are a technical team lead and agile coach. Review the workload data and the 'CurrentTotalAllocationPct' (Resource Management). Note: An allocation percentage over 100% means the person is over-allocated across multiple projects. Identify any team members who might be at risk of burnout. Point out specific names and why. Be concise and format your response in markdown. JSON data: {json}";
 
             return await CallGeminiApiAsync(prompt);
         }

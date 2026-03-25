@@ -53,6 +53,18 @@ namespace OfficeTaskManagement.Data
                 });
                 await context.SaveChangesAsync();
             }
+
+            // Seed Public Holidays (Bangladesh)
+            if (!context.PublicHolidays.Any())
+            {
+                context.PublicHolidays.AddRange(new List<PublicHoliday>
+                {
+                    new PublicHoliday { Name = "Independence Day", Date = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
+                    new PublicHoliday { Name = "Victory Day", Date = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
+                    new PublicHoliday { Name = "May Day", Date = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true }
+                });
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

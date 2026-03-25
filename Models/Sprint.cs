@@ -21,6 +21,14 @@ namespace OfficeTaskManagement.Models
 
         public bool IsActive { get; set; } = true;
 
+        // ── Resource / Capacity Planning ─────────────────────────────────────
+        /// <summary>Manager-set team capacity ceiling for this sprint in hours.</summary>
+        public decimal? PlannedCapacityHours { get; set; }
+
+        /// <summary>Free-text notes about resource constraints or sprint goals.</summary>
+        public string? TeamNotes { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
         public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

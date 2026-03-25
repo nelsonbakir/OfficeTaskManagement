@@ -218,6 +218,210 @@
     </div>
 </div>
 
+<!-- Resource Management Reports (Phase 6) -->
+<div class="row mt-4">
+    <div class="col-12 mb-3">
+        <h3 style="font-size: 1.5rem; font-weight: 600; color: #252424; margin-bottom: 0.25rem;">
+            <i class="fas fa-users-cog text-primary me-2"></i> Resource & Capacity Insights
+        </h3>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Team Utilization -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-battery-half text-warning me-2"></i> Team Utilization (Current Month)
+                </h4>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                @if(!Model.TeamUtilization.Any())
+                {
+                    <p class="text-muted text-center mt-3"><i class="fas fa-info-circle"></i> No resource utilization data available.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover" style="font-size: 0.9rem;">
+                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <tr>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Name</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Capacity</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Allocated</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Utilization</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var util in Model.TeamUtilization.OrderByDescending(u => u.UtilizationPercentage))
+                            {
+                                <tr>
+                                    <td class="align-middle fw-medium text-dark">@util.UserName</td>
+                                    <td class="align-middle text-muted">@util.CapacityHours.ToString("0.0")h</td>
+                                    <td class="align-middle text-muted">@util.AllocatedHours.ToString("0.0")h</td>
+                                    <td class="align-middle">
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1" style="height: 6px; margin-right: 8px; background-color: #EDEBE9;">
+                                                <div class="progress-bar @(util.UtilizationPercentage > 100 ? "bg-danger" : util.UtilizationPercentage >= 80 ? "bg-warning" : "bg-success")" 
+                                                     role="progressbar" 
+                                                     style="width: @(Math.Min(100, util.UtilizationPercentage))%" 
+                                                     aria-valuenow="@util.UtilizationPercentage" aria-valuemin="0" aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            <span style="font-size: 0.8rem; font-weight: 600; min-width: 40px;" class="@(util.UtilizationPercentage > 100 ? "text-danger" : util.UtilizationPercentage >= 80 ? "text-warning" : "text-success")">
+                                                @util.UtilizationPercentage.ToString("0")%
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Bench Resources -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-chair text-secondary me-2"></i> Bench & Idle Resources (< 30%)
+                </h4>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                @if(!Model.BenchResources.Any())
+                {
+                    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-success" style="min-height: 100px;">
+                        <i class="fas fa-check-circle fs-3 mb-2"></i>
+                        <p class="mb-0 fw-medium">No idle resources. Everyone is active!</p>
+                    </div>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover" style="font-size: 0.9rem;">
+                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <tr>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Name</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Department</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Allocated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var bench in Model.BenchResources.OrderBy(b => b.CurrentUtilization))
+                            {
+                                <tr>
+                                    <td class="align-middle fw-medium text-dark">@bench.UserName</td>
+                                    <td class="align-middle text-muted">@bench.Department</td>
+                                    <td class="align-middle">
+                                        <span class="badge" style="background: #F3F2F1; color: #323130; border: 1px solid #EDEBE9;">
+                                            @bench.CurrentUtilization.ToString("0")%
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Sprint Capacity vs Demand -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-balance-scale text-info me-2"></i> Active Sprint Capacity Summary
+                </h4>
+            </div>
+            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                @if(!Model.SprintCapacities.Any())
+                {
+                    <p class="text-muted text-center mt-3"><i class="fas fa-info-circle"></i> No active sprints to analyze.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover" style="font-size: 0.9rem;">
+                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <tr>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Sprint</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Capacity</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Demand</th>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Delta</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var cap in Model.SprintCapacities)
+                            {
+                                <tr>
+                                    <td class="align-middle fw-medium text-dark">@cap.SprintName</td>
+                                    <td class="align-middle text-muted">@cap.PlannedCapacity.ToString("0")h</td>
+                                    <td class="align-middle text-muted">@cap.TaskDemand.ToString("0.0")h</td>
+                                    <td class="align-middle">
+                                        @if(cap.Delta < 0)
+                                        {
+                                            <span class="badge" style="background: #FDE7E9; color: #A4262C;">@Math.Abs(cap.Delta).ToString("0.0")h Over</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge" style="background: #DFF6DD; color: #107C10;">+@cap.Delta.ToString("0")h Free</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Costs -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
+                <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                    <i class="fas fa-money-bill-wave text-success me-2"></i> Est. Monthly Project Costs
+                </h4>
+            </div>
+            <div class="card-body" style="max-height: 250px; overflow-y: auto;">
+                @if(!Model.ProjectCosts.Any())
+                {
+                    <p class="text-muted text-center mt-3"><i class="fas fa-info-circle"></i> No project cost data available.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover" style="font-size: 0.9rem;">
+                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <tr>
+                                <th style="border-bottom: 2px solid #EDEBE9; border-top: none;">Project</th>
+                                <th class="text-end" style="border-bottom: 2px solid #EDEBE9; border-top: none;">Est. Labor Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var cost in Model.ProjectCosts.OrderByDescending(c => c.EstimatedCost))
+                            {
+                                <tr>
+                                    <td class="align-middle fw-medium text-dark">@cost.ProjectName</td>
+                                    <td class="align-middle text-end font-monospace text-muted">$@cost.EstimatedCost.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot style="background: #F8F8F8;">
+                            <tr>
+                                <td class="fw-bold" style="padding: 0.75rem;">Total Portfolio Cost</td>
+                                <td class="text-end fw-bold text-success font-monospace" style="padding: 0.75rem;">$@Model.ProjectCosts.Sum(c => c.EstimatedCost).ToString("N2")</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>

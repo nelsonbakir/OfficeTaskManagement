@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -8,6 +10,7 @@ using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Settings;
 using OfficeTaskManagement.Services;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -53,6 +56,10 @@ else
 {
     builder.Services.AddScoped<IMediaService, LocalMediaService>();
 }
+
+// Resource Management Services
+builder.Services.AddScoped<IResourceService, ResourceService>();
+builder.Services.AddScoped<ICapacityPlanningService, CapacityPlanningService>();
 
 builder.Services.AddControllersWithViews();
 

@@ -396,9 +396,10 @@
             <div class="compact-field-grid">
                 <div class="compact-field">
                     <label>Assigned To</label>
-                    <select asp-for="TaskItem.AssigneeId" class="form-select" asp-items="Model.UsersList">
+                    <select asp-for="TaskItem.AssigneeId" class="form-select" asp-items="Model.UsersList" id="AssigneeId">
                         <option value="">-- Unassigned --</option>
                     </select>
+                    <div id="assignee-availability" class="mt-1" style="font-size: 0.75rem; display: none;"></div>
                     <span asp-validation-for="TaskItem.AssigneeId" class="text-danger small"></span>
                 </div>
 
@@ -765,6 +766,50 @@
                     submitComment();
                 }
             });
+
+            // AJAX Resource Availability Check
+            const assigneeSelect = $('#AssigneeId');
+            const startDateIn = $('#TaskItem_StartDate');
+            const dueDateIn = $('#TaskItem_DueDate');
+            const availDiv = $('#assignee-availability');
+
+            function checkAssigneeAvailability() {
+                const uId = assigneeSelect.val();
+                let start = startDateIn.val();
+                let end = dueDateIn.val();
+                
+                if (!start) start = new Date().toISOString().split('T')[0];
+                if (!end) {
+                    let d = new Date(start);
+                    d.setDate(d.getDate() + 7);
+                    end = d.toISOString().split('T')[0];
+                }
+
+                if (uId && start) {
+                    $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
+                     .done(function(data) {
+                         availDiv.show();
+                         if(data.isOverAllocated) {
+                             availDiv.html(`<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Over-allocated (${data.currentAllocationPercent}%)</span>`);
+                         } else if (data.currentAllocationPercent >= 80) {
+                             availDiv.html(`<span class="text-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Near Capacity (${data.currentAllocationPercent}%)</span>`);
+                         } else {
+                             availDiv.html(`<span class="text-success"><i class="fas fa-check-circle"></i> Available (${data.currentAllocationPercent}% load)</span>`);
+                         }
+                     });
+                } else {
+                    availDiv.hide();
+                }
+            }
+
+            assigneeSelect.on('change', checkAssigneeAvailability);
+            startDateIn.on('change', checkAssigneeAvailability);
+            dueDateIn.on('change', checkAssigneeAvailability);
+            
+            // Initial check if editing
+            if (assigneeSelect.val()) {
+                checkAssigneeAvailability();
+            }
         });
 
         function submitComment() {

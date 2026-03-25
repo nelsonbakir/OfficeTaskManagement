@@ -45,5 +45,9 @@ namespace OfficeTaskManagement.Models
         public ICollection<Epic> Epics { get; set; } = new List<Epic>();
         public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
         public ICollection<PortfolioDecision> PortfolioDecisions { get; set; } = new List<PortfolioDecision>();
+
+        // ── Resource Management ──────────────────────────────────────────────
+        public ICollection<ProjectResourceAllocation> ResourceAllocations { get; set; } = new List<ProjectResourceAllocation>();
+        // ────────────────────────────────────────────────────────────────────
     }
 }

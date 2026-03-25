@@ -200,6 +200,7 @@
                             <th>Roles</th>
                             <th>Status</th>
                             <th>Tasks</th>
+                            <th>Utilization</th>
                             <th class="text-end">Actions</th>
                         </tr>
                     </thead>
@@ -266,7 +267,15 @@
                                     </small>
                                 </td>
                                 <td>
+                                    <span class="utilization-badge" data-user-id="@user.Id">
+                                        <i class="fas fa-spinner fa-spin text-muted" style="font-size: 0.8rem;"></i>
+                                    </span>
+                                </td>
+                                <td>
                                     <div class="action-buttons justify-content-end">
+                                        <a asp-controller="Resource" asp-action="Profile" asp-route-id="@user.Id" class="btn-icon btn-toggle" title="Resource Profile">
+                                            <i class="fas fa-id-card" style="color: #605E5C;"></i>
+                                        </a>
                                         <a asp-action="Edit" asp-route-id="@user.Id" class="btn-icon btn-edit" title="Edit User">
                                             <i class="fas fa-edit"></i>
                                         </a>
@@ -303,3 +312,38 @@
         </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Load utilization for all users
+            const items = $('.utilization-badge');
+            
+            // Current month start/end for base utilization calculation
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+            items.each(function() {
+                const el = $(this);
+                const uid = el.data('user-id');
+
+                $.get('/api/ResourceData/availability', { userId: uid, startDate: start, endDate: end })
+                 .done(function(data) {
+                     if(data.isOverAllocated) {
+                         el.html(`<span class="badge bg-danger">${data.currentAllocationPercent}% (Over-allocated)</span>`);
+                     } else if(data.currentAllocationPercent >= 80) {
+                         el.html(`<span class="badge bg-warning text-dark">${data.currentAllocationPercent}%</span>`);
+                     } else if(data.currentAllocationPercent > 0) {
+                         el.html(`<span class="badge bg-info">${data.currentAllocationPercent}%</span>`);
+                     } else {
+                         el.html(`<span class="badge bg-light text-secondary border">0% (Bench)</span>`);
+                     }
+                 })
+                 .fail(function() {
+                     el.html(`<span class="badge bg-light text-secondary border">N/A</span>`);
+                 });
+            });
+        });
+    </script>
+}

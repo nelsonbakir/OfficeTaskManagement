@@ -1,0 +1,197 @@
+@{
+    ViewData["Title"] = "Capacity Planning Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-event"></i> Capacity Planning Dashboard</h2>
+    <div>
+        <a asp-controller="Resource" asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-people"></i> View Resource Pool
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Team Allocation Model (Current Month)</h5>
+                <div>
+                    <select id="monthSelector" class="form-select form-select-sm" style="width: auto;">
+                        <option value="@DateTime.UtcNow.Month">Current Month</option>
+                        <option value="@DateTime.UtcNow.AddMonths(1).Month">Next Month</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Left: Heatmap / Matrix -->
+                    <div class="col-lg-8" style="overflow-x: auto;">
+                        <table class="table table-sm table-bordered text-center" id="heatmapTable">
+                            <thead class="bg-light" id="heatmapHead">
+                                <!-- Days injected via JS -->
+                            </thead>
+                            <tbody id="heatmapBody">
+                                <tr><td colspan="32" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>
+                            </tbody>
+                        </table>
+                        <div class="d-flex justify-content-center mt-2 small text-muted gap-3">
+                            <span><div class="d-inline-block rounded-circle bg-success me-1" style="width:12px;height:12px;"></div> Available</span>
+                            <span><div class="d-inline-block rounded-circle bg-warning me-1" style="width:12px;height:12px;"></div> Near Capacity (80-100%)</span>
+                            <span><div class="d-inline-block rounded-circle bg-danger me-1" style="width:12px;height:12px;"></div> Over-Allocated (>100%)</span>
+                            <span><div class="d-inline-block rounded-circle bg-secondary me-1" style="width:12px;height:12px;"></div> Weekend (Fri/Sat) / Holiday</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Utilization Summary Chart -->
+                    <div class="col-lg-4 border-start">
+                        <h6 class="text-center mb-4 text-muted">Utilization Overview</h6>
+                        <canvas id="utilizationChart" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        $(document).ready(function() {
+            var utilChartInstance = null;
+            
+            function loadDashboardData(month) {
+                // Load Heatmap Data
+                $.get('/api/ResourceData/heatmap', { month: month })
+                 .done(function(data) {
+                     renderHeatmap(data);
+                 });
+                 
+                // Load Utilization Summary for the Chart
+                $.get('/api/ResourceData/utilization', { month: month })
+                 .done(function(data) {
+                     renderChart(data);
+                 });
+            }
+            
+            function renderHeatmap(data) {
+                var thead = '<tr><th class="text-start" style="min-width: 150px;">Resource</th>';
+                data.days.forEach(d => {
+                    thead += `<th style="width: 30px; font-size:0.8rem;">${d}</th>`;
+                });
+                thead += '</tr>';
+                $('#heatmapHead').html(thead);
+                
+                var tbody = '';
+                if(data.rows.length === 0) {
+                     tbody = `<tr><td colspan="${data.days.length + 1}" class="text-center p-3">No active resources found in the pool.</td></tr>`;
+                }
+                
+                data.rows.forEach(row => {
+                     tbody += `<tr><td class="text-start text-truncate fw-bold" style="max-width: 150px;" title="${row.fullName}">${row.fullName}</td>`;
+                     
+                     data.days.forEach(d => {
+                          var avail = row.dailyAvailability[d];
+                          var allocPct = row.dailyAllocation[d];
+                          
+                          var cellClass = "bg-light";
+                          var tooltip = "Weekend (Fri/Sat) / Public Holiday";
+                          var cellText = "";
+                          
+                          if(avail > 0) {
+                              if(allocPct > 100) { cellClass = "bg-danger text-white"; tooltip = "Over-Allocated: " + allocPct + "%"; }
+                              else if (allocPct >= 80) { cellClass = "bg-warning"; tooltip = "Near Capacity: " + allocPct + "%"; }
+                              else if (allocPct > 0) { cellClass = "bg-success text-white"; tooltip = "Optimal: " + allocPct + "%"; }
+                              else { cellClass = "bg-success opacity-50 text-white"; tooltip = "Available: 0% allocated"; }
+                          }
+                          
+                          tbody += `<td class="${cellClass}" title="${tooltip}" data-bs-toggle="tooltip"></td>`;
+                     });
+                     tbody += `</tr>`;
+                });
+                
+                $('#heatmapBody').html(tbody);
+                $('[data-bs-toggle="tooltip"]').tooltip();
+            }
+            
+            function renderChart(data) {
+                var ctx = document.getElementById('utilizationChart').getContext('2d');
+                
+                var labels = [];
+                var allocated = [];
+                var effectiveRem = [];
+                var efficiencyBuffer = [];
+                
+                // Sort by effective utilization desc, take top 8
+                data.sort((a,b) => b.effectiveUtilizationPercent - a.effectiveUtilizationPercent).slice(0, 8).forEach(res => {
+                    labels.push(res.fullName.split(' ')[0]);
+                    allocated.push(res.allocatedHours);
+                    effectiveRem.push(res.remainingEffectiveHours);
+                    
+                    // The "Standard" buffer (Total - Effective)
+                    var buffer = Math.max(0, res.availableHours - res.effectiveCapacityHours);
+                    efficiencyBuffer.push(buffer);
+                });
+                
+                if(utilChartInstance) {
+                    utilChartInstance.destroy();
+                }
+                
+                utilChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Allocated (Committed)',
+                                data: allocated,
+                                backgroundColor: '#0d6efd',
+                            },
+                            {
+                                label: 'Remaining Productive (80%)',
+                                data: effectiveRem,
+                                backgroundColor: '#198754', // Green
+                            },
+                            {
+                                label: 'Efficiency Buffer (PMP Std)',
+                                data: efficiencyBuffer,
+                                backgroundColor: '#e9ecef', // Light grey
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { stacked: true },
+                            y: { 
+                                stacked: true, 
+                                beginAtZero: true,
+                                title: { display: true, text: 'Hours / Month' }
+                            }
+                        },
+                        plugins: {
+                            tooltip: { 
+                                mode: 'index', 
+                                intersect: false,
+                                callbacks: {
+                                    footer: (tooltipItems) => {
+                                        let total = 0;
+                                        tooltipItems.forEach(i => total += i.parsed.y);
+                                        return 'Total Available: ' + total.toFixed(1) + 'h';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Init
+            loadDashboardData($('#monthSelector').val());
+            
+            $('#monthSelector').change(function() {
+                loadDashboardData($(this).val());
+            });
+        });
+    </script>
+}

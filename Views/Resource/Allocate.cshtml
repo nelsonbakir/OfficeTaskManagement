@@ -1,0 +1,142 @@
+@model OfficeTaskManagement.ViewModels.ResourceManagement.EditProjectAllocationViewModel
+
+@{
+    ViewData["Title"] = $"Allocate Resource to {Model.ProjectName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-lines-fill"></i> Allocate Resource</h2>
+    <div>
+        <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-outline-secondary">Back to Project</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form asp-action="Allocate" method="post">
+                    <input type="hidden" asp-for="ProjectId" />
+                    <input type="hidden" asp-for="ProjectName" />
+
+                    @if (TempData["ResourceWarning"] != null)
+                    {
+                        <div class="alert alert-warning mb-4">
+                            <i class="bi bi-exclamation-triangle"></i> @TempData["ResourceWarning"]
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label asp-for="UserId" class="form-label">Resource</label>
+                        <select asp-for="UserId" class="form-select" asp-items="@(new SelectList(ViewBag.Users, "Id", "Email"))">
+                            <option value="">-- Select Resource --</option>
+                        </select>
+                        <span asp-validation-for="UserId" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="ProjectRole" class="form-label"></label>
+                        <input asp-for="ProjectRole" class="form-control" placeholder="e.g., Lead Developer, QA Analyst" />
+                        <span asp-validation-for="ProjectRole" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>Allocation Percentage</span>
+                            <span id="pctVal" class="text-primary fw-bold">100%</span>
+                        </label>
+                        <div class="d-flex align-items-center">
+                            <input asp-for="AllocationPercentage" type="range" class="form-range" min="10" max="100" step="5" id="pctRange" />
+                        </div>
+                        <div class="form-text mt-2"><i class="bi bi-info-circle"></i> Percent of their working capacity dedicated to this project during the given dates.</div>
+                        <span asp-validation-for="AllocationPercentage" class="text-danger"></span>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label asp-for="StartDate" class="form-label"></label>
+                            <input asp-for="StartDate" class="form-control" type="date" />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="EndDate" class="form-label"></label>
+                            <input asp-for="EndDate" class="form-control" type="date" />
+                            <span asp-validation-for="EndDate" class="text-danger"></span>
+                            <div class="form-text">Leave blank if ongoing.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Complete Allocation</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm border-info bg-light">
+            <div class="card-body">
+                <h5 class="card-title text-info"><i class="bi bi-lightbulb"></i> Allocation Guidance</h5>
+                <p>Assigning a resource to a project books their capacity, preventing over-commitment across the portfolio.</p>
+                <ul class="text-muted">
+                    <li><strong>100% allocation</strong> means the resource works exclusively on this project.</li>
+                    <li><strong>Part-time allocation</strong> (e.g., 50%) allows them to be shared across multiple projects concurrently.</li>
+                    <li>The system will automatically flag if a user's combined allocations exceed 100%.</li>
+                </ul>
+                <div class="mt-4" id="availabilityCheckResult" style="display: none;">
+                    <h6>Pre-allocation Check:</h6>
+                    <div id="availabilityOutput" class="p-3 border rounded bg-white"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            var range = $('#pctRange');
+            var valDisp = $('#pctVal');
+            
+            range.on('input', function() {
+                valDisp.text($(this).val() + '%');
+                checkAvailability();
+            });
+
+            $('#UserId, #StartDate, #EndDate').on('change', function() {
+                checkAvailability();
+            });
+
+            function checkAvailability() {
+                var uId = $('#UserId').val();
+                var start = $('#StartDate').val();
+                var end = $('#EndDate').val() || start;
+                var allocPct = parseInt($('#pctRange').val());
+
+                if(uId && start) {
+                    $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
+                     .done(function(data) {
+                         $('#availabilityCheckResult').fadeIn();
+                         
+                         var totalPct = data.currentAllocationPercent + allocPct;
+                         var html = `<p class='mb-1'>Current Allocation: <strong>${data.currentAllocationPercent}%</strong></p>`;
+                         html += `<p class='mb-1'>New Total: <strong>${totalPct}%</strong></p>`;
+                         
+                         if(totalPct > 100) {
+                             html += `<div class='alert alert-danger mt-2 py-2 mb-0 border-danger bg-danger text-white'><i class='bi bi-x-circle'></i> Warning: This pushes the user over 100% capacity.</div>`;
+                         } else {
+                             html += `<div class='text-success mt-2'><i class='bi bi-check-circle'></i> User has sufficient capacity.</div>`;
+                         }
+                         
+                         $('#availabilityOutput').html(html);
+                     });
+                } else {
+                     $('#availabilityCheckResult').hide();
+                }
+            }
+        });
+    </script>
+}

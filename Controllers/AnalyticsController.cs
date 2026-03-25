@@ -23,10 +23,16 @@ namespace OfficeTaskManagement.Controllers
     public class AnalyticsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly OfficeTaskManagement.Services.IResourceService _resourceService;
+        private readonly OfficeTaskManagement.Services.ICapacityPlanningService _capacityService;
 
-        public AnalyticsController(ApplicationDbContext context)
+        public AnalyticsController(ApplicationDbContext context, 
+            OfficeTaskManagement.Services.IResourceService resourceService, 
+            OfficeTaskManagement.Services.ICapacityPlanningService capacityService)
         {
             _context = context;
+            _resourceService = resourceService;
+            _capacityService = capacityService;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -582,6 +588,86 @@ namespace OfficeTaskManagement.Controllers
                         });
                     }
                 }
+            }
+
+            // --- Resource Management Analytics (Phase 6) ---
+            var startOfMonth = new DateTime(currentUtc.Year, currentUtc.Month, 1);
+            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+
+            // 1. Team Utilization & 2. Bench/Idle track
+            var allResourceProfiles = await _context.ResourceProfiles.Include(rp => rp.User).ToListAsync();
+            foreach(var profile in allResourceProfiles)
+            {
+                var capacity = await _resourceService.GetUserAvailableHoursAsync(profile.UserId, startOfMonth, endOfMonth);
+                
+                // Get allocation % 
+                var currentAllocations = await _context.ProjectResourceAllocations
+                    .Where(a => a.UserId == profile.UserId && a.StartDate <= endOfMonth && (a.EndDate == null || a.EndDate >= startOfMonth))
+                    .ToListAsync();
+                    
+                var totalAllocationPct = currentAllocations.Sum(a => a.AllocationPercentage);
+                
+                vm.TeamUtilization.Add(new ResourceUtilizationMetric 
+                {
+                    UserName = profile.User!.FullName ?? profile.User!.Email,
+                    UtilizationPercentage = totalAllocationPct,
+                    AllocatedHours = (totalAllocationPct / 100m) * capacity,
+                    CapacityHours = capacity
+                });
+
+                if (totalAllocationPct < 30) // Less than 30% allocated is considered Bench
+                {
+                    vm.BenchResources.Add(new BenchResourceMetric
+                    {
+                        UserName = profile.User!.FullName ?? profile.User!.Email,
+                        Department = profile.Department ?? "General",
+                        CurrentUtilization = totalAllocationPct
+                    });
+                }
+            }
+
+            // 3. Project Costs
+            var projectsWithAllocations = await _context.Projects
+                .Include(p => p.ResourceAllocations)
+                .ThenInclude(a => a.User)
+                .ThenInclude(u => u.ResourceProfile)
+                .ToListAsync();
+
+            foreach(var proj in projectsWithAllocations)
+            {
+                decimal totalCost = 0;
+                foreach(var alloc in proj.ResourceAllocations)
+                {
+                    if (alloc.User?.ResourceProfile != null && alloc.User.ResourceProfile.HourlyRate > 0)
+                    {
+                        // Simplified cost tracking for 'this month'
+                        var workDaysInMonth = 22m; // rough approx
+                        var dailyCap = alloc.User.ResourceProfile.DailyCapacityHours;
+                        var hoursAllocated = workDaysInMonth * dailyCap * (alloc.AllocationPercentage / 100m);
+                        totalCost += hoursAllocated * alloc.User.ResourceProfile.HourlyRate;
+                    }
+                }
+                if (totalCost > 0)
+                {
+                    vm.ProjectCosts.Add(new CostTrackingMetric
+                    {
+                        ProjectName = proj.Name,
+                        EstimatedCost = Math.Round(totalCost, 2)
+                    });
+                }
+            }
+
+            // 4. Sprint capacities
+            foreach(var sprint in activeSprints)
+            {
+                var capacity = await _capacityService.GetSprintCapacityVsDemandAsync(sprint.Id);
+                vm.SprintCapacities.Add(new SprintCapacityMetric
+                {
+                    SprintName = sprint.Name,
+                    PlannedCapacity = capacity.PlannedCapacityHours,
+                    TaskDemand = capacity.DemandHours,
+                    Delta = capacity.Delta
+                });
             }
 
             return View("Index", vm);

@@ -25,6 +25,14 @@ namespace OfficeTaskManagement.Data
         public DbSet<TestCase> TestCases { get; set; }
         public DbSet<PortfolioDecision> PortfolioDecisions { get; set; }
 
+        // ── Resource Management ──────────────────────────────────────────────
+        public DbSet<ResourceProfile> ResourceProfiles { get; set; }
+        public DbSet<ResourceSkill> ResourceSkills { get; set; }
+        public DbSet<ProjectResourceAllocation> ProjectResourceAllocations { get; set; }
+        public DbSet<ResourceAvailabilityBlock> ResourceAvailabilityBlocks { get; set; }
+        public DbSet<PublicHoliday> PublicHolidays { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -210,6 +218,73 @@ namespace OfficeTaskManagement.Data
                 .WithMany()
                 .HasForeignKey(pd => pd.MadeById)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ── Resource Management Relationships ────────────────────────────
+
+            // ResourceProfile: 1-to-1 with User
+            builder.Entity<ResourceProfile>()
+                .HasOne(rp => rp.User)
+                .WithOne(u => u.ResourceProfile)
+                .HasForeignKey<ResourceProfile>(rp => rp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ResourceSkill: many-to-1 with ResourceProfile
+            builder.Entity<ResourceSkill>()
+                .HasOne(rs => rs.ResourceProfile)
+                .WithMany(rp => rp.Skills)
+                .HasForeignKey(rs => rs.ResourceProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ProjectResourceAllocation: many-to-1 with Project
+            builder.Entity<ProjectResourceAllocation>()
+                .HasOne(pra => pra.Project)
+                .WithMany(p => p.ResourceAllocations)
+                .HasForeignKey(pra => pra.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ProjectResourceAllocation: many-to-1 with User (the allocated person)
+            builder.Entity<ProjectResourceAllocation>()
+                .HasOne(pra => pra.User)
+                .WithMany(u => u.ProjectAllocations)
+                .HasForeignKey(pra => pra.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ProjectResourceAllocation: many-to-1 with AllocatedBy (manager)
+            builder.Entity<ProjectResourceAllocation>()
+                .HasOne(pra => pra.AllocatedBy)
+                .WithMany()
+                .HasForeignKey(pra => pra.AllocatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ProjectResourceAllocation: optional link to ResourceProfile
+            builder.Entity<ProjectResourceAllocation>()
+                .HasOne(pra => pra.ResourceProfile)
+                .WithMany(rp => rp.ProjectAllocations)
+                .HasForeignKey(pra => pra.ResourceProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ResourceAvailabilityBlock: many-to-1 with User
+            builder.Entity<ResourceAvailabilityBlock>()
+                .HasOne(rab => rab.User)
+                .WithMany(u => u.AvailabilityBlocks)
+                .HasForeignKey(rab => rab.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ResourceAvailabilityBlock: CreatedBy (manager) — restrict delete
+            builder.Entity<ResourceAvailabilityBlock>()
+                .HasOne(rab => rab.CreatedBy)
+                .WithMany()
+                .HasForeignKey(rab => rab.CreatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ResourceAvailabilityBlock: optional link to ResourceProfile
+            builder.Entity<ResourceAvailabilityBlock>()
+                .HasOne(rab => rab.ResourceProfile)
+                .WithMany(rp => rp.AvailabilityBlocks)
+                .HasForeignKey(rab => rab.ResourceProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ────────────────────────────────────────────────────────────────
         }
     }
 }

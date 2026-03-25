@@ -1,0 +1,75 @@
+@model OfficeTaskManagement.Services.SprintCapacitySummary
+
+@{
+    ViewData["Title"] = $"Sprint Capacity: {Model.SprintName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-bar-chart-steps"></i> @Model.SprintName Capacity</h2>
+    <div>
+        <a asp-controller="Sprints" asp-action="Details" asp-route-id="@Model.SprintId" class="btn btn-outline-secondary">Back to Sprint</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-uppercase text-muted mb-3">Capacity vs. Demand</h6>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Planned Capacity:</span>
+                    <strong class="text-success">@Model.PlannedCapacityHours hrs</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Task Demand:</span>
+                    <strong class="@(Model.IsOverCommitted ? "text-danger" : "text-primary")">@Model.DemandHours hrs</strong>
+                </div>
+                <hr />
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">Delta:</span>
+                    @{
+                        var badgeClass = Model.IsOverCommitted ? "bg-danger" : "bg-success";
+                        var iconClass = Model.IsOverCommitted ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill";
+                    }
+                    <span class="badge @badgeClass fs-6 px-3 py-2">
+                        <i class="bi @iconClass pe-1"></i> @Math.Abs(Model.Delta) hrs @(Model.IsOverCommitted ? "Shortfall" : "Buffer")
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card shadow-sm h-100 border-0 bg-light">
+            <div class="card-body">
+                <h6 class="card-title text-muted"><i class="bi bi-info-circle"></i> Understanding Sprint Capacity</h6>
+                <ul class="mb-0">
+                    <li class="mb-2"><strong>Planned Capacity</strong> is either set explicitly by the manager on the Sprint, or calculated automatically based on the sum of available hours (minus leave) of all users assigned to tasks in this sprint.</li>
+                    <li><strong>Task Demand</strong> is the sum of `EstimatedHours` across all tasks linked to this Sprint.</li>
+                    <li class="mt-2 text-danger fw-bold" style="display: @(Model.IsOverCommitted ? "block" : "none")">
+                        Warning: This sprint is currently over-committed. Consider moving tasks back to the backlog or extending the sprint dates.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Bar Visual -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-4">
+        <label class="form-label d-flex justify-content-between text-muted small fw-bold text-uppercase">
+            <span>Sprint Load</span>
+            <span>@(Model.PlannedCapacityHours > 0 ? Math.Round((Model.DemandHours / Model.PlannedCapacityHours) * 100) : 0)%</span>
+        </label>
+        <div class="progress" style="height: 25px; border-radius: 12px; border: 1px solid #ddd; background-color: #f1f3f5;">
+            @{
+                var width = Model.PlannedCapacityHours > 0 ? (Model.DemandHours / Model.PlannedCapacityHours) * 100 : 0;
+                var colorClass = Model.IsOverCommitted ? "bg-danger" : (width >= 80 ? "bg-warning" : "bg-primary");
+            }
+            <div class="progress-bar progress-bar-striped progress-bar-animated @colorClass" role="progressbar" style="width: @Math.Min(100, width)%;">
+                @Model.DemandHours / @Model.PlannedCapacityHours hrs
+            </div>
+        </div>
+    </div>
+</div>

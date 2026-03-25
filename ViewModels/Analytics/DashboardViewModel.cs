@@ -31,6 +31,12 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         
         // Employee Dashboard Metrics
         public EmployeeDashboard? EmployeeMetrics { get; set; }
+
+        // Resource Management Analytics
+        public List<ResourceUtilizationMetric> TeamUtilization { get; set; } = new();
+        public List<BenchResourceMetric> BenchResources { get; set; } = new();
+        public List<CostTrackingMetric> ProjectCosts { get; set; } = new();
+        public List<SprintCapacityMetric> SprintCapacities { get; set; } = new();
     }
 
     // Manager Dashboard - Organization-wide metrics
@@ -213,5 +219,35 @@ namespace OfficeTaskManagement.ViewModels.Analytics
     {
         public string SprintName { get; set; } = string.Empty;
         public decimal CompletedHours { get; set; }
+    }
+
+    // Resource Management Analytics Classes
+    public class ResourceUtilizationMetric
+    {
+        public string UserName { get; set; } = string.Empty;
+        public decimal UtilizationPercentage { get; set; }
+        public decimal AllocatedHours { get; set; }
+        public decimal CapacityHours { get; set; }
+    }
+
+    public class CostTrackingMetric
+    {
+        public string ProjectName { get; set; } = string.Empty;
+        public decimal EstimatedCost { get; set; }
+    }
+
+    public class BenchResourceMetric
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public decimal CurrentUtilization { get; set; }
+    }
+
+    public class SprintCapacityMetric
+    {
+        public string SprintName { get; set; } = string.Empty;
+        public decimal PlannedCapacity { get; set; }
+        public decimal TaskDemand { get; set; }
+        public decimal Delta { get; set; }
     }
 }

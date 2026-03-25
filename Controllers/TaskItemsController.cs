@@ -24,12 +24,14 @@ namespace OfficeTaskManagement.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly IMediaService _mediaService;
+        private readonly IResourceService _resourceService;
 
-        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService)
+        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService, IResourceService resourceService)
         {
             _context = context;
             _env = env;
             _mediaService = mediaService;
+            _resourceService = resourceService;
         }
 
         // GET: TaskItems
@@ -176,6 +178,20 @@ namespace OfficeTaskManagement.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // Check for over-allocation
+                if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
+                {
+                    bool overAllocated = await _resourceService.IsUserOverAllocatedAsync(
+                        vm.TaskItem.AssigneeId,
+                        vm.TaskItem.StartDate ?? DateTime.UtcNow,
+                        vm.TaskItem.DueDate ?? (vm.TaskItem.StartDate ?? DateTime.UtcNow).AddDays(7)
+                    );
+                    if (overAllocated)
+                    {
+                        TempData["ResourceWarning"] = "Warning: The assigned user is over-allocated during the task's timeframe.";
+                    }
+                }
 
                 // Notify new assignee if someone else created the task
                 var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -494,6 +510,20 @@ namespace OfficeTaskManagement.Controllers
                     }
 
                     await _context.SaveChangesAsync();
+                    
+                    // Check for over-allocation
+                    if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
+                    {
+                        bool overAllocated = await _resourceService.IsUserOverAllocatedAsync(
+                            vm.TaskItem.AssigneeId,
+                            vm.TaskItem.StartDate ?? DateTime.UtcNow,
+                            vm.TaskItem.DueDate ?? (vm.TaskItem.StartDate ?? DateTime.UtcNow).AddDays(7)
+                        );
+                        if (overAllocated)
+                        {
+                            TempData["ResourceWarning"] = "Warning: The assigned user is over-allocated during the task's timeframe.";
+                        }
+                    }
                 }
                 catch (DbUpdateConcurrencyException)
                 {

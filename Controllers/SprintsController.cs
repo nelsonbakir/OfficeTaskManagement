@@ -16,10 +16,16 @@ namespace OfficeTaskManagement.Controllers
     public class SprintsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly OfficeTaskManagement.Services.ICapacityPlanningService _capacityService;
+        private readonly OfficeTaskManagement.Services.IResourceService _resourceService;
 
-        public SprintsController(ApplicationDbContext context)
+        public SprintsController(ApplicationDbContext context, 
+            OfficeTaskManagement.Services.ICapacityPlanningService capacityService,
+            OfficeTaskManagement.Services.IResourceService resourceService)
         {
             _context = context;
+            _capacityService = capacityService;
+            _resourceService = resourceService;
         }
 
         // GET: Sprints
@@ -98,13 +104,19 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Create([Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive")] Sprint sprint)
+        public async Task<IActionResult> Create([Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive,PlannedCapacityHours,TeamNotes")] Sprint sprint)
         {
             if (ModelState.IsValid)
             {
                 // Ensure DateTimes are UTC to satisfy PostgreSQL timestamp with time zone requirements
                 sprint.StartDate = EnsureUtc(sprint.StartDate);
                 sprint.EndDate = EnsureUtc(sprint.EndDate);
+
+                // Auto-calculate capacity from project allocations if not explicitly set
+                if (!sprint.PlannedCapacityHours.HasValue)
+                {
+                    sprint.PlannedCapacityHours = await CalculateSprintCapacityFromProjectAsync(sprint.ProjectId, sprint.StartDate, sprint.EndDate);
+                }
 
                 _context.Add(sprint);
                 await _context.SaveChangesAsync();
@@ -136,7 +148,7 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Manager,Project Lead")]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive")] Sprint sprint)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive,PlannedCapacityHours,TeamNotes")] Sprint sprint)
         {
             if (id != sprint.Id)
             {
@@ -220,6 +232,30 @@ namespace OfficeTaskManagement.Controllers
                 DateTimeKind.Local => dt.ToUniversalTime(),
                 _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
             };
+        }
+
+        private async Task<decimal> CalculateSprintCapacityFromProjectAsync(int projectId, DateTime start, DateTime end)
+        {
+            // Find all users allocated to this project during this sprint's window
+            var allocations = await _context.ProjectResourceAllocations
+                .Where(a => a.ProjectId == projectId 
+                         && a.StartDate <= end 
+                         && (a.EndDate == null || a.EndDate >= start))
+                .ToListAsync();
+
+            decimal totalCapacity = 0;
+            foreach (var alloc in allocations)
+            {
+                var allocStart = alloc.StartDate > start ? alloc.StartDate : start;
+                var allocEnd = (alloc.EndDate.HasValue && alloc.EndDate.Value < end) ? alloc.EndDate.Value : end;
+                
+                // Base available hours from the user (handles leaves/weekends)
+                var userBaseAuth = await _resourceService.GetUserAvailableHoursAsync(alloc.UserId, allocStart, allocEnd);
+                
+                // Multiply by their % allocation on this specific project
+                totalCapacity += userBaseAuth * (alloc.AllocationPercentage / 100m);
+            }
+            return Math.Round(totalCapacity, 1);
         }
     }
 }
