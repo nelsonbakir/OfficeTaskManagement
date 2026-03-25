@@ -26,6 +26,7 @@ function activate(context) {
             context.globalState.update('taskflow.token', result.token);
             apiService.setToken(result.token);
             vscode.window.showInformationMessage(`TaskFlow: Successfully authenticated as ${result.user.fullName}`);
+            await updateTasksCache();
             provider.refresh();
         }
         catch (error) {
@@ -45,6 +46,7 @@ function activate(context) {
                 // Pin project to this specific workspace root
                 context.workspaceState.update('taskflow.projectId', selected.id);
                 vscode.window.showInformationMessage(`TaskFlow: Ext. mapped successfully to ${selected.label}`);
+                await updateTasksCache();
                 provider.refresh();
             }
         }
@@ -52,7 +54,8 @@ function activate(context) {
             vscode.window.showErrorMessage('TaskFlow: Failed to fetch projects from server.');
         }
     });
-    let refreshCmd = vscode.commands.registerCommand('taskflow.refresh', () => {
+    let refreshCmd = vscode.commands.registerCommand('taskflow.refresh', async () => {
+        await updateTasksCache();
         provider.refresh();
     });
     let signoutCmd = vscode.commands.registerCommand('taskflow.signout', async () => {
@@ -61,7 +64,53 @@ function activate(context) {
         vscode.window.showInformationMessage('TaskFlow: Signed out successfully.');
         provider.refresh();
     });
-    context.subscriptions.push(authCmd, mapCmd, refreshCmd, signoutCmd);
+    let tasksCache = [];
+    let lastProjectId = -2;
+    async function updateTasksCache() {
+        try {
+            const projectId = context.workspaceState.get('taskflow.projectId');
+            tasksCache = await apiService.getTasks(projectId);
+            lastProjectId = projectId;
+        }
+        catch (e) {
+            console.error('TaskFlow: Failed to pre-fetch tasks', e);
+        }
+    }
+    // Initial pre-fetch
+    if (apiService.hasToken()) {
+        updateTasksCache();
+    }
+    let commitProvider = vscode.languages.registerCompletionItemProvider([{ language: 'git-commit' }, { scheme: 'vscode-scm' }], {
+        provideCompletionItems(document, position) {
+            if (!apiService.hasToken())
+                return undefined;
+            const linePrefix = document.lineAt(position).text.substr(0, position.character);
+            const lastHashIndex = linePrefix.lastIndexOf('#');
+            if (lastHashIndex === -1)
+                return undefined;
+            const textAfterHash = linePrefix.substring(lastHashIndex + 1);
+            // Only allow digits after '#' for now to match user expectation of "task search pattern"
+            if (textAfterHash.length > 0 && !/^\d*$/.test(textAfterHash))
+                return undefined;
+            if (textAfterHash.includes(' '))
+                return undefined;
+            const range = new vscode.Range(new vscode.Position(position.line, lastHashIndex), position);
+            const items = tasksCache.map(t => {
+                const item = new vscode.CompletionItem(`#${t.id} ${t.title}`, vscode.CompletionItemKind.Issue);
+                item.insertText = `[#${t.id}](http://localhost:5035/TaskItems/Details/${t.id})`;
+                item.filterText = `#${t.id}${t.title}`;
+                item.detail = `${t.projectName || 'Independent'} - ${t.statusName}`;
+                item.documentation = new vscode.MarkdownString(t.description || 'No description.');
+                item.range = range;
+                return item;
+            });
+            return new vscode.CompletionList(items, true);
+        }
+    }, '#', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+    vscode.commands.registerCommand('taskflow.updateCache', async () => {
+        await updateTasksCache();
+    });
+    context.subscriptions.push(authCmd, mapCmd, refreshCmd, signoutCmd, commitProvider);
     // Notification Polling (Every 30 seconds)
     setInterval(async () => {
         if (apiService.hasToken()) {
@@ -187,6 +236,9 @@ class TaskFlowSidebarProvider {
     async refresh() {
         if (!this._view)
             return;
+        // The commands already call updateTasksCache, but we can be extra safe here
+        // No need to await here to avoid blocking UI
+        vscode.commands.executeCommand('taskflow.updateCache');
         if (!this._apiService.hasToken()) {
             this._view.webview.html = this._getHtmlForUnauth();
             return;
@@ -315,7 +367,7 @@ class TaskFlowSidebarProvider {
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 11px; font-weight: 600; color: var(--vscode-descriptionForeground); display: block; margin-bottom: 4px; text-transform: uppercase;">Workspace Filter</label>
                 <select onchange="changeProject(this.value)" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); color: var(--vscode-input-foreground); font-size: 12px; cursor: pointer;">
-                    <option value="0">-- All Projects --</option>
+                    <option value="0" ${!currentProjectId ? 'selected' : ''}>-- All Projects --</option>
                     ${projectOptions}
                 </select>
             </div>

@@ -60,7 +60,8 @@ class ApiService {
     }
     async getTasks(projectId) {
         try {
-            const url = projectId ? `${this.baseUrl}/tasksapi?projectId=${projectId}` : `${this.baseUrl}/tasksapi`;
+            const hasProjectFilter = projectId !== undefined && projectId !== null && projectId !== 0;
+            const url = hasProjectFilter ? `${this.baseUrl}/tasksapi?projectId=${projectId}` : `${this.baseUrl}/tasksapi`;
             const response = await axios_1.default.get(url, { headers: this.getHeaders() });
             return response.data;
         }

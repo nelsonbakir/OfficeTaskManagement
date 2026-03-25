@@ -60,7 +60,8 @@ export class ApiService {
 
     public async getTasks(projectId?: number): Promise<any[]> {
         try {
-            const url = projectId ? `${this.baseUrl}/tasksapi?projectId=${projectId}` : `${this.baseUrl}/tasksapi`;
+            const hasProjectFilter = projectId !== undefined && projectId !== null && projectId !== 0;
+            const url = hasProjectFilter ? `${this.baseUrl}/tasksapi?projectId=${projectId}` : `${this.baseUrl}/tasksapi`;
             const response = await axios.get(url, { headers: this.getHeaders() });
             return response.data;
         } catch (error) { wrapError(error); }
