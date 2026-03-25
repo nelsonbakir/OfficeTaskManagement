@@ -404,10 +404,18 @@
 
                 <div class="compact-field">
                     <label>Project</label>
-                    <select asp-for="TaskItem.ProjectId" class="form-select" asp-items="Model.ProjectsList">
+                    <select asp-for="TaskItem.ProjectId" class="form-select" asp-items="Model.ProjectsList" id="ProjectId">
                         <option value="">-- Select Project --</option>
                     </select>
                     <span asp-validation-for="TaskItem.ProjectId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>Epic</label>
+                    <select asp-for="TaskItem.EpicId" class="form-select" asp-items="Model.EpicsList" id="EpicId">
+                        <option value="">-- Select Epic --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.EpicId" class="text-danger small"></span>
                 </div>
 
                 <div class="compact-field">
@@ -424,19 +432,19 @@
                 </div>
 
                 <div class="compact-field">
-                    <label>User Story</label>
-                    <select asp-for="TaskItem.UserStoryId" class="form-select" asp-items="Model.UserStoriesList">
-                        <option value="">-- Select User Story --</option>
-                    </select>
-                    <span asp-validation-for="TaskItem.UserStoryId" class="text-danger small"></span>
-                </div>
-
-                <div class="compact-field">
                     <label>Feature</label>
-                    <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList">
+                    <select asp-for="TaskItem.FeatureId" class="form-select" asp-items="Model.FeaturesList" id="FeatureId">
                         <option value="">-- Select Feature --</option>
                     </select>
                     <span asp-validation-for="TaskItem.FeatureId" class="text-danger small"></span>
+                </div>
+
+                <div class="compact-field">
+                    <label>User Story</label>
+                    <select asp-for="TaskItem.UserStoryId" class="form-select" asp-items="Model.UserStoriesList" id="UserStoryId">
+                        <option value="">-- Select User Story --</option>
+                    </select>
+                    <span asp-validation-for="TaskItem.UserStoryId" class="text-danger small"></span>
                 </div>
 
                 <div class="compact-field">
@@ -680,6 +688,59 @@
 
             areaSelector.on('change', updateBadges);
             updateBadges(); // Initial call
+            
+            // Cascading Dropdowns Logic
+            const projectSelect = $('#ProjectId');
+            const epicSelect = $('#EpicId');
+            const featureSelect = $('#FeatureId');
+            const storySelect = $('#UserStoryId');
+
+            function clearSelect(select, placeholder) {
+                select.empty();
+                select.append($('<option>', { value: '', text: placeholder }));
+            }
+
+            projectSelect.on('change', function() {
+                const projectId = $(this).val();
+                clearSelect(epicSelect, '-- Select Epic --');
+                clearSelect(featureSelect, '-- Select Feature --');
+                clearSelect(storySelect, '-- Select User Story --');
+                
+                if (projectId) {
+                    $.getJSON('/TaskItems/GetEpics', { projectId: projectId }, function(data) {
+                        data.forEach(item => {
+                            epicSelect.append($('<option>', { value: item.id, text: item.name }));
+                        });
+                    });
+                }
+            });
+
+            epicSelect.on('change', function() {
+                const epicId = $(this).val();
+                clearSelect(featureSelect, '-- Select Feature --');
+                clearSelect(storySelect, '-- Select User Story --');
+                
+                if (epicId) {
+                    $.getJSON('/TaskItems/GetFeatures', { epicId: epicId }, function(data) {
+                        data.forEach(item => {
+                            featureSelect.append($('<option>', { value: item.id, text: item.name }));
+                        });
+                    });
+                }
+            });
+
+            featureSelect.on('change', function() {
+                const featureId = $(this).val();
+                clearSelect(storySelect, '-- Select User Story --');
+                
+                if (featureId) {
+                    $.getJSON('/TaskItems/GetUserStories', { featureId: featureId }, function(data) {
+                        data.forEach(item => {
+                            storySelect.append($('<option>', { value: item.id, text: item.name }));
+                        });
+                    });
+                }
+            });
             
             // Fetch users for Tribute mentions
             fetch('/TaskItems/GetEligibleUsersForMention?projectId=' + @(Model.TaskItem.ProjectId ?? 0))

@@ -15,10 +15,58 @@
         margin: 0;
     }
 
+    .filter-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .project-header {
+        background: #e9ecef;
+        padding: 0.75rem 1.25rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-radius: 6px;
+        border-left: 5px solid #0078D4;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .project-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0;
+        color: #212529;
+    }
+
+    .epic-header {
+        background: #f1f3f5;
+        padding: 0.5rem 1rem;
+        margin-top: 1rem;
+        margin-bottom: 0.75rem;
+        border-radius: 4px;
+        border-left: 3px solid #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: 1rem;
+    }
+
+    .epic-header h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+        color: #495057;
+    }
+
     .project-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
         gap: 1.5rem;
+        margin-left: 2rem;
     }
 
     .project-card {
@@ -160,38 +208,85 @@
     </a>
 </div>
 
+<div class="filter-section">
+    <form asp-action="Index" method="get" class="row align-items-end g-3" id="filterForm">
+        <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">Project</label>
+            <select name="projectId" class="form-select" asp-items="ViewBag.ProjectId" onchange="this.form.submit()">
+                <option value="">-- All Projects --</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-bold small text-uppercase">Epic</label>
+            <select name="epicId" class="form-select" asp-items="ViewBag.EpicId">
+                <option value="">-- All Epics --</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+        </div>
+        <div class="col-md-2">
+            <a asp-action="Index" class="btn btn-outline-secondary w-100">Reset</a>
+        </div>
+    </form>
+</div>
+
 @if (Model.Any()) {
-    <div class="project-grid">
-        @foreach (var item in Model) {
-            <div class="project-card">
-                <div class="project-actions">
-                    <a asp-action="Edit" asp-route-id="@item.Id" class="action-btn" title="Edit">
-                        <i class="fas fa-pen-to-square"></i>
-                    </a>
-                    <a asp-action="Delete" asp-route-id="@item.Id" class="action-btn" title="Delete" onclick="return confirm('Are you sure?')">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                </div>
-                <a asp-action="Details" asp-route-id="@item.Id" class="project-name">
-                    @Html.DisplayFor(modelItem => item.Name)
-                </a>
-                <p class="project-description">
-                    @Html.DisplayFor(modelItem => item.Description)
-                </p>
-                <div class="project-meta">
-                    <div class="project-meta-item">
-                        <i class="fas fa-layer-group"></i>
-                        <span>@Html.DisplayFor(modelItem => item.Epic.Name)</span>
+    var groupedByProject = Model.GroupBy(f => f.Epic?.Project?.Name ?? "Unassigned Projects");
+    
+    foreach (var projectGroup in groupedByProject) {
+        <div class="project-header">
+            <i class="fas fa-folder-open text-primary"></i>
+            <h2>@projectGroup.Key</h2>
+        </div>
+        
+        var groupedByEpic = projectGroup.GroupBy(f => f.Epic?.Name ?? "Unassigned Epics");
+        foreach (var epicGroup in groupedByEpic) {
+            <div class="epic-header">
+                <i class="fas fa-layer-group text-secondary"></i>
+                <h3>@epicGroup.Key</h3>
+                <span class="badge bg-secondary rounded-pill ms-2">@epicGroup.Count() Features</span>
+            </div>
+            
+            <div class="project-grid">
+                @foreach (var item in epicGroup) {
+                    <div class="project-card">
+                        <div class="project-actions">
+                            <a asp-action="Edit" asp-route-id="@item.Id" class="action-btn" title="Edit">
+                                <i class="fas fa-pen-to-square"></i>
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@item.Id" class="action-btn" title="Delete" onclick="return confirm('Are you sure?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </div>
+                        <a asp-action="Details" asp-route-id="@item.Id" class="project-name">
+                            @Html.DisplayFor(modelItem => item.Name)
+                        </a>
+                        <p class="project-description">
+                            @Html.DisplayFor(modelItem => item.Description)
+                        </p>
+                        <div class="project-meta">
+                            <div class="project-meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>@item.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            </div>
+                            <div class="project-meta-item">
+                                <i class="fas fa-user"></i>
+                                <span>@item.CreatedBy?.FullName</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                }
             </div>
         }
-    </div>
+    }
 } else {
     <div class="empty-state">
         <i class="fas fa-cube"></i>
-        <h3>No features yet</h3>
-        <p>Create your first feature to group tasks</p>
+        <h3>No features found</h3>
+        <p>Try adjusting your filter or create a new feature</p>
         <a asp-action="Create" class="btn btn-primary">
             <i class="fas fa-plus"></i> Create Feature
         </a>

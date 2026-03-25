@@ -15,6 +15,33 @@
         margin: 0;
     }
 
+    .filter-section {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .project-header {
+        background: #e9ecef;
+        padding: 0.75rem 1.25rem;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-radius: 6px;
+        border-left: 5px solid #0078D4;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .project-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0;
+        color: #212529;
+    }
+
     .project-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -160,38 +187,71 @@
     </a>
 </div>
 
+<div class="filter-section">
+    <form asp-action="Index" method="get" class="row align-items-end g-3">
+        <div class="col-md-4">
+            <label class="form-label fw-bold small text-uppercase">Filter by Project</label>
+            <select name="projectId" class="form-select" asp-items="ViewBag.ProjectId">
+                <option value="">-- All Projects --</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-outline-primary w-100">
+                <i class="fas fa-filter"></i> Apply
+            </button>
+        </div>
+        <div class="col-md-2">
+            <a asp-action="Index" class="btn btn-outline-secondary w-100">Reset</a>
+        </div>
+    </form>
+</div>
+
 @if (Model.Any()) {
-    <div class="project-grid">
-        @foreach (var item in Model) {
-            <div class="project-card">
-                <div class="project-actions">
-                    <a asp-action="Edit" asp-route-id="@item.Id" class="action-btn" title="Edit">
-                        <i class="fas fa-pen-to-square"></i>
+    var groupedByProject = Model.GroupBy(e => e.Project?.Name ?? "Unassigned Projects");
+    
+    foreach (var group in groupedByProject) {
+        <div class="project-header">
+            <i class="fas fa-folder-open text-primary"></i>
+            <h2>@group.Key</h2>
+            <span class="badge bg-primary rounded-pill">@group.Count() Epics</span>
+        </div>
+        
+        <div class="project-grid">
+            @foreach (var item in group) {
+                <div class="project-card">
+                    <div class="project-actions">
+                        <a asp-action="Edit" asp-route-id="@item.Id" class="action-btn" title="Edit">
+                            <i class="fas fa-pen-to-square"></i>
+                        </a>
+                        <a asp-action="Delete" asp-route-id="@item.Id" class="action-btn" title="Delete" onclick="return confirm('Are you sure?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                    <a asp-action="Details" asp-route-id="@item.Id" class="project-name">
+                        @Html.DisplayFor(modelItem => item.Name)
                     </a>
-                    <a asp-action="Delete" asp-route-id="@item.Id" class="action-btn" title="Delete" onclick="return confirm('Are you sure?')">
-                        <i class="fas fa-trash"></i>
-                    </a>
-                </div>
-                <a asp-action="Details" asp-route-id="@item.Id" class="project-name">
-                    @Html.DisplayFor(modelItem => item.Name)
-                </a>
-                <p class="project-description">
-                    @Html.DisplayFor(modelItem => item.Description)
-                </p>
-                <div class="project-meta">
-                    <div class="project-meta-item">
-                        <i class="fas fa-folder"></i>
-                        <span>@Html.DisplayFor(modelItem => item.Project.Name)</span>
+                    <p class="project-description">
+                        @Html.DisplayFor(modelItem => item.Description)
+                    </p>
+                    <div class="project-meta">
+                        <div class="project-meta-item">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>@item.CreatedAt.ToString("MMM dd, yyyy")</span>
+                        </div>
+                        <div class="project-meta-item">
+                            <i class="fas fa-user"></i>
+                            <span>@item.CreatedBy?.FullName</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 } else {
     <div class="empty-state">
         <i class="fas fa-layer-group"></i>
-        <h3>No epics yet</h3>
-        <p>Create your first epic to group features</p>
+        <h3>No epics found</h3>
+        <p>Try adjusting your filter or create a new epic</p>
         <a asp-action="Create" class="btn btn-primary">
             <i class="fas fa-plus"></i> Create Epic
         </a>

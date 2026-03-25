@@ -29,13 +29,19 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? projectId)
         {
+            ViewBag.ProjectId = new SelectList(_context.Projects, "Id", "Name", projectId);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Epics
                 .Include(e => e.CreatedBy)
                 .Include(e => e.Project)
                 .AsQueryable();
+
+            if (projectId.HasValue)
+            {
+                query = query.Where(e => e.ProjectId == projectId.Value);
+            }
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
             {

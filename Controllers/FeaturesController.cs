@@ -29,14 +29,29 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Features
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? projectId, int? epicId)
         {
+            ViewBag.ProjectId = new SelectList(_context.Projects, "Id", "Name", projectId);
+            
+            var epicsQuery = _context.Epics.AsQueryable();
+            if (projectId.HasValue) epicsQuery = epicsQuery.Where(e => e.ProjectId == projectId.Value);
+            ViewBag.EpicId = new SelectList(epicsQuery, "Id", "Name", epicId);
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Features
                 .Include(f => f.CreatedBy)
                 .Include(f => f.Epic)
                     .ThenInclude(e => e.Project)
                 .AsQueryable();
+
+            if (projectId.HasValue)
+            {
+                query = query.Where(f => f.Epic.ProjectId == projectId.Value);
+            }
+            if (epicId.HasValue)
+            {
+                query = query.Where(f => f.EpicId == epicId.Value);
+            }
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
             {

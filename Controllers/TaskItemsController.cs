@@ -41,6 +41,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.Assignee)
                 .Include(t => t.CreatedBy)
                 .Include(t => t.Project)
+                .Include(t => t.Epic)
                 .Include(t => t.Sprint)
                 .Include(t => t.Feature)
                 .Include(t => t.UserStory)
@@ -86,6 +87,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.Assignee)
                 .Include(t => t.CreatedBy)
                 .Include(t => t.Project)
+                .Include(t => t.Epic)
                 .Include(t => t.Sprint)
                 .Include(t => t.History).ThenInclude(h => h.ChangedBy)
                 .Include(t => t.Attachments).ThenInclude(a => a.UploadedBy)
@@ -123,9 +125,10 @@ namespace OfficeTaskManagement.Controllers
             {
                 UsersList = new SelectList(_context.Users, "Id", "Email"),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name"),
+                EpicsList = new SelectList(new List<Epic>(), "Id", "Name"), // Initially empty
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name"),
-                FeaturesList = new SelectList(_context.Features, "Id", "Name"),
-                UserStoriesList = new SelectList(_context.UserStories, "Id", "Title"),
+                FeaturesList = new SelectList(new List<Feature>(), "Id", "Name"), // Initially empty
+                UserStoriesList = new SelectList(new List<UserStory>(), "Id", "Title"), // Initially empty
                 AreasList = new MultiSelectList(_context.Areas, "Id", "Name"),
                 ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title")
             };
@@ -223,9 +226,10 @@ namespace OfficeTaskManagement.Controllers
             
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+            vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
-            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
-            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+            vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+            vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
             vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
@@ -252,9 +256,10 @@ namespace OfficeTaskManagement.Controllers
                 TaskItem = taskItem,
                 UsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AssigneeId),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
+                EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == taskItem.ProjectId), "Id", "Name", taskItem.EpicId),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
-                FeaturesList = new SelectList(_context.Features, "Id", "Name", taskItem.FeatureId),
-                UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", taskItem.UserStoryId),
+                FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == taskItem.EpicId), "Id", "Name", taskItem.FeatureId),
+                UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == taskItem.FeatureId), "Id", "Title", taskItem.UserStoryId),
                 AreasList = new MultiSelectList(_context.Areas, "Id", "Name", taskItem.Areas.Select(a => a.Id)),
                 SelectedAreaIds = taskItem.Areas.Select(a => a.Id).ToList(),
                 ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != taskItem.Id), "Id", "Title", taskItem.ParentTaskId)
@@ -324,9 +329,10 @@ namespace OfficeTaskManagement.Controllers
                     {
                         vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                        vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
-                        vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
-                        vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                        vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+                        vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
                         vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                         vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
                         return View(vm);
@@ -418,6 +424,7 @@ namespace OfficeTaskManagement.Controllers
                     existingTask.StartDate = vm.TaskItem.StartDate;
                     existingTask.DueDate = vm.TaskItem.DueDate;
                     existingTask.ProjectId = vm.TaskItem.ProjectId;
+                    existingTask.EpicId = vm.TaskItem.EpicId;
                     existingTask.SprintId = vm.TaskItem.SprintId;
                     existingTask.FeatureId = vm.TaskItem.FeatureId;
                     existingTask.UserStoryId = vm.TaskItem.UserStoryId;
@@ -503,9 +510,10 @@ namespace OfficeTaskManagement.Controllers
             }
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+            vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
-            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
-            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+            vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+            vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
             vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             return View(vm);
@@ -654,8 +662,6 @@ namespace OfficeTaskManagement.Controllers
             return Content(html, "text/html");
         }
 
-        // GET: TaskItems/GetEligibleUsersForMention
-        [HttpGet]
         public async Task<IActionResult> GetEligibleUsersForMention(int projectId)
         {
             // Simple implementation: return all valid users for now.
@@ -665,6 +671,36 @@ namespace OfficeTaskManagement.Controllers
                 .ToListAsync();
 
             return Json(users);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetEpics(int projectId)
+        {
+            var epics = await _context.Epics
+                .Where(e => e.ProjectId == projectId)
+                .Select(e => new { id = e.Id, name = e.Name })
+                .ToListAsync();
+            return Json(epics);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetFeatures(int epicId)
+        {
+            var features = await _context.Features
+                .Where(f => f.EpicId == epicId)
+                .Select(f => new { id = f.Id, name = f.Name })
+                .ToListAsync();
+            return Json(features);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserStories(int featureId)
+        {
+            var stories = await _context.UserStories
+                .Where(u => u.FeatureId == featureId)
+                .Select(u => new { id = u.Id, name = u.Title })
+                .ToListAsync();
+            return Json(stories);
         }
 
         private bool TaskItemExists(int id)

@@ -37,6 +37,9 @@ namespace OfficeTaskManagement.Models
 
         public int? ProjectId { get; set; }
         public Project? Project { get; set; }
+        
+        public int? EpicId { get; set; }
+        public Epic? Epic { get; set; }
 
         public int? FeatureId { get; set; }
         public Feature? Feature { get; set; }

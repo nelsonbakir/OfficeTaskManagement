@@ -33,7 +33,7 @@ namespace OfficeTaskManagement.Services
                 return "Error: Gemini API Key is missing or invalid. Please configure it in appsettings.json.";
             }
 
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
             
             var requestBody = new
             {

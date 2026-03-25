@@ -26,6 +26,10 @@
             {
                 "command": "taskflow.refresh",
                 "title": "TaskFlow: Refresh Tasks"
+            },
+            {
+                "command": "taskflow.signout",
+                "title": "TaskFlow: Sign Out"
             }
         ],
         "viewsContainers": {
@@ -42,7 +46,8 @@
                 {
                     "type": "webview",
                     "id": "taskflow.dashboardView",
-                    "name": "My Workspace"
+                    "name": "My Workspace",
+                    "icon": "resources/icon.svg"
                 }
             ]
         }

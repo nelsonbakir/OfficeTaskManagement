@@ -55,7 +55,13 @@ function activate(context) {
     let refreshCmd = vscode.commands.registerCommand('taskflow.refresh', () => {
         provider.refresh();
     });
-    context.subscriptions.push(authCmd, mapCmd, refreshCmd);
+    let signoutCmd = vscode.commands.registerCommand('taskflow.signout', async () => {
+        context.globalState.update('taskflow.token', undefined);
+        apiService.clearToken();
+        vscode.window.showInformationMessage('TaskFlow: Signed out successfully.');
+        provider.refresh();
+    });
+    context.subscriptions.push(authCmd, mapCmd, refreshCmd, signoutCmd);
     // Notification Polling (Every 30 seconds)
     setInterval(async () => {
         if (apiService.hasToken()) {
@@ -103,8 +109,30 @@ class TaskFlowSidebarProvider {
                         this.refresh();
                     }
                     catch (err) {
-                        vscode.window.showErrorMessage('TaskFlow: Authorization forbidden or backend unreachable.');
+                        if (err instanceof apiService_1.ApiServiceError && err.code === 'UNAUTHORIZED') {
+                            vscode.window.showErrorMessage('TaskFlow: Session expired. Please re-authenticate.');
+                        }
+                        else if (err instanceof apiService_1.ApiServiceError && err.code === 'NETWORK') {
+                            vscode.window.showErrorMessage('TaskFlow: API is unreachable.');
+                        }
+                        else {
+                            vscode.window.showErrorMessage('TaskFlow: Failed to update task status.');
+                        }
                     }
+                    break;
+                }
+                case 'signout': {
+                    vscode.commands.executeCommand('taskflow.signout');
+                    break;
+                }
+                case 'changeProject': {
+                    if (data.projectId === 0) {
+                        this._context.workspaceState.update('taskflow.projectId', undefined);
+                    }
+                    else {
+                        this._context.workspaceState.update('taskflow.projectId', data.projectId);
+                    }
+                    this.refresh();
                     break;
                 }
                 case 'authenticate': {
@@ -163,7 +191,7 @@ class TaskFlowSidebarProvider {
             this._view.webview.html = this._getHtmlForUnauth();
             return;
         }
-        const projectId = this._context.workspaceState.get('taskflow.projectId');
+        const currentProjectId = this._context.workspaceState.get('taskflow.projectId');
         try {
             if (this._currentTaskId) {
                 const task = await this._apiService.getTaskDetails(this._currentTaskId);
@@ -172,14 +200,43 @@ class TaskFlowSidebarProvider {
                 this._view.webview.html = this._getHtmlForTaskDetails(task, comments, users);
             }
             else {
-                const tasks = await this._apiService.getTasks(projectId);
-                this._view.webview.html = this._getHtmlForTasks(tasks, projectId);
+                const tasks = await this._apiService.getTasks(currentProjectId);
+                const projects = await this._apiService.getProjects();
+                this._view.webview.html = this._getHtmlForTasks(tasks, projects, currentProjectId);
             }
         }
         catch (err) {
             this._currentTaskId = undefined;
-            this._view.webview.html = `<body style="padding:20px; text-align:center;"><h4 style="color:var(--vscode-errorForeground);">Failed to fetch tasks</h4><p>Ensure API is online and tokens are unexpired.</p></body>`;
+            if (err instanceof apiService_1.ApiServiceError && err.code === 'UNAUTHORIZED') {
+                this._apiService.clearToken();
+                this._context.globalState.update('taskflow.token', undefined);
+                this._view.webview.html = this._getHtmlForError('Session Expired', 'Your session has expired. Please re-authenticate.', true);
+            }
+            else if (err instanceof apiService_1.ApiServiceError && err.code === 'NETWORK') {
+                this._view.webview.html = this._getHtmlForError('API Unreachable', 'Cannot connect to the TaskFlow server. Ensure the API is running on localhost:5035.');
+            }
+            else if (err instanceof apiService_1.ApiServiceError && err.code === 'NOT_FOUND') {
+                this._view.webview.html = this._getHtmlForError('Not Found', 'The requested task no longer exists.');
+            }
+            else {
+                this._view.webview.html = this._getHtmlForError('Something went wrong', 'An unexpected error occurred. Please try refreshing.');
+            }
         }
+    }
+    _getHtmlForError(title, message, showAuth = false) {
+        const authButton = showAuth
+            ? `<button onclick="auth()" style="background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:none;padding:8px 16px;border-radius:2px;cursor:pointer;font-size:12px;margin-top:12px;">Re-authenticate</button>`
+            : `<button onclick="refresh()" style="background:transparent;border:1px solid var(--vscode-widget-border);color:var(--vscode-textLink-foreground);padding:6px 14px;border-radius:2px;cursor:pointer;font-size:12px;margin-top:12px;">Retry</button>`;
+        return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head><body style="font-family:var(--vscode-font-family);padding:20px;text-align:center;">
+            <h4 style="color:var(--vscode-errorForeground);margin-bottom:8px;">${title}</h4>
+            <p style="font-size:12px;color:var(--vscode-descriptionForeground);">${message}</p>
+            ${authButton}
+            <script>
+                const vscode = acquireVsCodeApi();
+                function auth() { vscode.postMessage({ type: 'authenticate' }); }
+                function refresh() { vscode.postMessage({ type: 'refresh' }); }
+            </script>
+        </body></html>`;
     }
     _getHtmlForUnauth() {
         return `
@@ -213,7 +270,7 @@ class TaskFlowSidebarProvider {
             </html>
         `;
     }
-    _getHtmlForTasks(tasks, projectId) {
+    _getHtmlForTasks(tasks, projects, currentProjectId) {
         let taskItems = '';
         if (tasks.length === 0) {
             taskItems = `
@@ -224,7 +281,7 @@ class TaskFlowSidebarProvider {
         }
         else {
             tasks.forEach(t => {
-                const isDone = t.status === 5;
+                const isDone = t.status === 6;
                 taskItems += `
                 <div style="border: 1px solid var(--vscode-widget-border); border-radius: 6px; padding: 12px; margin-bottom: 12px; background: ${isDone ? 'var(--vscode-list-hoverBackground)' : 'var(--vscode-editor-background)'}; transition: transform 0.2s;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
@@ -240,11 +297,12 @@ class TaskFlowSidebarProvider {
                         <label style="font-size: 11px; font-weight: 500; color: var(--vscode-descriptionForeground);">STATUS</label>
                         <select onchange="updateStatus(${t.id}, this.value)" style="padding: 4px; border-radius: 4px; border: 1px solid var(--vscode-input-border); font-size: 11px; font-family: inherit; background: var(--vscode-input-background); color: var(--vscode-input-foreground); cursor: pointer; min-width: 100px;">
                             <option value="0" ${t.status === 0 ? 'selected' : ''}>New</option>
-                            <option value="1" ${t.status === 1 ? 'selected' : ''}>To Do</option>
-                            <option value="2" ${t.status === 2 ? 'selected' : ''}>In Progress</option>
-                            <option value="3" ${t.status === 3 ? 'selected' : ''}>Committed</option>
-                            <option value="4" ${t.status === 4 ? 'selected' : ''}>Tested</option>
-                            <option value="5" ${t.status === 5 ? 'selected' : ''}>Done</option>
+                            <option value="1" ${t.status === 1 ? 'selected' : ''}>Approved</option>
+                            <option value="2" ${t.status === 2 ? 'selected' : ''}>To Do</option>
+                            <option value="3" ${t.status === 3 ? 'selected' : ''}>In Progress</option>
+                            <option value="4" ${t.status === 4 ? 'selected' : ''}>Committed</option>
+                            <option value="5" ${t.status === 5 ? 'selected' : ''}>Tested</option>
+                            <option value="6" ${t.status === 6 ? 'selected' : ''}>Done</option>
                         </select>
                         <button onclick="showDetails(${t.id})" style="background:transparent; border:none; color:var(--vscode-textLink-foreground); cursor:pointer; font-size:11px; padding: 4px;">Details</button>
                     </div>
@@ -252,12 +310,16 @@ class TaskFlowSidebarProvider {
                 `;
             });
         }
-        const projectNote = projectId
-            ? `<div style="display: flex; justify-content: space-between; align-items:center; background: var(--vscode-editor-inactiveSelectionBackground); padding: 8px 12px; border-radius: 4px; margin-bottom: 15px;">
-                 <span style="font-size: 11px; font-weight: 500; color: var(--vscode-foreground);">Filtered to Workspace</span>
-                 <button onclick="mapProject()" style="background: transparent; border: none; color: var(--vscode-textLink-foreground); cursor: pointer; padding: 0; font-size: 11px;">Change</button>
-               </div>`
-            : `<button onclick="mapProject()" style="width: 100%; background: transparent; border: 1px dashed var(--vscode-widget-border); color: var(--vscode-textLink-foreground); padding: 8px; font-size: 12px; border-radius: 4px; cursor: pointer; margin-bottom: 15px; transition: 0.2s;">Link Workspace to Project</button>`;
+        const projectOptions = projects.map(p => `<option value="${p.id}" ${p.id === currentProjectId ? 'selected' : ''}>${p.name}</option>`).join('');
+        const projectSelector = `
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 11px; font-weight: 600; color: var(--vscode-descriptionForeground); display: block; margin-bottom: 4px; text-transform: uppercase;">Workspace Filter</label>
+                <select onchange="changeProject(this.value)" style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--vscode-input-border); background: var(--vscode-input-background); color: var(--vscode-input-foreground); font-size: 12px; cursor: pointer;">
+                    <option value="0">-- All Projects --</option>
+                    ${projectOptions}
+                </select>
+            </div>
+        `;
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -274,14 +336,19 @@ class TaskFlowSidebarProvider {
             <body>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h2 style="margin: 0; font-size: 12px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; color: var(--vscode-sideBarTitle-foreground);">My Assignments</h2>
-                    <button onclick="refresh()" style="background:transparent; border:none; color:var(--vscode-textLink-foreground); cursor:pointer; padding:0; display:flex; align-items:center;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                    </button>
+                    <div style="display: flex; gap: 8px;">
+                        <button onclick="refresh()" style="background:transparent; border:none; color:var(--vscode-textLink-foreground); cursor:pointer; padding:0; display:flex; align-items:center;" title="Refresh">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        </button>
+                        <button onclick="signout()" style="background:transparent; border:none; color:var(--vscode-errorForeground); cursor:pointer; padding:0; display:flex; align-items:center;" title="Sign Out">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        </button>
+                    </div>
                 </div>
                 
                 <button onclick="openPortal()" style="width: 100%; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 8px; font-size: 12px; border-radius: 2px; margin-bottom: 15px; cursor: pointer;">Open in Portal</button>
                 
-                ${projectNote}
+                ${projectSelector}
                 ${taskItems}
 
                 <script>
@@ -289,8 +356,8 @@ class TaskFlowSidebarProvider {
                     function updateStatus(taskId, statusVal) {
                         vscode.postMessage({ type: 'updateStatus', taskId: taskId, newStatus: parseInt(statusVal) });
                     }
-                    function mapProject() {
-                        vscode.postMessage({ type: 'mapProject' });
+                    function changeProject(projectId) {
+                        vscode.postMessage({ type: 'changeProject', projectId: parseInt(projectId) });
                     }
                     function showDetails(taskId) {
                         vscode.postMessage({ type: 'showDetails', taskId: taskId });
@@ -300,6 +367,9 @@ class TaskFlowSidebarProvider {
                     }
                     function refresh() {
                         vscode.postMessage({ type: 'refresh' });
+                    }
+                    function signout() {
+                        vscode.postMessage({ type: 'signout' });
                     }
                 </script>
             </body>

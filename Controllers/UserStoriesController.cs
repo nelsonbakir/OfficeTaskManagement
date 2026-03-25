@@ -29,10 +29,31 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: UserStories
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? projectId, int? epicId, int? featureId)
         {
-            var applicationDbContext = _context.UserStories.Include(u => u.CreatedBy).Include(u => u.Feature);
-            return View(await applicationDbContext.ToListAsync());
+            ViewBag.ProjectId = new SelectList(_context.Projects, "Id", "Name", projectId);
+            
+            var epicsQuery = _context.Epics.AsQueryable();
+            if (projectId.HasValue) epicsQuery = epicsQuery.Where(e => e.ProjectId == projectId.Value);
+            ViewBag.EpicId = new SelectList(epicsQuery, "Id", "Name", epicId);
+            
+            var featuresQuery = _context.Features.AsQueryable();
+            if (epicId.HasValue) featuresQuery = featuresQuery.Where(f => f.EpicId == epicId.Value);
+            else if (projectId.HasValue) featuresQuery = featuresQuery.Where(f => f.Epic.ProjectId == projectId.Value);
+            ViewBag.FeatureId = new SelectList(featuresQuery, "Id", "Name", featureId);
+
+            var query = _context.UserStories
+                .Include(u => u.CreatedBy)
+                .Include(u => u.Feature)
+                    .ThenInclude(f => f.Epic)
+                        .ThenInclude(e => e.Project)
+                .AsQueryable();
+
+            if (projectId.HasValue) query = query.Where(u => u.Feature.Epic.ProjectId == projectId.Value);
+            if (epicId.HasValue) query = query.Where(u => u.Feature.EpicId == epicId.Value);
+            if (featureId.HasValue) query = query.Where(u => u.FeatureId == featureId.Value);
+
+            return View(await query.ToListAsync());
         }
 
         // GET: UserStories/Details/5

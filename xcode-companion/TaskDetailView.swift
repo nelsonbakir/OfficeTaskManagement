@@ -47,11 +47,12 @@ struct TaskDetailView: View {
                     .fontWeight(.bold)
                 Picker("", selection: $currentStatus) {
                     Text("New").tag(0)
-                    Text("To Do").tag(1)
-                    Text("In Progress").tag(2)
-                    Text("Committed").tag(3)
-                    Text("Tested").tag(4)
-                    Text("Done").tag(5)
+                    Text("Approved").tag(1)
+                    Text("To Do").tag(2)
+                    Text("In Progress").tag(3)
+                    Text("Committed").tag(4)
+                    Text("Tested").tag(5)
+                    Text("Done").tag(6)
                 }
                 .pickerStyle(.menu)
                 .onChange(of: currentStatus) { newValue in

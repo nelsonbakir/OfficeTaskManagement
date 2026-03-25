@@ -11,6 +11,7 @@ namespace OfficeTaskManagement.ViewModels
         public List<IFormFile>? Attachments { get; set; }
         public SelectList? UsersList { get; set; }
         public SelectList? ProjectsList { get; set; }
+        public SelectList? EpicsList { get; set; }
         public SelectList? SprintsList { get; set; }
         public SelectList? FeaturesList { get; set; }
         public SelectList? ParentTasksList { get; set; }
