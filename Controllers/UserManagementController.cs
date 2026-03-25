@@ -173,7 +173,7 @@ namespace OfficeTaskManagement.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(string id, EditUserViewModel vm)
         {
-            if (id != vm.Id)
+            if (!string.Equals(id, vm.Id, StringComparison.OrdinalIgnoreCase))
             {
                 return NotFound();
             }
@@ -185,6 +185,10 @@ namespace OfficeTaskManagement.Controllers
             }
 
             vm.AvailableRoles = await _roleManager.Roles.Select(r => r.Name).ToListAsync();
+            
+            // Ensure email and avatar path are present for re-rendering (in case of failures)
+            vm.Email = user.Email;
+            vm.AvatarPath = user.AvatarPath;
 
             if (!ModelState.IsValid)
             {
