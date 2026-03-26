@@ -1,8 +1,26 @@
-﻿@page
+@page
 @model ConfirmEmailModel
 @{
     ViewData["Title"] = "Confirm email";
 }
 
-<h1>@ViewData["Title"]</h1>
-<partial name="_StatusMessage" model="Model.StatusMessage" />
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1><i class="fas fa-check-circle"></i> Email Confirmed</h1>
+            <p>Your email has been successfully verified.</p>
+        </div>
+
+        <div class="auth-error-container" style="background: #F0F9FF; border-color: #BAE6FD; color: #0369A1;">
+            <partial name="_StatusMessage" model="Model.StatusMessage" />
+            @if (string.IsNullOrEmpty(Model.StatusMessage))
+            {
+                <p class="mb-0">Thank you for confirming your email. You can now access all features of TaskFlow.</p>
+            }
+        </div>
+
+        <div class="auth-footer">
+            <p><a asp-page="./Login">Go to Sign In</a></p>
+        </div>
+    </div>
+</div>

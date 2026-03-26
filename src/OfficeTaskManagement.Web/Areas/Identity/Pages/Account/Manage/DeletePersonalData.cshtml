@@ -1,32 +1,52 @@
-﻿@page
+@page
 @model DeletePersonalDataModel
 @{
     ViewData["Title"] = "Delete Personal Data";
     ViewData["ActivePage"] = ManageNavPages.PersonalData;
 }
 
-<h3>@ViewData["Title"]</h3>
-
-<div class="alert alert-warning" role="alert">
-    <p>
-        <strong>Deleting this data will permanently remove your account, and this cannot be recovered.</strong>
-    </p>
+<div class="mb-4 d-flex align-items-center justify-content-between">
+    <div>
+        <h4 class="fw-bold mb-0 text-danger">Delete Account</h4>
+        <p class="text-muted small mb-0">Permanently remove your account and all associated data.</p>
+    </div>
+    <a asp-page="./PersonalData" class="btn btn-sm btn-outline-secondary d-flex align-items-center px-3" style="border-radius: 8px;">
+        <i class="fas fa-arrow-left me-2"></i> Cancel
+    </a>
 </div>
 
-<div>
-    <form id="delete-user" method="post">
-        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-        @if (Model.RequirePassword)
-        {
-            <div class="form-floating mb-3">
-                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Please enter your password." />
-                <label asp-for="Input.Password" class="form-label"></label>
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
+<div class="card border-danger mb-4 shadow-sm" style="border-radius: 12px; background: #fff5f5;">
+    <div class="card-body">
+        <div class="d-flex align-items-start">
+            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width: 40px; height: 40px;">
+                <i class="fas fa-exclamation-triangle fs-5"></i>
             </div>
-        }
-        <button class="w-100 btn btn-lg btn-danger" type="submit">Delete data and close my account</button>
-    </form>
+            <div>
+                <h5 class="text-danger fw-bold mb-1">Final Warning!</h5>
+                <p class="text-danger-emphasis mb-0 small">
+                    This action is irreversible. Once you proceed, all your tasks, project roles, and history will be permanently deleted from our servers.
+                </p>
+            </div>
+        </div>
+    </div>
 </div>
+
+<form id="delete-user" method="post" class="mt-4">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-4" role="alert"></div>
+    
+    @if (Model.RequirePassword)
+    {
+        <div class="profile-form-group mb-4">
+            <label asp-for="Input.Password" class="fw-bold text-dark-emphasis mb-2">Please enter your password to confirm deletion</label>
+            <input asp-for="Input.Password" class="profile-form-control" autocomplete="current-password" aria-required="true" placeholder="Password" style="border-color: #fca5a5;" />
+            <span asp-validation-for="Input.Password" class="text-danger small"></span>
+        </div>
+    }
+    
+    <button class="btn btn-danger w-100 py-3 mt-2" type="submit" style="border-radius: 12px; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(220, 53, 69, 0.25);">
+        <i class="fas fa-trash-alt me-2"></i> Permanently Delete My Account
+    </button>
+</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

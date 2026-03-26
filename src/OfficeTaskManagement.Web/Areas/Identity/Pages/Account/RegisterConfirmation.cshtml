@@ -1,23 +1,41 @@
-﻿@page
+@page
 @model RegisterConfirmationModel
 @{
     ViewData["Title"] = "Register confirmation";
 }
 
-<h1>@ViewData["Title"]</h1>
-@{
-    if (@Model.DisplayConfirmAccountLink)
-    {
-<p>
-    This app does not currently have a real email sender registered, see <a href="https://aka.ms/aspaccountconf">these docs</a> for how to configure a real email sender.
-    Normally this would be emailed: <a id="confirm-link" href="@Model.EmailConfirmationUrl">Click here to confirm your account</a>
-</p>
-    }
-    else
-    {
-<p>
-        Please check your email to confirm your account.
-</p>
-    }
-}
+<div class="auth-container">
+    <div class="auth-card" style="max-width: 500px;">
+        <div class="auth-header">
+            <h1><i class="fas fa-envelope-open-text"></i> Confirm Email</h1>
+            <p>Almost there! Please check your inbox.</p>
+        </div>
+
+        <div class="auth-error-container" style="background: #F0F9FF; border-color: #BAE6FD; color: #0369A1;">
+            @{
+                if (@Model.DisplayConfirmAccountLink)
+                {
+                    <p>
+                        This application does not currently have a real email sender registered.
+                    </p>
+                    <hr />
+                    <p class="mb-0">
+                        Normally this would be emailed: <br />
+                        <a id="confirm-link" href="@Model.EmailConfirmationUrl" class="fw-bold" style="color: #0369A1; text-decoration: underline;">Click here to confirm your account</a>
+                    </p>
+                }
+                else
+                {
+                    <p class="mb-0">
+                        Please check your email to confirm your account. If you don't see it, check your spam folder.
+                    </p>
+                }
+            }
+        </div>
+
+        <div class="auth-footer">
+            <p><a asp-page="./Login">Back to Sign In</a></p>
+        </div>
+    </div>
+</div>
 

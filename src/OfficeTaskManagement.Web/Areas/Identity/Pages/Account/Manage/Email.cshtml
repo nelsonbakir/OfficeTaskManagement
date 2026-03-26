@@ -1,43 +1,53 @@
-﻿@page
+@page
 @model EmailModel
 @{
     ViewData["Title"] = "Manage Email";
     ViewData["ActivePage"] = ManageNavPages.Email;
 }
 
-<h3>@ViewData["Title"]</h3>
-<partial name="_StatusMessage" for="StatusMessage" />
-<div class="row">
-    <div class="col-md-6">
-        <form id="email-form" method="post">
-            <div asp-validation-summary="All" class="text-danger" role="alert"></div>
-            @if (Model.IsEmailConfirmed)
-            {
-                <div class="form-floating mb-3 input-group">
-                    <input asp-for="Email" class="form-control" placeholder="Please enter your email." disabled />
-                        <div class="input-group-append">
-                            <span class="h-100 input-group-text text-success font-weight-bold">✓</span>
-                        </div>
-                    <label asp-for="Email" class="form-label"></label>
-                </div>
-            }
-            else
-            {
-                <div class="form-floating mb-3">
-                    <input asp-for="Email" class="form-control" placeholder="Please enter your email." disabled />
-                    <label asp-for="Email" class="form-label"></label>
-                    <button id="email-verification" type="submit" asp-page-handler="SendVerificationEmail" class="btn btn-link">Send verification email</button>
-                </div>
-            }
-            <div class="form-floating mb-3">
-                <input asp-for="Input.NewEmail" class="form-control" autocomplete="email" aria-required="true" placeholder="Please enter new email." />
-                <label asp-for="Input.NewEmail" class="form-label"></label>
-                <span asp-validation-for="Input.NewEmail" class="text-danger"></span>
-            </div>
-            <button id="change-email-button" type="submit" asp-page-handler="ChangeEmail" class="w-100 btn btn-lg btn-primary">Change email</button>
-        </form>
-    </div>
+<div class="mb-4">
+    <h4 class="fw-bold mb-0">Email Settings</h4>
+    <p class="text-muted small">Manage your primary email address and verification status.</p>
 </div>
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<form id="email-form" method="post">
+    <div asp-validation-summary="All" class="text-danger mb-4" role="alert"></div>
+
+    <div class="profile-form-grid">
+        <div class="profile-form-group">
+            <label asp-for="Email"></label>
+            <div class="input-group">
+                <input asp-for="Email" class="profile-form-control" placeholder="Please enter your email." disabled style="background-color: #f8f9fa;" />
+                @if (Model.IsEmailConfirmed)
+                {
+                    <span class="input-group-text bg-success-subtle text-success border-start-0" style="border-radius: 0 10px 10px 0; border: 1px solid #ced4da; border-left: none;">
+                        <i class="fas fa-check-circle"></i>
+                    </span>
+                }
+            </div>
+            @if (!Model.IsEmailConfirmed)
+            {
+                <button id="email-verification" type="submit" asp-page-handler="SendVerificationEmail" class="btn btn-link p-0 mt-2 text-decoration-none small">
+                    <i class="fas fa-paper-plane me-1"></i> Send verification email
+                </button>
+            }
+        </div>
+
+        <div class="profile-form-group">
+            <label asp-for="Input.NewEmail"></label>
+            <input asp-for="Input.NewEmail" class="profile-form-control" autocomplete="email" aria-required="true" placeholder="Enter new email address" />
+            <span asp-validation-for="Input.NewEmail" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mt-4 pt-3 border-top">
+        <button id="change-email-button" type="submit" asp-page-handler="ChangeEmail" class="profile-btn-save">
+            <i class="fas fa-exchange-alt me-2"></i> Update Email
+        </button>
+    </div>
+</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

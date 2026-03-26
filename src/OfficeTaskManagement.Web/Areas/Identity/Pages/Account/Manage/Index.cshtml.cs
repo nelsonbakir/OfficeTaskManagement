@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
+using Microsoft.AspNetCore.Http;
 
 namespace OfficeTaskManagement.Areas.Identity.Pages.Account.Manage
 {
@@ -17,13 +19,16 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account.Manage
     {
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
+        private readonly IMediaService _mediaService;
 
         public IndexModel(
             UserManager<User> userManager,
-            SignInManager<User> signInManager)
+            SignInManager<User> signInManager,
+            IMediaService mediaService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _mediaService = mediaService;
         }
 
         /// <summary>
@@ -52,13 +57,21 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account.Manage
         /// </summary>
         public class InputModel
         {
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
+            [Display(Name = "Full Name")]
+            public string FullName { get; set; }
+
+            [Required]
+            [Display(Name = "Username")]
+            public string Username { get; set; }
+
             [Phone]
             [Display(Name = "Phone number")]
             public string PhoneNumber { get; set; }
+
+            [Display(Name = "Avatar")]
+            public IFormFile Avatar { get; set; }
+
+            public string AvatarPath { get; set; }
         }
 
         private async Task LoadAsync(User user)
@@ -70,7 +83,10 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account.Manage
 
             Input = new InputModel
             {
-                PhoneNumber = phoneNumber
+                Username = userName,
+                FullName = user.FullName,
+                PhoneNumber = phoneNumber,
+                AvatarPath = user.AvatarPath
             };
         }
 
@@ -98,6 +114,43 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account.Manage
             {
                 await LoadAsync(user);
                 return Page();
+            }
+
+            var userName = await _userManager.GetUserNameAsync(user);
+            if (Input.Username != userName)
+            {
+                var setUserNameResult = await _userManager.SetUserNameAsync(user, Input.Username);
+                if (!setUserNameResult.Succeeded)
+                {
+                    StatusMessage = "Error: Username is already taken or invalid.";
+                    await LoadAsync(user);
+                    return Page();
+                }
+            }
+
+            if (Input.FullName != user.FullName)
+            {
+                user.FullName = Input.FullName;
+            }
+
+            if (Input.Avatar != null)
+            {
+                if (!string.IsNullOrEmpty(user.AvatarPath))
+                {
+                    await _mediaService.DeleteAsync(user.AvatarPath);
+                }
+
+                using (var stream = Input.Avatar.OpenReadStream())
+                {
+                    user.AvatarPath = await _mediaService.UploadAsync(stream, Input.Avatar.FileName, Input.Avatar.ContentType);
+                }
+            }
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                StatusMessage = "Unexpected error when trying to update profile.";
+                return RedirectToPage();
             }
 
             var phoneNumber = await _userManager.GetPhoneNumberAsync(user);

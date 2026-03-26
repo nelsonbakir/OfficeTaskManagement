@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model ShowRecoveryCodesModel
 @{
     ViewData["Title"] = "Recovery codes";
@@ -6,20 +6,46 @@
 }
 
 <partial name="_StatusMessage" for="StatusMessage" />
-<h3>@ViewData["Title"]</h3>
-<div class="alert alert-warning" role="alert">
-    <p>
-        <strong>Put these codes in a safe place.</strong>
-    </p>
-    <p>
-        If you lose your device and don't have the recovery codes you will lose access to your account.
-    </p>
+<div class="mb-4 d-flex align-items-center justify-content-between">
+    <div>
+        <h4 class="fw-bold mb-0 text-success">Recovery Codes</h4>
+        <p class="text-muted small mb-0">Your new fallback access codes.</p>
+    </div>
+    <a asp-page="./TwoFactorAuthentication" class="btn btn-sm btn-outline-secondary d-flex align-items-center px-3" style="border-radius: 8px;">
+        <i class="fas fa-check me-2"></i> Done
+    </a>
 </div>
-<div class="row">
-    <div class="col-md-12">
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="alert alert-success border-0 shadow-sm mb-4" style="background: #f0fdf4; color: #166534; border-radius: 12px;">
+    <div class="d-flex align-items-center mb-2">
+        <i class="fas fa-check-circle me-2 fs-4"></i>
+        <h5 class="mb-0 fw-bold">Codes Generated Successfully</h5>
+    </div>
+    <p class="mb-0 small"><strong>Store these safely.</strong> If you lose your device and these codes, you will lose access to your account.</p>
+</div>
+
+<div class="p-4 bg-light rounded-4 border d-flex flex-column align-items-center shadow-sm">
+    <div class="row w-100 text-center">
         @for (var row = 0; row < Model.RecoveryCodes.Length; row += 2)
         {
-            <code class="recovery-code">@Model.RecoveryCodes[row]</code><text>&nbsp;</text><code class="recovery-code">@Model.RecoveryCodes[row + 1]</code><br />
+            <div class="col-6 mb-2">
+                <code class="fs-5 fw-bold p-2 bg-white border rounded d-block shadow-sm" style="color: #0369a1; letter-spacing: 1px;">@Model.RecoveryCodes[row]</code>
+            </div>
+            <div class="col-6 mb-2">
+                <code class="fs-5 fw-bold p-2 bg-white border rounded d-block shadow-sm" style="color: #0369a1; letter-spacing: 1px;">@Model.RecoveryCodes[row + 1]</code>
+            </div>
         }
     </div>
+    
+    <button class="btn btn-outline-secondary mt-4 px-5 py-2" onclick="window.print()" style="border-radius: 10px; font-weight: 600;">
+        <i class="fas fa-print me-2"></i> Print Recovery Codes
+    </button>
+</div>
+
+<div class="mt-4 text-center">
+    <a asp-page="./TwoFactorAuthentication" class="profile-btn-save d-inline-block px-5" style="width: auto;">
+        <i class="fas fa-arrow-left me-2"></i> Back to 2FA Settings
+    </a>
 </div>

@@ -1,3 +1,6 @@
+@using Microsoft.AspNetCore.Identity
+@using OfficeTaskManagement.Models
+@inject UserManager<User> UserManager
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +10,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="~/css/modern-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/auth-styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OfficeTaskManagement.styles.css" asp-append-version="true" />
@@ -168,7 +172,17 @@
                         <div class="dropdown">
                             <button class="user-profile-dropdown dropdown-toggle" type="button" id="userProfileDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                                 <div class="user-avatar">
-                                    <i class="fas fa-user"></i>
+                                    @{
+                                        var currentUser = UserManager.GetUserAsync(User).Result;
+                                    }
+                                    @if (currentUser != null && !string.IsNullOrEmpty(currentUser.AvatarPath))
+                                    {
+                                        <img src="@currentUser.AvatarPath" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-user"></i>
+                                    }
                                 </div>
                                 <div class="user-info d-none d-md-flex">
                                     <span class="user-name">@User.Identity?.Name?.Split('@')[0]</span>
@@ -186,7 +200,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#profileModal">
+                                    <a class="dropdown-item" asp-area="Identity" asp-page="/Account/Manage/Index">
                                         <i class="fas fa-user-circle"></i> Profile
                                     </a>
                                 </li>

@@ -312,28 +312,33 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
-            return View(new { userId = id, email = user.Email });
+            var vm = new ResetPasswordViewModel
+            {
+                Id = id,
+                Email = user.Email
+            };
+
+            return View(vm);
         }
 
         // POST: UserManagement/ResetPassword
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ResetPassword(string id, string newPassword, string confirmPassword)
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel vm)
         {
-            if (newPassword != confirmPassword)
+            if (!ModelState.IsValid)
             {
-                ModelState.AddModelError("", "Passwords do not match.");
-                return View(new { userId = id });
+                return View(vm);
             }
 
-            var user = await _userManager.FindByIdAsync(id);
+            var user = await _userManager.FindByIdAsync(vm.Id);
             if (user == null)
             {
                 return NotFound();
             }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+            var result = await _userManager.ResetPasswordAsync(user, token, vm.NewPassword);
 
             if (!result.Succeeded)
             {
@@ -341,7 +346,7 @@ namespace OfficeTaskManagement.Controllers
                 {
                     ModelState.AddModelError("", error.Description);
                 }
-                return View(new { userId = id });
+                return View(vm);
             }
 
             TempData["SuccessMessage"] = "Password reset successfully.";
