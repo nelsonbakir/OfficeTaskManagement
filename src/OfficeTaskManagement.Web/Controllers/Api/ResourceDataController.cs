@@ -50,5 +50,45 @@ namespace OfficeTaskManagement.Controllers.Api
                 isOverAllocated = overAllocated
             });
         }
+
+        /// <summary>
+        /// Returns over-allocation conflicts for all resources in a given sprint.
+        /// GET /api/ResourceData/conflicts?sprintId=5
+        /// </summary>
+        [HttpGet("conflicts")]
+        public async Task<IActionResult> GetSprintConflicts(int sprintId)
+        {
+            var sprint = await _capacityService.GetSprintCapacityVsDemandAsync(sprintId);
+            if (sprint == null) return NotFound();
+
+            var assigneeIds = await _resourceService.GetSprintAssigneeIdsAsync(sprintId);
+
+            var conflicts = new List<object>();
+            foreach (var userId in assigneeIds)
+            {
+                var overAllocated = await _resourceService.IsUserOverAllocatedAsync(
+                    userId, sprint.StartDate, sprint.EndDate);
+
+                if (overAllocated)
+                {
+                    var pct = await _resourceService.GetUserTotalAllocationPercentAsync(userId, sprint.StartDate);
+                    conflicts.Add(new
+                    {
+                        userId,
+                        sprintId,
+                        allocationPercent = pct,
+                        isOverAllocated = true
+                    });
+                }
+            }
+
+            return Ok(new
+            {
+                sprintId,
+                sprintName = sprint.SprintName,
+                conflictCount = conflicts.Count,
+                conflicts
+            });
+        }
     }
 }

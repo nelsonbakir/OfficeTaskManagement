@@ -34,6 +34,14 @@ namespace OfficeTaskManagement.Models
         [Column(TypeName = "decimal(10,2)")]
         public decimal HourlyRate { get; set; } = 0;
 
+        /// <summary>
+        /// When true, this user is a schedulable team member and appears in capacity planning.
+        /// When false, this user is a Stakeholder (e.g., external client, observer) and is
+        /// excluded from utilization, heatmap, and allocation calculations.
+        /// Default: true (PMBOK Guide, Ch. 9 Resource Management vs Ch. 13 Stakeholder Management).
+        /// </summary>
+        public bool IsResource { get; set; } = true;
+
         /// <summary>Optional freeform notes (e.g., preferred hours, location).</summary>
         public string? Notes { get; set; }
 

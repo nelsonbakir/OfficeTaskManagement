@@ -109,6 +109,24 @@
                 </a>
             </li>
 
+            @if (User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
+            {
+                <!-- RESOURCES -->
+                <li class="nav-section-title">Resources</li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="Resource" asp-action="Index">
+                        <i class="fas fa-user-clock"></i>
+                        <span>Resource Pool</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="Capacity" asp-action="Index">
+                        <i class="fas fa-chart-gantt"></i>
+                        <span>Capacity Planning</span>
+                    </a>
+                </li>
+            }
+
             <!-- SYSTEM -->
             @if (User.IsInRole("Manager"))
             {
@@ -214,19 +232,6 @@
                                 </li>
                                 <li>
                                     <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <h6 class="dropdown-header">Resource Management</h6>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Resource" asp-action="Index">
-                                        <i class="bi bi-people pe-2"></i>Resource Pool
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Capacity" asp-action="Index">
-                                        <i class="bi bi-calendar-event pe-2"></i>Capacity Dashboard
-                                    </a>
                                 </li>
                             </ul>
                         </div>

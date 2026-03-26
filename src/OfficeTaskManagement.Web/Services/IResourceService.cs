@@ -48,6 +48,12 @@ namespace OfficeTaskManagement.Services
         /// suitable for the heatmap / report card.
         /// </summary>
         Task<IEnumerable<UserUtilizationDto>> GetTeamUtilizationAsync(int year, int month);
+
+        /// <summary>
+        /// Returns the distinct set of assignee user IDs for tasks in the given sprint.
+        /// Used by the Conflicts API to determine which users to check.
+        /// </summary>
+        Task<IEnumerable<string>> GetSprintAssigneeIdsAsync(int sprintId);
     }
 
     public class AllocationSummaryItem

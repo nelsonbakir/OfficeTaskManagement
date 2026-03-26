@@ -107,10 +107,12 @@ namespace OfficeTaskManagement.Services
             
             var daysInMonth = Enumerable.Range(1, DateTime.DaysInMonth(year, month)).ToList();
 
+            // Fix #17: Only include genuine resources (not external stakeholders)
             var users = await _context.Users
                 .Include(u => u.ResourceProfile)
                 .Include(u => u.AvailabilityBlocks)
                 .Include(u => u.ProjectAllocations)
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
                 .ToListAsync();
 
             var allActiveTasks = await _context.Tasks

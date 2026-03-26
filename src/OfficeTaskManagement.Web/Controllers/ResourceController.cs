@@ -140,6 +140,7 @@ namespace OfficeTaskManagement.Controllers
                 profile.SeniorityLevel = model.SeniorityLevel;
                 profile.DailyCapacityHours = model.DailyCapacityHours;
                 profile.Notes = model.Notes;
+                profile.IsResource = model.IsResource;
 
                 if (User.IsInRole("Manager"))
                 {

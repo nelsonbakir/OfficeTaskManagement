@@ -37,6 +37,9 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
         // Used to show the manager status on the UI
         public decimal UtilizationPercent { get; set; }
         public bool IsOverAllocated { get; set; }
+
+        [Display(Name = "Is Schedulable Resource")]
+        public bool IsResource { get; set; } = true;
     }
 
     public class ResourceSkillViewModel

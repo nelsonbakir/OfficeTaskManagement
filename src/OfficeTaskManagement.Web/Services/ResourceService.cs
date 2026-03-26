@@ -93,7 +93,8 @@ namespace OfficeTaskManagement.Services
 
             for (var day = startDate.Date; day <= endDate.Date; day = day.AddDays(1))
             {
-                if (day.DayOfWeek == DayOfWeek.Saturday || day.DayOfWeek == DayOfWeek.Sunday) continue;
+                // Fix #1: Bangladesh weekends are Friday and Saturday
+                if (day.DayOfWeek == DayOfWeek.Friday || day.DayOfWeek == DayOfWeek.Saturday) continue;
                 
                 var dayTotal = allocations
                     .Where(a => a.StartDate.Date <= day && (a.EndDate == null || a.EndDate.Value.Date >= day))
@@ -154,8 +155,12 @@ namespace OfficeTaskManagement.Services
             }
 
             // 2. Get Task-based Estimates (for tasks active this month)
+            // Fix #2: Added .Where(t.ProjectId != null) to prevent NullReferenceException
             var tasks = await _context.Tasks
-                .Where(t => t.AssigneeId == userId && t.Status != Models.Enums.TaskStatus.Done && t.Status != Models.Enums.TaskStatus.Approved)
+                .Where(t => t.AssigneeId == userId
+                         && t.ProjectId != null
+                         && t.Status != Models.Enums.TaskStatus.Done
+                         && t.Status != Models.Enums.TaskStatus.Approved)
                 .ToListAsync();
 
             var projectTaskHours = new Dictionary<int, decimal>();
@@ -183,8 +188,10 @@ namespace OfficeTaskManagement.Services
         /// <inheritdoc/>
         public async Task<IEnumerable<UserUtilizationDto>> GetTeamUtilizationAsync(int year, int month)
         {
+            // Fix #17: Only include users with IsResource=true (excludes external stakeholders)
             var users = await _context.Users
                 .Include(u => u.ResourceProfile)
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
                 .ToListAsync();
 
             var result = new List<UserUtilizationDto>();
@@ -211,6 +218,16 @@ namespace OfficeTaskManagement.Services
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<string>> GetSprintAssigneeIdsAsync(int sprintId)
+        {
+            return await _context.Tasks
+                .Where(t => t.SprintId == sprintId && t.AssigneeId != null)
+                .Select(t => t.AssigneeId!)
+                .Distinct()
+                .ToListAsync();
+        }
 
         private async Task<int> CountWorkingDaysAsync(DateTime start, DateTime end)
         {
