@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 
@@ -12,11 +13,16 @@ namespace OfficeTaskManagement.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IResourceService _resourceService;
+        private readonly IMemoryCache _cache;
 
-        public CapacityPlanningService(ApplicationDbContext context, IResourceService resourceService)
+        public CapacityPlanningService(
+            ApplicationDbContext context,
+            IResourceService resourceService,
+            IMemoryCache cache)
         {
             _context = context;
             _resourceService = resourceService;
+            _cache = cache;
         }
 
         /// <inheritdoc/>
@@ -101,6 +107,10 @@ namespace OfficeTaskManagement.Services
         /// <inheritdoc/>
         public async Task<HeatmapData> GetMonthlyHeatmapAsync(int year, int month)
         {
+            var cacheKey = $"heatmap:{year}:{month}";
+            if (_cache.TryGetValue(cacheKey, out HeatmapData? cached) && cached != null)
+                return cached;
+
             // Normalize inputs to UTC/Neutral start/end of month
             var firstOfMonth = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
             var lastOfMonth = firstOfMonth.AddMonths(1).AddDays(-1).AddHours(23).AddMinutes(59).AddSeconds(59);
@@ -200,8 +210,14 @@ namespace OfficeTaskManagement.Services
                 heatmap.Rows.Add(row);
             }
 
+            _cache.Set(cacheKey, heatmap, new MemoryCacheEntryOptions
+            {
+                SlidingExpiration = TimeSpan.FromMinutes(15)
+            });
+
             return heatmap;
         }
+
 
         // ── Helpers ────────────────────────────────────────────────────────────
 

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Models.Enums;
 using OfficeTaskManagement.Services;
 using OfficeTaskManagement.ViewModels.ResourceManagement;
 
@@ -217,6 +218,53 @@ namespace OfficeTaskManagement.Controllers
             ViewBag.ProjectName = model.ProjectName ?? "Project";
             ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
             return View(model);
+        }
+        // POST: Resource/Block — Record a leave / availability block
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> Block(string userId, DateTime startDate, DateTime endDate,
+            AvailabilityBlockReason reason, string? notes)
+        {
+            if (string.IsNullOrEmpty(userId)) return BadRequest();
+            if (endDate < startDate)
+            {
+                TempData["ErrorMessage"] = "End date must be on or after the start date.";
+                return RedirectToAction(nameof(Profile), new { id = userId });
+            }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            var block = new ResourceAvailabilityBlock
+            {
+                UserId      = userId,
+                StartDate   = startDate,
+                EndDate     = endDate,
+                Reason      = reason,
+                Notes       = notes,
+                CreatedById = currentUser?.Id
+            };
+
+            _context.ResourceAvailabilityBlocks.Add(block);
+            await _context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Availability block recorded: {reason} from {startDate:MMM d} to {endDate:MMM d}.";
+            return RedirectToAction(nameof(Profile), new { id = userId });
+        }
+
+        // DELETE: Resource/Block/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        [ActionName("DeleteBlock")]
+        public async Task<IActionResult> DeleteBlock(int id, string userId)
+        {
+            var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
+            if (block != null)
+            {
+                _context.ResourceAvailabilityBlocks.Remove(block);
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Availability block removed.";
+            }
+            return RedirectToAction(nameof(Profile), new { id = userId });
         }
     }
 }

@@ -61,6 +61,9 @@ else
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<ICapacityPlanningService, CapacityPlanningService>();
 
+// In-process caching for heatmap and utilization data (15-min sliding window)
+builder.Services.AddMemoryCache();
+
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();

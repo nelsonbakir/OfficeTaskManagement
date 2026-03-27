@@ -90,5 +90,16 @@ namespace OfficeTaskManagement.Controllers.Api
                 conflicts
             });
         }
+        /// <summary>
+        /// Returns estimated labour cost per project (Manager-only).
+        /// GET /api/ResourceData/cost-report
+        /// </summary>
+        [HttpGet("cost-report")]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> GetCostReport()
+        {
+            var report = await _resourceService.GetProjectCostReportAsync();
+            return Ok(report);
+        }
     }
 }

@@ -802,15 +802,72 @@
                 }
             }
 
-            assigneeSelect.on('change', checkAssigneeAvailability);
-            startDateIn.on('change', checkAssigneeAvailability);
-            dueDateIn.on('change', checkAssigneeAvailability);
-            
-            // Initial check if editing
-            if (assigneeSelect.val()) {
-                checkAssigneeAvailability();
+             assigneeSelect.on('change', checkAssigneeAvailability);
+             startDateIn.on('change', checkAssigneeAvailability);
+             dueDateIn.on('change', checkAssigneeAvailability);
+             
+             // Initial check if editing
+             if (assigneeSelect.val()) {
+                 checkAssigneeAvailability();
+             }
+
+            // Real-time Availability Dots for Assignee Dropdown
+            function formatAssignee(option) {
+                if (!option.id) return option.text;
+                var dotColor = 'transparent';
+                var dataColor = $(option.element).data('avail-color');
+                if (dataColor) {
+                    dotColor = dataColor;
+                } else {
+                    // Default to gray before loaded
+                    dotColor = '#ccc';
+                }
+                var $html = $(`<span><div style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:${dotColor}; margin-right:6px;"></div>${option.text}</span>`);
+                return $html;
             }
-        });
+
+            assigneeSelect.select2({
+                placeholder: "-- Unassigned --",
+                width: '100%',
+                templateResult: formatAssignee,
+                templateSelection: formatAssignee
+            });
+
+            function loadAssigneeAvailabilityDots() {
+                var start = startDateIn.val() || new Date().toISOString().split('T')[0];
+                var end = dueDateIn.val();
+                if (!end) {
+                    let d = new Date(start);
+                    d.setDate(d.getDate() + 7);
+                    end = d.toISOString().split('T')[0];
+                }
+
+                assigneeSelect.find('option').each(function() {
+                    var uId = $(this).val();
+                    if (!uId) return;
+                    
+                    var optionEl = $(this);
+                    optionEl.data('avail-color', '#ccc'); // Reset to loading
+                    
+                    $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
+                     .done(function(data) {
+                         var color = '#198754'; // Green
+                         if (data.isOverAllocated || data.currentAllocationPercent > 100) color = '#dc3545'; // Red
+                         else if (data.currentAllocationPercent >= 80) color = '#ffc107'; // Amber
+                         
+                         optionEl.data('avail-color', color);
+                         // Trigger update on select2 for this element
+                         if (assigneeSelect.val() === uId) assigneeSelect.trigger('change.select2');
+                     });
+                });
+            }
+
+            // Load dots on init and when dates change
+            loadAssigneeAvailabilityDots();
+            startDateIn.on('change', loadAssigneeAvailabilityDots);
+            dueDateIn.on('change', loadAssigneeAvailabilityDots);
+            
+         });
 
         function submitComment() {
             var text = document.getElementById('commentInput').value;

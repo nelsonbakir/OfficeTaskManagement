@@ -91,15 +91,23 @@ namespace OfficeTaskManagement.Services
                          && (a.EndDate == null || a.EndDate.Value.Date >= startDate.Date))
                 .ToListAsync();
 
+            // Fix #11: Load public holidays for the period to exclude them
+            var holidays = await _context.PublicHolidays
+                .Where(h => h.Date.Date >= startDate.Date && h.Date.Date <= endDate.Date)
+                .Select(h => h.Date.Date)
+                .ToListAsync();
+
             for (var day = startDate.Date; day <= endDate.Date; day = day.AddDays(1))
             {
                 // Fix #1: Bangladesh weekends are Friday and Saturday
                 if (day.DayOfWeek == DayOfWeek.Friday || day.DayOfWeek == DayOfWeek.Saturday) continue;
-                
+                // Fix #11: skip public holidays
+                if (holidays.Contains(day)) continue;
+
                 var dayTotal = allocations
                     .Where(a => a.StartDate.Date <= day && (a.EndDate == null || a.EndDate.Value.Date >= day))
                     .Sum(a => a.AllocationPercentage);
-                
+
                 if (dayTotal > 100) return true;
             }
             return false;
@@ -215,6 +223,52 @@ namespace OfficeTaskManagement.Services
                 });
             }
             return result;
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<ProjectCostReport>> GetProjectCostReportAsync()
+        {
+            var allocations = await _context.ProjectResourceAllocations
+                .Include(a => a.Project)
+                .Include(a => a.ResourceProfile)
+                .ToListAsync();
+
+            // For each allocation, calculate hours committed × hourly rate
+            var projectGroups = allocations.GroupBy(a => a.ProjectId);
+            var result = new List<ProjectCostReport>();
+
+            foreach (var group in projectGroups)
+            {
+                decimal totalCost = 0;
+                decimal totalHours = 0;
+                var distinctResources = new HashSet<string>();
+
+                foreach (var alloc in group)
+                {
+                    var endDate = alloc.EndDate ?? DateTime.UtcNow;
+                    if (endDate < alloc.StartDate) continue;
+
+                    var days = await CountWorkingDaysAsync(alloc.StartDate, endDate);
+                    var dailyHours = alloc.ResourceProfile?.DailyCapacityHours ?? 8m;
+                    var hours = days * dailyHours * (alloc.AllocationPercentage / 100m);
+                    var rate = alloc.ResourceProfile?.HourlyRate ?? 0m;
+
+                    totalHours += hours;
+                    totalCost  += hours * rate;
+                    distinctResources.Add(alloc.UserId);
+                }
+
+                result.Add(new ProjectCostReport
+                {
+                    ProjectId            = group.Key,
+                    ProjectName          = group.First().Project?.Name ?? "(Unknown)",
+                    EstimatedLaborCost   = Math.Round(totalCost,  2),
+                    TotalAllocatedHours  = Math.Round(totalHours, 1),
+                    ResourceCount        = distinctResources.Count
+                });
+            }
+
+            return result.OrderByDescending(r => r.EstimatedLaborCost);
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────

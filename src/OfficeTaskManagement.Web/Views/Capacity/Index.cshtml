@@ -54,6 +54,73 @@
     </div>
 </div>
 
+</div>
+
+<!-- Report Cards Row -->
+<div class="row mb-4" id="reportCardsRow">
+
+    <!-- Bench Report Card -->
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex align-items-center gap-2">
+                <i class="bi bi-person-dash text-secondary fs-5"></i>
+                <h6 class="mb-0">On the Bench</h6>
+                <span class="badge bg-secondary ms-auto" id="benchCount">–</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="benchList">
+                    <li class="list-group-item text-center text-muted py-3">
+                        <div class="spinner-border spinner-border-sm"></div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Over-Allocation Report Card -->
+    <div class="col-md-4 mb-3">
+        <div class="card shadow-sm h-100 border-danger">
+            <div class="card-header bg-danger bg-opacity-10 d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill text-danger fs-5"></i>
+                <h6 class="mb-0 text-danger">Over-Allocated</h6>
+                <span class="badge bg-danger ms-auto" id="overAllocCount">–</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="overAllocList">
+                    <li class="list-group-item text-center text-muted py-3">
+                        <div class="spinner-border spinner-border-sm text-danger"></div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labour Cost Report Card (Manager only) -->
+    @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
+    {
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100 border-primary">
+                <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center gap-2">
+                    <i class="bi bi-cash-stack text-primary fs-5"></i>
+                    <h6 class="mb-0">Est. Labour Cost</h6>
+                    <span class="badge bg-primary ms-auto" id="costProjectCount">–</span>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush" id="costList">
+                        <li class="list-group-item text-center text-muted py-3">
+                            <div class="spinner-border spinner-border-sm text-primary"></div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-footer text-muted small">
+                    <i class="bi bi-info-circle"></i> Allocation hours × hourly rate per project
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -184,10 +251,72 @@
                         }
                     }
                 });
+
+                // ── Report Cards ───────────────────────────────────────────
+                var bench = data.filter(r => r.utilization  <= 0 || r.allocatedHours <= 0);
+                var overAlloc = data.filter(r => r.utilizationPercent > 100);
+
+                // Bench card
+                $('#benchCount').text(bench.length);
+                if (bench.length === 0) {
+                    $('#benchList').html('<li class="list-group-item text-center text-success py-3"><i class="bi bi-check-circle-fill"></i> All resources are assigned</li>');
+                } else {
+                    var benchHtml = bench.map(r =>
+                        `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${r.fullName}</span>
+                            <span class="badge bg-secondary">0% allocated</span>
+                        </li>`
+                    ).join('');
+                    $('#benchList').html(benchHtml);
+                }
+
+                // Over-allocation card
+                $('#overAllocCount').text(overAlloc.length);
+                if (overAlloc.length === 0) {
+                    $('#overAllocList').html('<li class="list-group-item text-center text-success py-3"><i class="bi bi-check-circle-fill"></i> No over-allocations</li>');
+                } else {
+                    var overAllocHtml = overAlloc.map(r =>
+                        `<li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${r.fullName}</span>
+                            <span class="badge bg-danger">${r.utilizationPercent}%</span>
+                        </li>`
+                    ).join('');
+                    $('#overAllocList').html(overAllocHtml);
+                }
             }
-            
+
+            // ── Cost Report (Manager-only card populated separately) ───────
+            function loadCostReport() {
+                if (!$('#costList').length) return; // not rendered for non-managers
+                $.get('/api/ResourceData/cost-report')
+                 .done(function(data) {
+                     $('#costProjectCount').text(data.length + ' projects');
+                     if (data.length === 0) {
+                         $('#costList').html('<li class="list-group-item text-center text-muted py-3">No allocation data yet</li>');
+                         return;
+                     }
+                     var html = data.slice(0, 6).map(p => {
+                         var cost = p.estimatedLaborCost > 0
+                             ? '$' + p.estimatedLaborCost.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0})
+                             : '<span class="text-muted">No rate set</span>';
+                         return `<li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <div class="fw-semibold small">${p.projectName}</div>
+                                        <small class="text-muted">${p.resourceCount} resources · ${p.totalAllocatedHours}h</small>
+                                    </div>
+                                    <span class="fw-bold text-primary small">${cost}</span>
+                                 </li>`;
+                     }).join('');
+                     $('#costList').html(html);
+                 })
+                 .fail(function() {
+                     $('#costList').html('<li class="list-group-item text-warning small py-2"><i class="bi bi-lock-fill"></i> Manager access required</li>');
+                 });
+            }
+
             // Init
             loadDashboardData($('#monthSelector').val());
+            loadCostReport();
             
             $('#monthSelector').change(function() {
                 loadDashboardData($(this).val());

@@ -1,4 +1,5 @@
 @model OfficeTaskManagement.ViewModels.ResourceManagement.ResourceProfileViewModel
+@using OfficeTaskManagement.Models.Enums
 
 @{
     ViewData["Title"] = $"Profile: {Model.FullName}";
@@ -18,6 +19,13 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 }
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
 
 <div class="row">
     <!-- Left Column: Edit Form -->
@@ -29,7 +37,7 @@
             <div class="card-body">
                 <form asp-action="Profile" method="post">
                     <input type="hidden" asp-for="UserId" />
-                    
+
                     <div class="mb-3">
                         <label asp-for="Email" class="form-label text-muted"></label>
                         <input asp-for="Email" class="form-control" disabled />
@@ -58,7 +66,7 @@
                             <span asp-validation-for="DailyCapacityHours" class="text-danger"></span>
                             <div class="form-text">Standard working capacity per day.</div>
                         </div>
-                        
+
                         @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
                         {
                             <div class="col-md-6">
@@ -73,15 +81,34 @@
                         }
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label asp-for="Notes" class="form-label"></label>
-                        <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Working preferences, timezone constraints, etc."></textarea>
-                        <span asp-validation-for="Notes" class="text-danger"></span>
+                        <textarea asp-for="Notes" class="form-control" rows="2" placeholder="Working preferences, timezone constraints, etc."></textarea>
                     </div>
 
                     @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
                     {
-                        <div class="d-grid mt-4">
+                        <!-- IsResource toggle -->
+                        <div class="mb-4 p-3 rounded border @(Model.IsResource ? "border-success bg-success bg-opacity-10" : "border-warning bg-warning bg-opacity-10")">
+                            <div class="form-check form-switch">
+                                <input asp-for="IsResource" class="form-check-input" role="switch" id="isResourceSwitch" />
+                                <label class="form-check-label fw-semibold" for="isResourceSwitch">
+                                    Schedulable Resource
+                                </label>
+                            </div>
+                            <div class="form-text mt-1">
+                                @if (Model.IsResource)
+                                {
+                                    <span class="text-success"><i class="bi bi-check-circle-fill"></i> This user appears in capacity planning, heatmap and utilization reports.</span>
+                                }
+                                else
+                                {
+                                    <span class="text-warning"><i class="bi bi-eye-slash-fill"></i> Stakeholder mode — excluded from all capacity calculations and heatmap.</span>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-grid mt-2">
                             <button type="submit" class="btn btn-primary">Save Profile</button>
                         </div>
                     }
@@ -96,7 +123,7 @@
 
     <!-- Right Column: Context Information -->
     <div class="col-md-7 mb-4">
-        
+
         <!-- Status Card -->
         <div class="card shadow-sm mb-4">
             <div class="card-body">
@@ -104,11 +131,15 @@
                 @{
                     var utilClass = Model.UtilizationPercent > 100 ? "bg-danger" : (Model.UtilizationPercent >= 80 ? "bg-warning" : "bg-success");
                 }
-                <div class="d-flex align-items-center mb-2">
-                    <h2 class="mb-0 me-3">@Model.UtilizationPercent%</h2>
+                <div class="d-flex align-items-center mb-2 gap-2">
+                    <h2 class="mb-0">@Model.UtilizationPercent%</h2>
                     @if (Model.IsOverAllocated)
                     {
                         <span class="badge bg-danger rounded-pill px-3 py-2"><i class="bi bi-exclamation-triangle-fill"></i> Over-Allocated</span>
+                    }
+                    @if (!Model.IsResource)
+                    {
+                        <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-eye-slash-fill"></i> Stakeholder</span>
                     }
                 </div>
                 <div class="progress" style="height: 10px;">
@@ -131,15 +162,17 @@
                         {
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong><a asp-controller="Projects" asp-action="Details" asp-route-id="@alloc.ProjectId">@alloc.ProjectName</a></strong>
+                                    <strong>
+                                        <a asp-controller="Projects" asp-action="Details" asp-route-id="@alloc.ProjectId">@alloc.ProjectName</a>
+                                    </strong>
                                     <br />
                                     <small class="text-muted">Role: @(alloc.ProjectRole ?? "Team Member")</small>
                                     <br />
                                     <small class="text-muted">
-                                        <i class="bi bi-calendar3"></i> @alloc.StartDate.ToShortDateString() - @(alloc.EndDate?.ToShortDateString() ?? "Ongoing")
+                                        <i class="bi bi-calendar3"></i> @alloc.StartDate.ToShortDateString() – @(alloc.EndDate?.ToShortDateString() ?? "Ongoing")
                                     </small>
                                 </div>
-                                <span class="badge bg-primary rounded-pill" style="font-size: 1.1em;">@alloc.AllocationPercentage%</span>
+                                <span class="badge bg-primary rounded-pill" style="font-size:1.1em;">@alloc.AllocationPercentage%</span>
                             </li>
                         }
                     </ul>
@@ -154,14 +187,89 @@
             </div>
         </div>
 
-        <!-- Skills -->
-        <div class="card shadow-sm">
+        <!-- Leave / Availability Blocks -->
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Skills Portfolio</h6>
+                <h6 class="mb-0"><i class="bi bi-calendar-x text-danger me-1"></i> Leave &amp; Availability Blocks</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.AvailabilityBlocks.Any())
+                {
+                    <ul class="list-group list-group-flush mb-3">
+                        @foreach (var blk in Model.AvailabilityBlocks)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <span class="badge bg-secondary me-2">@blk.Reason</span>
+                                    <small>@blk.StartDate.ToShortDateString() → @blk.EndDate.ToShortDateString()</small>
+                                    @if (!string.IsNullOrEmpty(blk.Notes))
+                                    {
+                                        <small class="text-muted d-block ms-1">@blk.Notes</small>
+                                    }
+                                </div>
+                                @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
+                                {
+                                    <form asp-action="DeleteBlock" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@blk.Id" />
+                                        <input type="hidden" name="userId" value="@Model.UserId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Remove this availability block?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted small mb-3">No availability blocks recorded.</p>
+                }
+
                 @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
                 {
-                    <button class="btn btn-sm btn-outline-primary"><i class="bi bi-plus"></i> Add Skill</button>
+                    <hr class="my-2" />
+                    <h6 class="text-muted small text-uppercase mb-2">Add New Block</h6>
+                    <form asp-action="Block" method="post" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="userId" value="@Model.UserId" />
+                        <div class="col-md-6">
+                            <label class="form-label small">Start Date</label>
+                            <input type="date" name="startDate" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">End Date</label>
+                            <input type="date" name="endDate" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small">Reason</label>
+                            <select name="reason" class="form-select form-select-sm">
+                                @foreach (var r in Enum.GetValues<AvailabilityBlockReason>())
+                                {
+                                    <option value="@r">@r</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-sm btn-danger w-100">
+                                <i class="bi bi-plus-circle"></i> Add Block
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <input type="text" name="notes" class="form-control form-control-sm"
+                                   placeholder="Optional notes (e.g., Eid holiday, medical leave)..." />
+                        </div>
+                    </form>
                 }
+            </div>
+        </div>
+
+        <!-- Skills -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Skills Portfolio</h6>
             </div>
             <div class="card-body">
                 @if (Model.Skills.Any())
@@ -169,9 +277,8 @@
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var skill in Model.Skills)
                         {
-                            var badgeClass = skill.ProficiencyLevel == OfficeTaskManagement.Models.Enums.ProficiencyLevel.Expert ? "bg-dark" :
-                                           (skill.ProficiencyLevel == OfficeTaskManagement.Models.Enums.ProficiencyLevel.Intermediate ? "bg-secondary" : "bg-light text-dark border");
-                            
+                            var badgeClass = skill.ProficiencyLevel == ProficiencyLevel.Expert ? "bg-dark" :
+                                           (skill.ProficiencyLevel == ProficiencyLevel.Intermediate ? "bg-secondary" : "bg-light text-dark border");
                             <span class="badge @badgeClass p-2 px-3">
                                 @skill.SkillName <small class="fw-normal ms-1 opacity-75">(@skill.ProficiencyLevel)</small>
                             </span>
@@ -180,7 +287,7 @@
                 }
                 else
                 {
-                    <p class="text-muted mb-0 offset-1">No skills configured for this resource.</p>
+                    <p class="text-muted mb-0">No skills configured for this resource.</p>
                 }
             </div>
         </div>

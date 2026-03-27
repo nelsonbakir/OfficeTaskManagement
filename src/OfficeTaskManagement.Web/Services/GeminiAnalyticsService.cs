@@ -96,6 +96,7 @@ namespace OfficeTaskManagement.Services
         {
             var now = DateTime.UtcNow;
             var usersData = await _context.Users
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
                 .Select(u => new
                 {
                     FullName = u.FullName,

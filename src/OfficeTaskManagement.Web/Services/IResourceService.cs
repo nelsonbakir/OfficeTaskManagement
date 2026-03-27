@@ -54,6 +54,12 @@ namespace OfficeTaskManagement.Services
         /// Used by the Conflicts API to determine which users to check.
         /// </summary>
         Task<IEnumerable<string>> GetSprintAssigneeIdsAsync(int sprintId);
+
+        /// <summary>
+        /// Returns estimated labour cost per project (Manager-only).
+        /// Cost = AllocationHours × HourlyRate per resource.
+        /// </summary>
+        Task<IEnumerable<ProjectCostReport>> GetProjectCostReportAsync();
     }
 
     public class AllocationSummaryItem
@@ -64,6 +70,15 @@ namespace OfficeTaskManagement.Services
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public string? ProjectRole { get; set; }
+    }
+
+    public class ProjectCostReport
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public decimal EstimatedLaborCost { get; set; }
+        public int ResourceCount { get; set; }
+        public decimal TotalAllocatedHours { get; set; }
     }
 
     public class UserUtilizationDto

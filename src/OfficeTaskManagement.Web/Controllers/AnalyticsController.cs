@@ -43,7 +43,10 @@ namespace OfficeTaskManagement.Controllers
         {
             var vm = await GetPortfolioIntelligence();
 
-            vm.AllUsers = (await _context.Users.OrderBy(u => u.FullName).ToListAsync())
+            vm.AllUsers = (await _context.Users
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                .OrderBy(u => u.FullName)
+                .ToListAsync())
                 .Select(u => new SelectListItem(u.FullName ?? u.Email, u.Id)).ToList();
 
             vm.AllProjects = (await _context.Projects.OrderBy(p => p.Name).ToListAsync())
@@ -285,7 +288,9 @@ namespace OfficeTaskManagement.Controllers
             var lastWeekStart = weekStart.AddDays(-7);
 
             // ── Fetch core data ──────────────────────────────────────────────
-            var allUsers = await _context.Users.ToListAsync();
+            var allUsers = await _context.Users
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                .ToListAsync();
             var allProjects = await _context.Projects
                 .Include(p => p.Sprints)
                 .Include(p => p.PortfolioDecisions)
@@ -475,7 +480,9 @@ namespace OfficeTaskManagement.Controllers
             if (isManager)
             {
                 vm.ManagerMetrics = await GetManagerMetrics(assigneeId, projectId);
-                var assigneesList = await _context.Users.ToListAsync();
+                var assigneesList = await _context.Users
+                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                    .ToListAsync();
                 var projectsList = await _context.Projects.ToListAsync();
                 vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
                 vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
@@ -490,7 +497,9 @@ namespace OfficeTaskManagement.Controllers
 
                 vm.ProjectLeadMetrics = await GetProjectLeadMetrics(userId, userProjects);
 
-                var assigneesList = await _context.Users.ToListAsync();
+                var assigneesList = await _context.Users
+                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                    .ToListAsync();
                 var projectsList = await _context.Projects.Where(p => p.CreatedById == userId).ToListAsync();
                 vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
                 vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
@@ -518,7 +527,9 @@ namespace OfficeTaskManagement.Controllers
                 SelectedProjectId = projectId
             };
 
-            var assigneesList = await _context.Users.ToListAsync();
+            var assigneesList = await _context.Users
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                .ToListAsync();
             var projectsList = await _context.Projects.ToListAsync();
             vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
             vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
@@ -594,8 +605,11 @@ namespace OfficeTaskManagement.Controllers
             var startOfMonth = new DateTime(currentUtc.Year, currentUtc.Month, 1);
             var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
 
-            // 1. Team Utilization & 2. Bench/Idle track
-            var allResourceProfiles = await _context.ResourceProfiles.Include(rp => rp.User).ToListAsync();
+            // 1. Team Utilization & 2. Bench/Idle track (Filter IsResource)
+            var allResourceProfiles = await _context.ResourceProfiles
+                .Where(rp => rp.IsResource)
+                .Include(rp => rp.User)
+                .ToListAsync();
             foreach(var profile in allResourceProfiles)
             {
                 var capacity = await _resourceService.GetUserAvailableHoursAsync(profile.UserId, startOfMonth, endOfMonth);
@@ -694,7 +708,9 @@ namespace OfficeTaskManagement.Controllers
             metrics.ActiveProjects = projects.Count(p => p.Sprints.Any(s => s.IsActive));
 
             // Team metrics
-            var allUsers = await _context.Users.ToListAsync();
+            var allUsers = await _context.Users
+                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                .ToListAsync();
             metrics.TotalTeamMembers = allUsers.Count;
 
             // Task metrics

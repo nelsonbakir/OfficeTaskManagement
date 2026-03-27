@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager")]
+    [Authorize(Roles = "Manager,Admin")]
     public class PublicHolidaysController : Controller
     {
         private readonly ApplicationDbContext _context;
