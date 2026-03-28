@@ -66,6 +66,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(p => p.Sprints)
                     .ThenInclude(s => s.Tasks)
                         .ThenInclude(t => t.Assignee)
+                .Include(p => p.ResourceAllocations)
+                    .ThenInclude(a => a.User)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))

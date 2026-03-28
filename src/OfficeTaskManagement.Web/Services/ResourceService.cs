@@ -270,23 +270,49 @@ namespace OfficeTaskManagement.Services
                 .Include(a => a.ResourceProfile)
                 .ToListAsync();
 
-            var tasks = await _context.Tasks
-                .Include(t => t.Assignee)
-                .ThenInclude(u => u.ResourceProfile)
-                .Where(t => t.ProjectId != null)
+            var allTasks = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Sprint)
+                .Include(t => t.Epic)
+                .Include(t => t.Feature).ThenInclude(f => f.Epic)
+                .Include(t => t.UserStory).ThenInclude(us => us.Feature).ThenInclude(f => f.Epic)
+                .Include(t => t.Assignee).ThenInclude(u => u.ResourceProfile)
                 .ToListAsync();
 
-            var projectGroups = allocations.GroupBy(a => a.ProjectId);
+            // Resolve actual ProjectId for each task
+            var resolvedTasks = allTasks.Select(t => {
+                int? resolvedId = t.ProjectId 
+                               ?? t.Sprint?.ProjectId 
+                               ?? t.Epic?.ProjectId 
+                               ?? t.Feature?.Epic?.ProjectId 
+                               ?? t.UserStory?.Feature?.Epic?.ProjectId;
+                
+                return new { Task = t, ResolvedProjectId = resolvedId };
+            }).Where(x => x.ResolvedProjectId.HasValue).ToList();
+
+            // Get all project IDs that have either allocations OR resolved tasks
+            var projectIds = allocations.Select(a => a.ProjectId)
+                .Union(resolvedTasks.Select(t => t.ResolvedProjectId!.Value))
+                .Distinct()
+                .ToList();
+
             var result = new List<ProjectCostReport>();
 
-            foreach (var group in projectGroups)
+            foreach (var projectId in projectIds)
             {
+                var projectAllocations = allocations.Where(a => a.ProjectId == projectId).ToList();
+                var projectTasks = resolvedTasks.Where(t => t.ResolvedProjectId == projectId).Select(t => t.Task).ToList();
+                
+                string projectName = projectAllocations.FirstOrDefault()?.Project?.Name 
+                                  ?? projectTasks.FirstOrDefault()?.Project?.Name 
+                                  ?? "(Unknown)";
+
                 decimal plannedValuePV = 0;
                 decimal totalAllocatedHours = 0;
                 var distinctResources = new HashSet<string>();
 
                 // 1. Calculate PV from high-level Allocations
-                foreach (var alloc in group)
+                foreach (var alloc in projectAllocations)
                 {
                     var endDate = alloc.EndDate ?? DateTime.UtcNow;
                     if (endDate < alloc.StartDate) continue;
@@ -304,7 +330,6 @@ namespace OfficeTaskManagement.Services
                 // 2. Calculate Bottom-Up Estimate (EAC) from individual Tasks
                 decimal bottomUpEstimateEAC = 0;
                 decimal totalTaskHours = 0;
-                var projectTasks = tasks.Where(t => t.ProjectId == group.Key);
 
                 foreach (var task in projectTasks)
                 {
@@ -312,12 +337,13 @@ namespace OfficeTaskManagement.Services
                     var taskH = (decimal)task.EstimatedHours;
                     totalTaskHours += taskH;
                     bottomUpEstimateEAC += taskH * rate;
+                    if (task.AssigneeId != null) distinctResources.Add(task.AssigneeId);
                 }
 
                 result.Add(new ProjectCostReport
                 {
-                    ProjectId            = group.Key,
-                    ProjectName          = group.First().Project?.Name ?? "(Unknown)",
+                    ProjectId            = projectId,
+                    ProjectName          = projectName,
                     PlannedValuePV       = Math.Round(plannedValuePV, 2),
                     BottomUpEstimateEAC  = Math.Round(bottomUpEstimateEAC, 2),
                     TotalAllocatedHours  = Math.Round(totalAllocatedHours, 1),
@@ -326,7 +352,7 @@ namespace OfficeTaskManagement.Services
                 });
             }
 
-            return result.OrderByDescending(r => r.PlannedValuePV);
+            return result.OrderByDescending(r => Math.Max(r.PlannedValuePV, r.BottomUpEstimateEAC));
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────

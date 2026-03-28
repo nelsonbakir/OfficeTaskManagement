@@ -471,6 +471,18 @@ else if (User.IsInRole("Employee") && Model.EmployeeMetrics != null)
                         </ul>
                     </li>
                 </ul>
+
+                <div class="p-3 rounded-3 bg-light border mt-3 mb-3">
+                    <h6 class="mb-2 text-dark"><i class="fas fa-lightbulb text-warning me-2"></i><strong>Example Breakdown:</strong></h6>
+                    <p class="mb-1 small"><strong>Scenario:</strong> You allocate 50% of a developer's time ($20/hr) for 10 days.</p>
+                    <ul class="mb-2 small">
+                        <li><strong>PV (Allocated):</strong> 40 hours × $20 = <strong>$800</strong></li>
+                        <li><strong>EAC (Tasks):</strong> The developer lists 50 hours of tasks for that project = <strong>$1,000</strong></li>
+                        <li><strong>Variance:</strong> $800 - $1,000 = <span class="text-danger fw-bold">-$200</span></li>
+                    </ul>
+                    <p class="mb-0 small text-muted"><em>Conclusion: The tasks require more effort than what was scheduled (High risk).</em></p>
+                </div>
+
                 <p class="text-muted small italic">Note: Calculations factor in Bangladesh weekends (Fri/Sat) and Public Holidays.</p>
             </div>
         </div>

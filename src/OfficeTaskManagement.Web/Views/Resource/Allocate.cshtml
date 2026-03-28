@@ -15,9 +15,34 @@
     <div class="col-md-6">
         <div class="card shadow-sm">
             <div class="card-body">
-                <form asp-action="Allocate" method="post">
-                    <input type="hidden" asp-for="ProjectId" />
-                    <input type="hidden" asp-for="ProjectName" />
+                <form asp-action="@(Model.Id > 0 ? "EditAllocation" : "Allocate")" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    @if (Model.ProjectId > 0)
+                    {
+                        <input type="hidden" asp-for="ProjectId" />
+                        <input type="hidden" asp-for="ProjectName" />
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Target Project</label>
+                            @if (!string.IsNullOrEmpty(Model.ProjectName))
+                            {
+                                <div class="p-2 border rounded bg-light fw-bold">@Model.ProjectName</div>
+                            }
+                            else
+                            {
+                                <div class="p-2 border rounded bg-light fw-bold">Project ID: @Model.ProjectId</div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label asp-for="ProjectId" class="form-label">Target Project</label>
+                            <select asp-for="ProjectId" class="form-select" asp-items="@(new SelectList(ViewBag.Projects, "Id", "Name"))">
+                                <option value="">-- Select Project --</option>
+                            </select>
+                            <span asp-validation-for="ProjectId" class="text-danger"></span>
+                        </div>
+                    }
 
                     @if (TempData["ResourceWarning"] != null)
                     {
@@ -27,8 +52,8 @@
                     }
 
                     <div class="mb-3">
-                        <label asp-for="UserId" class="form-label">Resource</label>
-                        <select asp-for="UserId" class="form-select" asp-items="@(new SelectList(ViewBag.Users, "Id", "Email"))">
+                        <label asp-for="UserId" class="form-label">Resource to Allocate</label>
+                        <select asp-for="UserId" class="form-select" asp-items="@(new SelectList(ViewBag.Users, "Id", "FullName"))">
                             <option value="">-- Select Resource --</option>
                         </select>
                         <span asp-validation-for="UserId" class="text-danger"></span>

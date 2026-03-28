@@ -160,19 +160,32 @@ namespace OfficeTaskManagement.Controllers
             return View(model);
         }
 
-        // GET: Resource/Allocate/5 (projectId)
+        // GET: Resource/Allocate
         [Authorize(Roles = "Manager,Admin")]
-        public async Task<IActionResult> Allocate(int? projectId)
+        public async Task<IActionResult> Allocate(int? projectId, string? userId)
         {
-            if (projectId == null) return NotFound();
+            var vm = new EditProjectAllocationViewModel();
+            
+            if (projectId != null)
+            {
+                var project = await _context.Projects.FindAsync(projectId);
+                if (project != null)
+                {
+                    vm.ProjectId = project.Id;
+                    vm.ProjectName = project.Name;
+                    ViewBag.ProjectName = project.Name;
+                }
+            }
+            
+            if (!string.IsNullOrEmpty(userId))
+            {
+                vm.UserId = userId;
+            }
 
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null) return NotFound();
-
-            ViewBag.ProjectName = project.Name;
             ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
+            ViewBag.Projects = await _context.Projects.OrderBy(p => p.Name).ToListAsync();
 
-            return View(new EditProjectAllocationViewModel { ProjectId = project.Id, ProjectName = project.Name });
+            return View(vm);
         }
 
         // POST: Resource/Allocate
@@ -234,6 +247,84 @@ namespace OfficeTaskManagement.Controllers
             ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
             return View(model);
         }
+
+        // GET: Resource/EditAllocation/5
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> EditAllocation(int id)
+        {
+            var allocation = await _context.ProjectResourceAllocations
+                .Include(a => a.Project)
+                .Include(a => a.User)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (allocation == null) return NotFound();
+
+            var vm = new EditProjectAllocationViewModel
+            {
+                Id = allocation.Id,
+                ProjectId = allocation.ProjectId,
+                ProjectName = allocation.Project?.Name ?? "Unknown",
+                UserId = allocation.UserId,
+                AllocationPercentage = allocation.AllocationPercentage,
+                ProjectRole = allocation.ProjectRole,
+                StartDate = allocation.StartDate,
+                EndDate = allocation.EndDate
+            };
+
+            ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
+            ViewBag.Projects = await _context.Projects.OrderBy(p => p.Name).ToListAsync();
+
+            return View("Allocate", vm); // Reuse Allocate view
+        }
+
+        // POST: Resource/EditAllocation/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> EditAllocation(int id, EditProjectAllocationViewModel model)
+        {
+            if (id != model.Id) return NotFound();
+
+            if (ModelState.IsValid)
+            {
+                var allocation = await _context.ProjectResourceAllocations.FindAsync(id);
+                if (allocation == null) return NotFound();
+
+                allocation.AllocationPercentage = model.AllocationPercentage;
+                allocation.ProjectRole = model.ProjectRole;
+                allocation.StartDate = model.StartDate;
+                allocation.EndDate = model.EndDate;
+                // Note: We don't usually change Project or User on edit; better to delete and re-allocate if those change.
+
+                _context.Update(allocation);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Allocation updated successfully.";
+                return RedirectToAction("Details", "Projects", new { id = allocation.ProjectId });
+            }
+
+            ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
+            ViewBag.Projects = await _context.Projects.OrderBy(p => p.Name).ToListAsync();
+            return View("Allocate", model);
+        }
+
+        // POST: Resource/DeleteAllocation/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> DeleteAllocation(int id)
+        {
+            var allocation = await _context.ProjectResourceAllocations.FindAsync(id);
+            if (allocation == null) return NotFound();
+
+            var projectId = allocation.ProjectId;
+            _context.ProjectResourceAllocations.Remove(allocation);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Allocation removed successfully.";
+            return RedirectToAction("Details", "Projects", new { id = projectId });
+        }
+
         // POST: Resource/Block — Record a leave / availability block
         [HttpPost]
         [ValidateAntiForgeryToken]

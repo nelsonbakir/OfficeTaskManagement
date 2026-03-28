@@ -448,6 +448,11 @@
         </a>
     </li>
     <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#allocations">
+            <i class="fas fa-users-gear"></i> Resource Allocations
+        </a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link" data-bs-toggle="tab" href="#attachments">
             <i class="fas fa-paperclip"></i> Attachments (@(Model.Attachments?.Count ?? 0))
         </a>
@@ -455,6 +460,85 @@
 </ul>
 
 <div class="tab-content" style="background: white; padding: 2rem;">
+    <!-- Resource Allocations Tab -->
+    <div id="allocations" class="tab-pane fade">
+        <div class="section-header" style="margin-top: 1.5rem;">
+            <h2>Project Allocations</h2>
+            @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                <a asp-controller="Resource" asp-action="Allocate" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">
+                    <i class="fas fa-user-plus"></i> Allocate Resource
+                </a>
+            }
+        </div>
+
+        @if (Model.ResourceAllocations != null && Model.ResourceAllocations.Any()) {
+            <div class="table-responsive" style="margin-top: 1.5rem;">
+                <table class="table table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Resource</th>
+                            <th>Role</th>
+                            <th class="text-center">Allocation %</th>
+                            <th>Period</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var allocation in Model.ResourceAllocations) {
+                            <tr>
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (allocation.User != null && !string.IsNullOrEmpty(allocation.User.AvatarPath)) {
+                                            <img src="@MediaService.GetUrl(allocation.User.AvatarPath)" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" alt="@allocation.User.FullName" />
+                                        } else {
+                                            <i class="fas fa-user-circle text-muted fs-4"></i>
+                                        }
+                                        <div class="fw-medium">@(allocation.User?.FullName ?? "Unknown")</div>
+                                    </div>
+                                </td>
+                                <td class="align-middle">@allocation.ProjectRole</td>
+                                <td class="align-middle text-center">
+                                    <div class="progress" style="height: 10px; width: 80px; margin: 0 auto 5px auto;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: @allocation.AllocationPercentage%"></div>
+                                    </div>
+                                    <small class="text-muted">@allocation.AllocationPercentage%</small>
+                                </td>
+                                <td class="align-middle">
+                                    <div style="font-size: 0.85rem;">@allocation.StartDate.ToString("MMM dd, yyyy") -</div>
+                                    <div class="text-muted small">@(allocation.EndDate?.ToString("MMM dd, yyyy") ?? "Continuous")</div>
+                                </td>
+                                <td class="align-middle text-end">
+                                    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <a asp-controller="Resource" asp-action="EditAllocation" asp-route-id="@allocation.Id" class="quick-action-btn" title="Edit Allocation">
+                                                <i class="fas fa-pen"></i>
+                                            </a>
+                                            <form asp-controller="Resource" asp-action="DeleteAllocation" asp-route-id="@allocation.Id" method="post" onsubmit="return confirm('Are you sure you want to remove this allocation?');" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="quick-action-btn text-danger" style="border: 1px solid #FDE7E9;" title="Delete Allocation">
+                                                    <i class="fas fa-trash-can"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        } else {
+            <div class="empty-list" style="margin-top: 1.5rem;">
+                <i class="fas fa-users-gear"></i>
+                No formal resource allocations for this project
+                @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                    <p style="margin-top: 0.5rem;">
+                        <a asp-controller="Resource" asp-action="Allocate" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">Allocate your first resource</a>
+                    </p>
+                }
+            </div>
+        }
+    </div>
     <!-- Attachments Tab -->
     <div id="attachments" class="tab-pane fade">
         <div class="section-header" style="margin-top: 1.5rem;">
