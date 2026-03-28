@@ -424,9 +424,10 @@
 
 <!-- ── MIDDLE ROW: Engagement + Suggestions ──────────────────────────── -->
 <div class="hub-grid hub-grid-mid mb-4">
-    <!-- Team Engagement -->
-    <div class="hub-card">
-        <div class="hub-card-title d-flex justify-content-between align-items-center">
+    <div>
+        <!-- Team Engagement -->
+        <div class="hub-card">
+            <div class="hub-card-title d-flex justify-content-between align-items-center">
             <span><i class="fas fa-user-clock text-info"></i> Team Engagement &amp; Workload</span>
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoTeamEngModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
         </div>
@@ -452,6 +453,44 @@
                 </div>
             }
         </div>
+    </div>
+
+    <!-- 4-Week Resource Demand Forecast -->
+    <div class="hub-card mt-4">
+        <div class="hub-card-title d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-chart-line text-primary"></i> 4-Week Demand Forecast (Risk Radar)</span>
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoDemandRiskModal" title="Algorithm Details"><i class="fas fa-info-circle"></i></button>
+        </div>
+        <div style="max-height: 220px; overflow-y: auto;">
+            @if (!Model.DemandForecasts.Any(f => f.IsGoingRed))
+            {
+                <p class="text-muted py-2 mb-0" style="font-size:0.88rem;"><i class="fas fa-check-circle text-success me-1"></i>No overallocation risks in the rolling 4-week forecast.</p>
+            }
+            <table class="table table-sm table-borderless" style="font-size:0.88rem;">
+                <thead>
+                    <tr class="text-muted border-bottom">
+                        <th>Resource</th>
+                        <th class="text-center">Wk 1</th>
+                        <th class="text-center">Wk 2</th>
+                        <th class="text-center">Wk 3</th>
+                        <th class="text-center">Wk 4</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var fc in Model.DemandForecasts.Where(f => f.IsGoingRed).OrderByDescending(f => f.Week1Allocation))
+                    {
+                        <tr class="align-middle border-bottom">
+                            <td class="fw-semibold">@fc.UserName</td>
+                            <td class="text-center"><span class="badge @(fc.Week1Allocation > 100 ? "bg-danger" : "bg-light text-dark")">@fc.Week1Allocation%</span></td>
+                            <td class="text-center"><span class="badge @(fc.Week2Allocation > 100 ? "bg-danger" : "bg-light text-dark")">@fc.Week2Allocation%</span></td>
+                            <td class="text-center"><span class="badge @(fc.Week3Allocation > 100 ? "bg-danger" : "bg-light text-dark")">@fc.Week3Allocation%</span></td>
+                            <td class="text-center"><span class="badge @(fc.Week4Allocation > 100 ? "bg-danger" : "bg-light text-dark")">@fc.Week4Allocation%</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
     </div>
 
     <!-- System Suggestions + Paused Tasks -->
@@ -916,6 +955,27 @@
                     <li>Generate an actionable recommendation to shift the idle member to the most at-risk project.</li>
                 </ol>
                 <p class="text-muted mb-0"><i class="fas fa-magic me-1"></i> Clicking the "Act" button pre-fills the "Shift Resources" tool based on this algorithm.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: 4-Week Demand Forecast -->
+<div class="modal fade" id="infoDemandRiskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Algorithm: Risk Radar</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it means:</strong> Proactive forecasting of maximum capacity limits, allowing managers to re-allocate or shift tasks before members hit burnout thresholds.</p>
+                <h6 class="fw-bold mt-3">Calculations:</h6>
+                <ul>
+                    <li>The system dynamically reads future capacity parameters <strong>factoring in approved leaves</strong> locally.</li>
+                    <li>It measures the rolling peak assigned effort vs individual baseline availability over exactly the next 4 calendar weeks.</li>
+                </ul>
+                <h6 class="fw-bold mt-3">Trigger Condition:</h6>
+                <ul>
+                    <li><i class="fas fa-exclamation-triangle text-danger"></i> <strong>Risk Trigger:</strong> Only alerts when forecasted weekly peaks exceed exactly <span class="badge bg-danger">100%</span>.</li>
+                </ul>
             </div>
         </div>
     </div>

@@ -39,6 +39,9 @@ namespace OfficeTaskManagement.Models
 
         /// <summary>Flagged for executive-level visibility on the Strategic Hub radar.</summary>
         public bool IsOnExecutiveRadar { get; set; } = false;
+
+        /// <summary>Comma-separated list of required skills for resources allocated to this project.</summary>
+        public string? RequiredSkills { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();

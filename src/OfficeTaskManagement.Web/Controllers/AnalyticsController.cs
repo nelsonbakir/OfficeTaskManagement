@@ -407,6 +407,23 @@ namespace OfficeTaskManagement.Controllers
                     CommittedHours = committed,
                     EngagementLevel = level
                 });
+
+                // Resource Demand Forecast (4-week rolling)
+                var w1 = await _resourceService.GetPeakAllocationPercentInRangeAsync(user.Id, weekStart, weekStart.AddDays(6));
+                var w2 = await _resourceService.GetPeakAllocationPercentInRangeAsync(user.Id, weekStart.AddDays(7), weekStart.AddDays(13));
+                var w3 = await _resourceService.GetPeakAllocationPercentInRangeAsync(user.Id, weekStart.AddDays(14), weekStart.AddDays(20));
+                var w4 = await _resourceService.GetPeakAllocationPercentInRangeAsync(user.Id, weekStart.AddDays(21), weekStart.AddDays(27));
+
+                var forecast = new ResourceDemandForecast
+                {
+                    UserId = user.Id,
+                    UserName = user.FullName ?? user.Email ?? "Unknown",
+                    Week1Allocation = w1,
+                    Week2Allocation = w2,
+                    Week3Allocation = w3,
+                    Week4Allocation = w4
+                };
+                vm.DemandForecasts.Add(forecast);
             }
 
             // ── Suggested Reallocations ─────────────────────────────────────

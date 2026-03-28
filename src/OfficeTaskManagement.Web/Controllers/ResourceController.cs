@@ -116,6 +116,7 @@ namespace OfficeTaskManagement.Controllers
                     StartDate = b.StartDate,
                     EndDate = b.EndDate,
                     Reason = b.Reason,
+                    ApprovalStatus = b.ApprovalStatus,
                     Notes = b.Notes
                 }).ToList()
             };
@@ -183,8 +184,21 @@ namespace OfficeTaskManagement.Controllers
             if (ModelState.IsValid)
             {
                 var currentUser = await _userManager.GetUserAsync(User);
-                
+                var project = await _context.Projects.FindAsync(model.ProjectId);
                 var profile = await _resourceService.GetOrCreateProfileAsync(model.UserId);
+                var fullProfile = await _context.ResourceProfiles.Include(rp => rp.Skills).FirstOrDefaultAsync(rp => rp.Id == profile.Id);
+
+                if (project != null && !string.IsNullOrWhiteSpace(project.RequiredSkills))
+                {
+                    var reqSkills = project.RequiredSkills.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLower());
+                    var userSkills = fullProfile?.Skills.Select(s => s.SkillName.ToLower()).ToList() ?? new List<string>();
+                    var missing = reqSkills.Where(rs => !userSkills.Contains(rs)).Select(s => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s)).ToList();
+                    
+                    if (missing.Any())
+                    {
+                        TempData["SkillWarning"] = $"Skill Gap Warning: The assigned user is missing project-required skills: {string.Join(", ", missing)}";
+                    }
+                }
 
                 var allocation = new ProjectResourceAllocation
                 {
@@ -247,7 +261,45 @@ namespace OfficeTaskManagement.Controllers
 
             _context.ResourceAvailabilityBlocks.Add(block);
             await _context.SaveChangesAsync();
-            TempData["SuccessMessage"] = $"Availability block recorded: {reason} from {startDate:MMM d} to {endDate:MMM d}.";
+            TempData["SuccessMessage"] = $"Availability block recorded: {reason} from {startDate:MMM d} to {endDate:MMM d}. Waiting for manager approval.";
+            return RedirectToAction(nameof(Profile), new { id = userId });
+        }
+
+        // POST: Resource/ApproveBlock
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> ApproveBlock(int id, string userId)
+        {
+            var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
+            if (block != null)
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                block.ApprovalStatus = LeaveApprovalStatus.Approved;
+                block.ApprovedById = currentUser?.Id;
+                block.ApprovedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Availability block approved.";
+            }
+            return RedirectToAction(nameof(Profile), new { id = userId });
+        }
+
+        // POST: Resource/RejectBlock
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> RejectBlock(int id, string userId)
+        {
+            var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
+            if (block != null)
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                block.ApprovalStatus = LeaveApprovalStatus.Rejected;
+                block.ApprovedById = currentUser?.Id;
+                block.ApprovedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Availability block rejected.";
+            }
             return RedirectToAction(nameof(Profile), new { id = userId });
         }
 

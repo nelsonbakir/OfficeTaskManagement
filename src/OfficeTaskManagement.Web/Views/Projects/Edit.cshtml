@@ -165,6 +165,16 @@
                 </div>
             </div>
 
+            <!-- Skills Section -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-tools"></i> Required Skills</h3>
+                <div class="form-group">
+                    <input asp-for="Project.RequiredSkills" class="form-control" placeholder="e.g. C#, SQL, React (comma-separated)" />
+                    <span asp-validation-for="Project.RequiredSkills" class="text-danger small"></span>
+                    <div class="text-muted small mt-1">Used to alert managers of skill-gaps during resource allocation.</div>
+                </div>
+            </div>
+
             <!-- Description Section -->
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>

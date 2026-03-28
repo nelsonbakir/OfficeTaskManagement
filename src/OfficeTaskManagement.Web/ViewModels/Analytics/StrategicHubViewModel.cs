@@ -23,6 +23,9 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         // ── Team Engagement ──────────────────────────────────────────────────
         public List<EngagementScorecard> MemberScorecards { get; set; } = new();
 
+        // ── Resource Demand Forecast ─────────────────────────────────────────
+        public List<ResourceDemandForecast> DemandForecasts { get; set; } = new();
+
         // ── System Recommendations ───────────────────────────────────────────
         public List<SuggestedReallocation> SuggestedReallocations { get; set; } = new();
 
@@ -98,6 +101,31 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         public int OverdueTasks { get; set; }
         public decimal CommittedHours { get; set; }
         public string EngagementLevel { get; set; } = "Engaged"; // Idle | Engaged | Overloaded
+    }
+
+    public class ResourceDemandForecast
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
+        
+        /// <summary>Percentage allocation for this week.</summary>
+        public decimal Week1Allocation { get; set; }
+        
+        /// <summary>Percentage allocation for next week.</summary>
+        public decimal Week2Allocation { get; set; }
+        
+        /// <summary>Percentage allocation for in 2 weeks.</summary>
+        public decimal Week3Allocation { get; set; }
+        
+        /// <summary>Percentage allocation for in 3 weeks.</summary>
+        public decimal Week4Allocation { get; set; }
+
+        public bool IsGoingRed => Week1Allocation > 100 || Week2Allocation > 100 || Week3Allocation > 100 || Week4Allocation > 100;
+        
+        public string RedWeek => Week1Allocation > 100 ? "This Week" :
+                                 Week2Allocation > 100 ? "Next Week" :
+                                 Week3Allocation > 100 ? "In 2 Weeks" :
+                                 Week4Allocation > 100 ? "In 3 Weeks" : "";
     }
 
     public class SuggestedReallocation

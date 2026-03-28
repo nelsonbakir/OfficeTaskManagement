@@ -170,7 +170,7 @@ namespace OfficeTaskManagement.Services
 
                     // Check availability blocks (leave, etc.)
                     bool isBlocked = user.AvailabilityBlocks.Any(b => 
-                        b.StartDate.Date <= date.Date && b.EndDate.Date >= date.Date);
+                        b.StartDate.Date <= date.Date && b.EndDate.Date >= date.Date && b.ApprovalStatus == Models.Enums.LeaveApprovalStatus.Approved);
                     
                     row.DailyAvailability[day] = isBlocked ? 0 : dailyCap;
 

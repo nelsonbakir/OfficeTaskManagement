@@ -49,9 +49,12 @@ namespace OfficeTaskManagement.Services
             var workingDays = await CountWorkingDaysAsync(startDate, endDate);
             var grossHours = workingDays * profile.DailyCapacityHours;
 
-            // Subtract specific availability blocks (leave, etc.)
+            // Subtract specific availability blocks (leave, etc.) that are Approved
             var blocks = await _context.ResourceAvailabilityBlocks
-                .Where(b => b.UserId == userId && b.StartDate.Date <= endDate.Date && b.EndDate.Date >= startDate.Date)
+                .Where(b => b.UserId == userId 
+                         && b.StartDate.Date <= endDate.Date 
+                         && b.EndDate.Date >= startDate.Date
+                         && b.ApprovalStatus == OfficeTaskManagement.Models.Enums.LeaveApprovalStatus.Approved)
                 .ToListAsync();
 
             decimal blockedHours = 0;

@@ -409,6 +409,22 @@
     </div>
 </div>
 
+@if (TempData["SkillWarning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" style="margin-bottom: 2rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i> @TempData["SkillWarning"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ResourceWarning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" style="margin-bottom: 2rem;">
+        <i class="fas fa-exclamation-triangle me-2"></i> @TempData["ResourceWarning"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 @if(!string.IsNullOrEmpty(Model.Description)) {
     <div style="background: white; padding: 1.5rem; border-radius: 6px; margin-bottom: 2rem; border: 1px solid #EDEBE9;">
         <p style="margin: 0; color: #605E5C; line-height: 1.6;">@Model.Description</p>

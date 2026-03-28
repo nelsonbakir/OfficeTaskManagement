@@ -33,6 +33,12 @@ namespace OfficeTaskManagement.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // Leave Approval Workflow
+        public LeaveApprovalStatus ApprovalStatus { get; set; } = LeaveApprovalStatus.Pending;
+        public string? ApprovedById { get; set; }
+        public User? ApprovedBy { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+
         // Link to resource profile
         public int? ResourceProfileId { get; set; }
         public ResourceProfile? ResourceProfile { get; set; }

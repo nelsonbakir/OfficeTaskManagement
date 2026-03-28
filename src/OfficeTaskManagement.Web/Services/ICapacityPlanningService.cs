@@ -48,6 +48,13 @@ namespace OfficeTaskManagement.Services
         public decimal DemandHours { get; set; }
         public decimal Delta => PlannedCapacityHours - DemandHours;
         public bool IsOverCommitted => DemandHours > PlannedCapacityHours;
+        
+        /// <summary>
+        /// A 0–100% score based on (AvailableHours - CommittedHours) / AvailableHours
+        /// </summary>
+        public decimal CommitmentConfidenceScore => 
+            PlannedCapacityHours == 0 ? 0 : 
+            Math.Max(0, Math.Round(((PlannedCapacityHours - DemandHours) / PlannedCapacityHours) * 100, 0));
     }
 
     public class HeatmapData

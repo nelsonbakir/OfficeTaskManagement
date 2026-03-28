@@ -66,6 +66,7 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public AvailabilityBlockReason Reason { get; set; }
+        public LeaveApprovalStatus ApprovalStatus { get; set; }
         public string? Notes { get; set; }
     }
 }
