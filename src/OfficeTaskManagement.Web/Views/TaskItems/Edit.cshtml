@@ -493,14 +493,20 @@
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #605E5C; text-transform: uppercase;">Apply Fragnet Pipeline</label>
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #605E5C; text-transform: uppercase;">
+                            Apply Fragnet Pipeline 
+                            <button type="button" class="btn btn-sm btn-link p-0 text-muted ms-1" data-bs-toggle="modal" data-bs-target="#pipelineInfoModal"><i class="fas fa-info-circle"></i></button>
+                        </label>
                         <select asp-for="SelectedWorkflowTemplateId" class="form-select" asp-items="Model.WorkflowTemplatesList">
-                            <option value="">-- Skip (Keep Existing) --</option>
+                            <option value="">-- No Pipeline (Standalone Task) --</option>
                         </select>
-                        <small class="text-danger d-block mt-1"><i class="fas fa-exclamation-triangle"></i> Selecting a pipeline here will overwrite any existing stage sub-tasks.</small>
+                        <small class="text-danger d-block mt-1"><i class="fas fa-exclamation-triangle"></i> Switching pipelines will discard unstarted stages.</small>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #605E5C; text-transform: uppercase;">Accountable User (A)</label>
+                        <label class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #605E5C; text-transform: uppercase;">
+                            Accountable User (A)
+                            <button type="button" class="btn btn-sm btn-link p-0 text-muted ms-1" data-bs-toggle="modal" data-bs-target="#accountableInfoModal"><i class="fas fa-info-circle"></i></button>
+                        </label>
                         <select asp-for="TaskItem.AccountableUserId" class="form-select" asp-items="Model.AccountableUsersList">
                             <option value="">-- Select Accountable User --</option>
                         </select>
@@ -509,7 +515,10 @@
                 </div>
 
                 <div class="p-3" style="background: #F8F9FA; border-radius: 6px; border: 1px solid #EDEBE9;">
-                    <label class="form-label mb-2" style="font-weight: 600; font-size: 0.85rem; color: #0078D4;">Three-Point PERT Estimate</label>
+                    <label class="form-label mb-2" style="font-weight: 600; font-size: 0.85rem; color: #0078D4;">
+                        Three-Point PERT Estimate
+                        <button type="button" class="btn btn-sm btn-link p-0 text-muted ms-1" data-bs-toggle="modal" data-bs-target="#pertInfoModal"><i class="fas fa-info-circle"></i></button>
+                    </label>
                     <div class="row g-2 mb-3">
                         <div class="col-md-4">
                             <label class="form-label small text-muted mb-1">Optimistic (O)</label>
@@ -535,6 +544,67 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Modals for Info Buttons -->
+            <!-- PERT Info Modal -->
+            <div class="modal fade" id="pertInfoModal" tabindex="-1" aria-labelledby="pertInfoModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="pertInfoModalLabel"><i class="fas fa-flask text-primary"></i> Three-Point PERT Estimation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-4">
+                    <p>The <strong>Program Evaluation and Review Technique (PERT)</strong> algorithm provides a highly accurate statistical baseline for task duration by factoring in risk and uncertainty.</p>
+                    <ul class="mb-4 text-muted">
+                        <li><strong>Optimistic (O):</strong> Everything goes perfectly.</li>
+                        <li><strong>Most Likely (M):</strong> The realistic, standard scenario.</li>
+                        <li><strong>Pessimistic (P):</strong> Worst-case scenario with roadblocks.</li>
+                    </ul>
+                    <div class="p-3 bg-light rounded text-center border">
+                        <small class="text-uppercase fw-bold text-muted d-block mb-1">Formula</small>
+                        <code class="fs-5 text-dark">Baseline = (O + 4M + P) / 6</code>
+                    </div>
+                    <p class="mt-3 mb-0 small text-muted">This automatically weights the most likely scenario while safely pulling your baseline up to account for pessimistic risk.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pipeline Info Modal -->
+            <div class="modal fade" id="pipelineInfoModal" tabindex="-1" aria-labelledby="pipelineInfoModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="pipelineInfoModalLabel"><i class="fas fa-project-diagram text-info"></i> Fragnet Pipelines</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-4">
+                    <p>A <strong>Fragnet Pipeline</strong> is a reusable, sequential template of standard workflow stages (e.g., Requirements &rarr; Development &rarr; QA &rarr; Release).</p>
+                    <p>By applying a pipeline to this task, the engine will automatically spawn sub-tasks for each stage and enforce "Definition of Done" criteria before allowing the next stage to begin.</p>
+                    <div class="alert alert-warning mb-0 border-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Changing an active pipeline will destroy any existing, unstarted workflow sub-tasks.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Accountable User Info Modal -->
+            <div class="modal fade" id="accountableInfoModal" tabindex="-1" aria-labelledby="accountableInfoModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="accountableInfoModalLabel"><i class="fas fa-user-shield text-danger"></i> RACI Accountable Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-4">
+                    <p>In the <strong>RACI</strong> framework, the Accountable individual is the sole person who holds final, unequivocal ownership over the successful delivery of this Work Package.</p>
+                    <p class="mb-0">While multiple <em>Responsible</em> team members might do the actual work inside the pipeline stages, the Accountable owner signs off on the final feature.</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Description Section -->

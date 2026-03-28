@@ -286,15 +286,21 @@ namespace OfficeTaskManagement.Controllers
 
             var taskItem = await _context.Tasks
                 .Include(t => t.Areas)
+                .Include(t => t.SubTasks).ThenInclude(s => s.WorkflowStage)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (taskItem == null)
             {
                 return NotFound();
             }
             
+            int? currentTemplateId = taskItem.SubTasks?
+                .FirstOrDefault(s => s.WorkflowStageId != null)?
+                .WorkflowStage?.WorkflowTemplateId;
+
             var vm = new TaskItemViewModel
             {
                 TaskItem = taskItem,
+                SelectedWorkflowTemplateId = currentTemplateId,
                 UsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AssigneeId),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
                 EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == taskItem.ProjectId), "Id", "Name", taskItem.EpicId),
@@ -307,9 +313,7 @@ namespace OfficeTaskManagement.Controllers
                 WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name"),
                 AccountableUsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AccountableUserId)
             };
-            
-            // Explicitly load SubTasks for the view
-            await _context.Entry(taskItem).Collection(t => t.SubTasks).LoadAsync();
+            // Note: SubTasks expressly included above in the initial query
             
             // Explicitly load relations for the view
             await _context.Entry(taskItem).Collection(t => t.Attachments).LoadAsync();
@@ -343,6 +347,7 @@ namespace OfficeTaskManagement.Controllers
                 {
                     var existingTask = await _context.Tasks
                         .Include(t => t.Areas)
+                        .Include(t => t.SubTasks).ThenInclude(s => s.WorkflowStage)
                         .FirstOrDefaultAsync(t => t.Id == id);
                     if (existingTask == null) return NotFound();
 
@@ -406,6 +411,30 @@ namespace OfficeTaskManagement.Controllers
                             ModelState.AddModelError("", "Cannot mark this task as Done because it has open Sub-tasks. Please complete all Sub-tasks first.");
                             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                            vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                            vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
+                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
+                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                            vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                            vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
+                            return View(vm);
+                        }
+                    }
+
+                    int? currentTemplateId = existingTask.SubTasks?.FirstOrDefault(s => s.WorkflowStageId != null)?.WorkflowStage?.WorkflowTemplateId;
+
+                    if (vm.SelectedWorkflowTemplateId != currentTemplateId)
+                    {
+                        var oldWfTasks = existingTask.SubTasks?.Where(s => s.WorkflowStageId != null).ToList() ?? new List<TaskItem>();
+                        bool hasStarted = oldWfTasks.Any(s => s.Status != TaskStatus.New && s.Status != TaskStatus.ToDo);
+                        
+                        if (hasStarted)
+                        {
+                            ModelState.AddModelError("", "Cannot change or remove the pipeline because some stages have already been worked on.");
+                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                            vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
                             vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
@@ -565,15 +594,34 @@ namespace OfficeTaskManagement.Controllers
 
                     await _context.SaveChangesAsync();
 
-                    if (vm.SelectedWorkflowTemplateId.HasValue)
+                    if (vm.SelectedWorkflowTemplateId != currentTemplateId)
                     {
-                        await _workflowEngine.SpawnWorkflowSubTasksAsync(existingTask.Id, vm.SelectedWorkflowTemplateId.Value);
-                        _context.TaskHistories.Add(new TaskHistory
+                        var oldWfTasks = existingTask.SubTasks?.Where(s => s.WorkflowStageId != null).ToList() ?? new List<TaskItem>();
+                        if (oldWfTasks.Any())
                         {
-                            TaskItemId = existingTask.Id,
-                            ChangedById = userId,
-                            ChangeDescription = "Workflow sub-tasks respawned from new template."
-                        });
+                            _context.Tasks.RemoveRange(oldWfTasks);
+                        }
+
+                        if (vm.SelectedWorkflowTemplateId.HasValue)
+                        {
+                            await _workflowEngine.SpawnWorkflowSubTasksAsync(existingTask.Id, vm.SelectedWorkflowTemplateId.Value);
+                            _context.TaskHistories.Add(new TaskHistory
+                            {
+                                TaskItemId = existingTask.Id,
+                                ChangedById = userId,
+                                ChangeDescription = currentTemplateId.HasValue ? "Workflow pipeline changed to new template." : "Workflow pipeline applied."
+                            });
+                        }
+                        else if (currentTemplateId.HasValue)
+                        {
+                            _context.TaskHistories.Add(new TaskHistory
+                            {
+                                TaskItemId = existingTask.Id,
+                                ChangedById = userId,
+                                ChangeDescription = "Workflow pipeline removed."
+                            });
+                        }
+                        
                         await _context.SaveChangesAsync();
                     }
                     
