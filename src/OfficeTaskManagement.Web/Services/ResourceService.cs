@@ -270,16 +270,22 @@ namespace OfficeTaskManagement.Services
                 .Include(a => a.ResourceProfile)
                 .ToListAsync();
 
-            // For each allocation, calculate hours committed × hourly rate
+            var tasks = await _context.Tasks
+                .Include(t => t.Assignee)
+                .ThenInclude(u => u.ResourceProfile)
+                .Where(t => t.ProjectId != null)
+                .ToListAsync();
+
             var projectGroups = allocations.GroupBy(a => a.ProjectId);
             var result = new List<ProjectCostReport>();
 
             foreach (var group in projectGroups)
             {
-                decimal totalCost = 0;
-                decimal totalHours = 0;
+                decimal plannedValuePV = 0;
+                decimal totalAllocatedHours = 0;
                 var distinctResources = new HashSet<string>();
 
+                // 1. Calculate PV from high-level Allocations
                 foreach (var alloc in group)
                 {
                     var endDate = alloc.EndDate ?? DateTime.UtcNow;
@@ -290,22 +296,37 @@ namespace OfficeTaskManagement.Services
                     var hours = days * dailyHours * (alloc.AllocationPercentage / 100m);
                     var rate = alloc.ResourceProfile?.HourlyRate ?? 0m;
 
-                    totalHours += hours;
-                    totalCost  += hours * rate;
+                    totalAllocatedHours += hours;
+                    plannedValuePV += hours * rate;
                     distinctResources.Add(alloc.UserId);
+                }
+
+                // 2. Calculate Bottom-Up Estimate (EAC) from individual Tasks
+                decimal bottomUpEstimateEAC = 0;
+                decimal totalTaskHours = 0;
+                var projectTasks = tasks.Where(t => t.ProjectId == group.Key);
+
+                foreach (var task in projectTasks)
+                {
+                    var rate = task.Assignee?.ResourceProfile?.HourlyRate ?? 0m;
+                    var taskH = (decimal)task.EstimatedHours;
+                    totalTaskHours += taskH;
+                    bottomUpEstimateEAC += taskH * rate;
                 }
 
                 result.Add(new ProjectCostReport
                 {
                     ProjectId            = group.Key,
                     ProjectName          = group.First().Project?.Name ?? "(Unknown)",
-                    EstimatedLaborCost   = Math.Round(totalCost,  2),
-                    TotalAllocatedHours  = Math.Round(totalHours, 1),
+                    PlannedValuePV       = Math.Round(plannedValuePV, 2),
+                    BottomUpEstimateEAC  = Math.Round(bottomUpEstimateEAC, 2),
+                    TotalAllocatedHours  = Math.Round(totalAllocatedHours, 1),
+                    TotalTaskHours       = Math.Round(totalTaskHours, 1),
                     ResourceCount        = distinctResources.Count
                 });
             }
 
-            return result.OrderByDescending(r => r.EstimatedLaborCost);
+            return result.OrderByDescending(r => r.PlannedValuePV);
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────

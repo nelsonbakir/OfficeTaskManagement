@@ -3,21 +3,30 @@
 <div class="metric-grid">
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-folder"></i></div>
-        <div class="metric-label">Total Projects</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Total Projects
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoTotalProjects" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.TotalProjects</p>
         <div class="metric-subtext">@Model.ActiveProjects active</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-users"></i></div>
-        <div class="metric-label">Team Members</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Team Members
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoTeamUtilization" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.TotalTeamMembers</p>
         <div class="metric-subtext">@Model.AverageTeamUtilization.ToString("F0")% avg utilization</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label">Overall Completion</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Overall Completion
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.OverallTaskCompletion%</p>
         <div class="progress-bar">
             <div class="progress-fill" style="width: @Model.OverallTaskCompletion%"></div>
@@ -26,21 +35,30 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tachometer-alt"></i></div>
-        <div class="metric-label">Avg Sprint Velocity</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Avg Sprint Velocity
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoSprintVelocity" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.AverageSprintVelocity.ToString("F1")</p>
         <div class="metric-subtext">hours per sprint</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="metric-label">At Risk Tasks</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            At Risk Tasks
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoRiskTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value" style="color: #E81123;">@Model.AtRiskTasks</p>
         <div class="metric-subtext">due within 3 days</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-clock"></i></div>
-        <div class="metric-label">Overdue Tasks</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Overdue Tasks
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoOverdueTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value" style="color: #E81123;">@Model.OverdueTasks</p>
         <div class="metric-subtext">past deadline</div>
     </div>

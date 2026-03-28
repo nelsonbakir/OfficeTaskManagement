@@ -253,3 +253,226 @@ else if (User.IsInRole("Employee") && Model.EmployeeMetrics != null)
         <partial name="_AnalyticsReportsScripts" model="Model" />
     }
 }
+
+<!-- ════════════════════════════════════════════════════════════════════
+     INFO / ALGORITHM DATASHEET MODALS
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- Info: Total Projects -->
+<div class="modal fade" id="infoTotalProjects" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Metric: Total Projects</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Total Projects:</strong> The count of all projects currently in the system.</p>
+                <p><strong>Active Projects:</strong> Projects that are not marked as completed, cancelled, or on-hold. These are the projects currently drawing resources.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Team Utilization -->
+<div class="modal fade" id="infoTeamUtilization" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-warning me-2"></i>Metric: Team Utilization</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Utilization %:</strong> Calculated as <code>(Total Allocated Hours / Total Capacity) × 100</code>.</p>
+                <p>Capacity is typically based on 40 hours per week per resource. High utilization (>80%) suggests a risk of burnout or delays.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Completion Rate -->
+<div class="modal fade" id="infoCompletionRate" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-success me-2"></i>Metric: Completion Rate</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Calculation:</strong> The percentage of tasks marked as 'Done' out of the total number of tasks assigned.</p>
+                <p>For projects, it represents the overall progress towards completion.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Sprint Velocity -->
+<div class="modal fade" id="infoSprintVelocity" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Metric: Sprint Velocity</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Definition:</strong> The average number of estimated hours completed per sprint.</p>
+                <p>This is a rolling average based on the last several sprints to help predict future team capacity and project timelines.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: At Risk Tasks -->
+<div class="modal fade" id="infoRiskTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-danger me-2"></i>Metric: At Risk Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Risk Rule:</strong> Tasks that are not 'Done' and have a due date within the next <strong>3 calendar days</strong>.</p>
+                <p>These require immediate attention to ensure they don't become overdue.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Overdue Tasks -->
+<div class="modal fade" id="infoOverdueTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-danger me-2"></i>Metric: Overdue Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Definition:</strong> Tasks that are past their due date and have not been marked as 'Done'.</p>
+                <p>High overdue counts indicate bottlenecks or overallocation.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: In Progress Tasks -->
+<div class="modal fade" id="infoInProgressTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-info me-2"></i>Metric: In Progress Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Definition:</strong> Tasks that have been started but are not yet completed or blocked.</p>
+                <p>These represent the current active focus of the project team.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Project Tracking -->
+<div class="modal fade" id="infoProjectTracking" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Algorithm: Project Tracking</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>On Track:</strong> Project is proceeding according to the planned schedule with no significant overdue tasks.</p>
+                <p><strong>At Risk:</strong> Project has significantly overdue tasks or the velocity has dropped below the required threshold to meet deadlines.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Blocked Tasks -->
+<div class="modal fade" id="infoBlockedTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-danger me-2"></i>Metric: Blocked Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Definition:</strong> Tasks specifically flagged as "Blocked" due to dependencies, missing requirements, or other external factors.</p>
+                <p>These require management intervention to clear the path for the team.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Employee Engagement Tracking -->
+<div class="modal fade" id="infoEngagementTracking" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Report: Engagement Tracking</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Purpose:</strong> Visualizes the daily task allocations for each employee.</p>
+                <p><strong>Allocation:</strong> The number of hours committed to specific tasks on a given date. This helps identify over-stressed days and ensures realistic scheduling.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Current Workload -->
+<div class="modal fade" id="infoCurrentWorkload" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-info me-2"></i>Metric: Current Workload</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Calculation:</strong> Sum of estimated hours for all active tasks assigned to the employee for the current rolling week.</p>
+                <p>Helps individuals manage their personal time and prevents burnout.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Burndown Chart -->
+<div class="modal fade" id="infoBurndown" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-danger me-2"></i>Chart: Sprint Burndown</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Ideal Line:</strong> A straight line showing the steady completion of tasks required to finish all work by the sprint's end.</p>
+                <p><strong>Actual Line:</strong> Shows the real-time progress. If the actual line is above the ideal line, the team is behind schedule.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Velocity Chart -->
+<div class="modal fade" id="infoVelocity" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Chart: Story Velocity</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>What it shows:</strong> The amount of work (in hours or story points) a team completes in each sprint.</p>
+                <p>Used to estimate how much work the team can handle in future sprints.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Bench Resources -->
+<div class="modal fade" id="infoBenchResources" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-secondary me-2"></i>Category: Bench Resources</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Rule:</strong> Resources with direct allocation of less than <strong>30%</strong> of their total capacity.</p>
+                <p>These individuals are underutilized and available for new task assignments or project deployments.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Sprint Capacity Summary -->
+<div class="modal fade" id="infoSprintCapacity" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-info me-2"></i>Algorithm: Sprint Capacity</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Demand:</strong> Sum of estimated hours for all tasks assigned to the sprint.</p>
+                <p><strong>Planned Capacity:</strong> Total available hours from team members assigned to the sprint, minus any approved leave.</p>
+                <p><strong>Delta:</strong> The difference between capacity and demand. A negative delta indicates a sprint is over-scoped.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Labour Cost -->
+<div class="modal fade" id="infoLabourCost" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-success me-2"></i>PMP Cost Analysis</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p>This report uses <strong>PMP (Project Management Professional)</strong> costing standards:</p>
+                <ul>
+                    <li><strong>Planned Value (PV):</strong> Estimated cost based on high-level <em>resource allocations</em> (scheduled time).</li>
+                    <li><strong>Bottom-Up EAC:</strong> Estimated total cost based on <em>individual task estimates</em> assigned to the project.</li>
+                    <li><strong>Variance:</strong> The delta between PV and EAC.
+                        <ul>
+                            <li><span class="text-success fw-bold">Positive:</span> Allocated budget exceeds task estimates (Healthy buffer).</li>
+                            <li><span class="text-danger fw-bold">Negative:</span> Tasks exceed the allocated budget (Resource/scope risk).</li>
+                        </ul>
+                    </li>
+                </ul>
+                <p class="text-muted small italic">Note: Calculations factor in Bangladesh weekends (Fri/Sat) and Public Holidays.</p>
+            </div>
+        </div>
+    </div>
+</div>

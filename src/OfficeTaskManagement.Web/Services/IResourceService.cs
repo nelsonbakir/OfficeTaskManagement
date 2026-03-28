@@ -82,9 +82,22 @@ namespace OfficeTaskManagement.Services
     {
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
-        public decimal EstimatedLaborCost { get; set; }
+        
+        /// <summary>Planned Value (PV): Cost based on high-level resource allocations.</summary>
+        public decimal PlannedValuePV { get; set; }
+        
+        /// <summary>Bottom-Up Estimate (EAC): Cost based on individual task estimates.</summary>
+        public decimal BottomUpEstimateEAC { get; set; }
+        
+        /// <summary>Variance between allocation-based and task-based estimates.</summary>
+        public decimal CostVariance => PlannedValuePV - BottomUpEstimateEAC;
+
         public int ResourceCount { get; set; }
         public decimal TotalAllocatedHours { get; set; }
+        public decimal TotalTaskHours { get; set; }
+
+        [Obsolete("Use PlannedValuePV")]
+        public decimal EstimatedLaborCost => PlannedValuePV;
     }
 
     public class UserUtilizationDto

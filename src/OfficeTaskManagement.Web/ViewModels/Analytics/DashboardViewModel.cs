@@ -236,7 +236,19 @@ namespace OfficeTaskManagement.ViewModels.Analytics
     public class CostTrackingMetric
     {
         public string ProjectName { get; set; } = string.Empty;
-        public decimal EstimatedCost { get; set; }
+        
+        /// <summary>Cost based on high-level resource allocations (PV).</summary>
+        public decimal PlannedValuePV { get; set; }
+        
+        /// <summary>Cost based on individual task estimates (Bottom-up EAC).</summary>
+        public decimal BottomUpEstimateEAC { get; set; }
+        
+        public decimal TotalTaskHours { get; set; }
+        
+        public decimal CostVariance => PlannedValuePV - BottomUpEstimateEAC;
+
+        [Obsolete("Use PlannedValuePV")]
+        public decimal EstimatedCost => PlannedValuePV;
     }
 
     public class BenchResourceMetric

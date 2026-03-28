@@ -10,7 +10,10 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label">Task Completion</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Task Completion
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.TaskCompletion.ToString("F0")%</p>
         <div class="progress-bar">
             <div class="progress-fill" style="width: @Model.TaskCompletion%"></div>
@@ -40,7 +43,10 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-briefcase"></i></div>
-        <div class="metric-label">Current Workload</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Current Workload
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCurrentWorkload" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.CurrentWeekload.ToString("F1")</p>
         <div class="metric-subtext">hours of work</div>
     </div>

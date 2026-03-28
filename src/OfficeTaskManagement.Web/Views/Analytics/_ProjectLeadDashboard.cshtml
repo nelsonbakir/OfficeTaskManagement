@@ -10,7 +10,10 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label">Project Completion</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Project Completion
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.ProjectCompletion.ToString("F0")%</p>
         <div class="progress-bar">
             <div class="progress-fill" style="width: @Model.ProjectCompletion%"></div>
@@ -26,7 +29,10 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
-        <div class="metric-label">In Progress</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            In Progress
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoInProgressTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.InProgressTasks</p>
         <div class="metric-subtext">@Model.TotalTasks total tasks</div>
     </div>
@@ -40,7 +46,10 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-ban"></i></div>
-        <div class="metric-label">Blocked Tasks</div>
+        <div class="metric-label d-flex justify-content-between align-items-center">
+            Blocked Tasks
+            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoBlockedTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value" style="color: #E81123;">@Model.BlockedTasks</p>
         <div class="metric-subtext">need attention</div>
     </div>

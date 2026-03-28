@@ -662,12 +662,14 @@ namespace OfficeTaskManagement.Controllers
 
             foreach (var row in await _resourceService.GetProjectCostReportAsync())
             {
-                if (row.EstimatedLaborCost > 0)
+                if (row.PlannedValuePV > 0 || row.BottomUpEstimateEAC > 0)
                 {
                     vm.ProjectCosts.Add(new CostTrackingMetric
                     {
                         ProjectName = row.ProjectName,
-                        EstimatedCost = row.EstimatedLaborCost
+                        PlannedValuePV = row.PlannedValuePV,
+                        BottomUpEstimateEAC = row.BottomUpEstimateEAC,
+                        TotalTaskHours = row.TotalTaskHours
                     });
                 }
             }
