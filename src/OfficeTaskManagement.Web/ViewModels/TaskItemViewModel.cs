@@ -18,5 +18,16 @@ namespace OfficeTaskManagement.ViewModels
         public SelectList? UserStoriesList { get; set; }
         public MultiSelectList? AreasList { get; set; }
         public List<int> SelectedAreaIds { get; set; } = new List<int>();
+
+        // ── RACI Workflow ────────────────────────────────────────────────────
+        /// <summary>Workflow template (Fragnet) options for PM to assign on task creation.</summary>
+        public SelectList? WorkflowTemplatesList { get; set; }
+
+        /// <summary>The template ID selected by the PM. If set, the engine spawns stage sub-tasks.</summary>
+        public int? SelectedWorkflowTemplateId { get; set; }
+
+        /// <summary>Accountable user options (PM/Lead who owns the work package outcome).</summary>
+        public SelectList? AccountableUsersList { get; set; }
+        // ─────────────────────────────────────────────────────────────────────
     }
 }

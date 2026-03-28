@@ -21,6 +21,13 @@ namespace OfficeTaskManagement.Models
         public string ExpectedResult { get; set; } = string.Empty;
 
         public bool IsAutomated { get; set; } = false;
+
+        /// <summary>Set by the QA Responsible party after execution. Required by the QA Stage Gate.</summary>
+        public bool IsPassed { get; set; } = false;
+
+        /// <summary>Actual result recorded by QA during test execution.</summary>
+        public string? ActualResult { get; set; }
+
         public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
     }
 }

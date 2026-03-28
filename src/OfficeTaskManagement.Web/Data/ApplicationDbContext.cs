@@ -25,6 +25,11 @@ namespace OfficeTaskManagement.Data
         public DbSet<TestCase> TestCases { get; set; }
         public DbSet<PortfolioDecision> PortfolioDecisions { get; set; }
 
+        // ── Workflow Engine (RACI) ───────────────────────────────────────────
+        public DbSet<WorkflowTemplate> WorkflowTemplates { get; set; }
+        public DbSet<WorkflowStage> WorkflowStages { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
         // ── Resource Management ──────────────────────────────────────────────
         public DbSet<ResourceProfile> ResourceProfiles { get; set; }
         public DbSet<ResourceSkill> ResourceSkills { get; set; }
@@ -198,6 +203,38 @@ namespace OfficeTaskManagement.Data
                 .WithMany()
                 .HasForeignKey(t => t.PausedById)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ── RACI Workflow Engine Relationships ───────────────────────────
+
+            // TaskItem → WorkflowStage (the stage this sub-task represents)
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.WorkflowStage)
+                .WithMany()
+                .HasForeignKey(t => t.WorkflowStageId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // TaskItem → AccountableUser (the A in RACI — fixed for the work package lifetime)
+            builder.Entity<TaskItem>()
+                .HasOne(t => t.AccountableUser)
+                .WithMany()
+                .HasForeignKey(t => t.AccountableUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // WorkflowTemplate → Project (optional project scoping)
+            builder.Entity<WorkflowTemplate>()
+                .HasOne(wt => wt.Project)
+                .WithMany()
+                .HasForeignKey(wt => wt.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // WorkflowStage → WorkflowTemplate
+            builder.Entity<WorkflowStage>()
+                .HasOne(ws => ws.WorkflowTemplate)
+                .WithMany(wt => wt.Stages)
+                .HasForeignKey(ws => ws.WorkflowTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ────────────────────────────────────────────────────────────────
 
             // Configure Project StrategicStatusChangedBy relationship
             builder.Entity<Project>()

@@ -1,0 +1,479 @@
+@model OfficeTaskManagement.Services.WorkflowEngine.WorkPackageSummary
+@using OfficeTaskManagement.Models
+@using OfficeTaskManagement.Models.Enums
+
+@{
+    ViewData["Title"] = "Work Package — " + Model.ParentTaskTitle;
+    var parent = ViewBag.ParentTask as TaskItem;
+    var gateError = TempData["GateError"] as string;
+    var success = TempData["Success"] as string;
+    var error = TempData["Error"] as string;
+}
+
+<style>
+    .wp-hero {
+        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        border-radius: 16px;
+        padding: 2rem 2.5rem;
+        color: #fff;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .wp-hero::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 220px; height: 220px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.04);
+    }
+    .raci-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .raci-r { background: rgba(13,110,253,0.12); color: #0d6efd; border: 1px solid rgba(13,110,253,0.3); }
+    .raci-a { background: rgba(220,53,69,0.12); color: #dc3545; border: 1px solid rgba(220,53,69,0.3); }
+    .stage-row {
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
+        background: #fff;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
+        transition: box-shadow 0.2s;
+        position: relative;
+    }
+    .stage-row:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.07); }
+    .stage-row.active-stage { border-left: 4px solid #0d6efd; background: #f8fbff; }
+    .stage-row.done-stage { border-left: 4px solid #198754; background: #f8fdf9; opacity: 0.85; }
+    .stage-row.pending-stage { border-left: 4px solid #dee2e6; opacity: 0.7; }
+    .stage-icon {
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem; flex-shrink: 0;
+    }
+    .stage-connector {
+        width: 2px; height: 20px;
+        background: linear-gradient(180deg, #dee2e6, #0d6efd22);
+        margin: 0 auto;
+    }
+    .pert-table td, .pert-table th {
+        font-size: 0.82rem;
+        vertical-align: middle;
+    }
+    .variance-positive { color: #dc3545; font-weight: 600; }
+    .variance-zero { color: #198754; font-weight: 600; }
+    .audit-row td { font-size: 0.8rem; }
+    .audit-row .badge { font-size: 0.68rem; }
+    .stat-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e9ecef;
+        padding: 1.25rem;
+        text-align: center;
+    }
+    .stat-card .stat-val { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .stat-card .stat-label { font-size: 0.75rem; color: #6c757d; margin-top: 4px; }
+    .progress-arc {
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+</style>
+
+<div class="container-fluid py-4">
+
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>@success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(gateError))
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fas fa-shield-alt me-2"></i><strong>Stage Gate Not Passed:</strong> @gateError
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(error))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>@error
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Hero Header -->
+    <div class="wp-hero mb-4">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-white text-dark fw-semibold" style="font-size:0.75rem;">
+                        <i class="fas fa-sitemap me-1"></i> Work Package
+                    </span>
+                    <span class="badge bg-white bg-opacity-20 text-white" style="font-size:0.7rem;">
+                        #@parent?.Id
+                    </span>
+                </div>
+                <h1 class="mb-1 fw-bold" style="font-size: 1.6rem;">@Model.ParentTaskTitle</h1>
+                <div class="d-flex flex-wrap gap-3 mt-2" style="font-size: 0.83rem; opacity: 0.85;">
+                    <span><i class="fas fa-shield-alt me-1"></i> Accountable: <strong>@(parent?.AccountableUser?.FullName ?? parent?.CreatedBy?.FullName ?? "—")</strong></span>
+                    <span><i class="fas fa-folder me-1"></i> @(parent?.Project?.Name ?? "No Project")</span>
+                    <span><i class="fas fa-tag me-1"></i> @parent?.Type</span>
+                    <span><i class="fas fa-flag me-1"></i> @parent?.Priority</span>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@parent?.Id"
+                   class="btn btn-light btn-sm">
+                    <i class="fas fa-eye me-1"></i> View Task
+                </a>
+                <a asp-controller="TaskItems" asp-action="Edit" asp-route-id="@parent?.Id"
+                   class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-edit me-1"></i> Edit
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Summary Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-val text-primary">@Model.TotalPertEstimatedHours.ToString("F1")h</div>
+                <div class="stat-label">PERT Baseline</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-val @(Model.TotalActualHours > 0 ? "text-dark" : "text-muted")">
+                    @Model.TotalActualHours.ToString("F1")h
+                </div>
+                <div class="stat-label">Actual Hours Logged</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                @{
+                    var variance = Model.EffortVarianceHours;
+                    var varClass = variance > 0 ? "variance-positive" : "variance-zero";
+                    var varIcon = variance > 0 ? "fas fa-arrow-up" : "fas fa-check";
+                }
+                <div class="stat-val @varClass">
+                    <i class="@varIcon" style="font-size:1.2rem;"></i> @Math.Abs(variance).ToString("F1")h
+                </div>
+                <div class="stat-label">@(variance > 0 ? "Over Budget" : "On Budget")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                @{
+                    var done = Model.Stages.Count(s => s.Status == "Done");
+                    var total = Model.Stages.Count;
+                    var pct = total > 0 ? (done * 100 / total) : 0;
+                }
+                <div class="stat-val @(pct == 100 ? "text-success" : "text-warning")">@pct%</div>
+                <div class="stat-label">@done / @total Stages Complete</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left: RACI Pipeline -->
+        <div class="col-lg-7">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="fw-bold mb-0">
+                    <i class="fas fa-project-diagram text-primary me-2"></i>RACI Stage Pipeline
+                </h5>
+                @if (User.IsInRole("Manager") || User.IsInRole("Project Coordinator") || User.IsInRole("Project Lead"))
+                {
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#applyTemplatePanel">
+                        <i class="fas fa-plus me-1"></i> Apply / Change Template
+                    </button>
+                }
+            </div>
+
+            <!-- Apply Template Collapse (PM only) -->
+            @if (User.IsInRole("Manager") || User.IsInRole("Project Coordinator") || User.IsInRole("Project Lead"))
+            {
+                <div class="collapse mb-3" id="applyTemplatePanel">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <form asp-controller="WorkflowTemplates" asp-action="ApplyTemplate" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="taskId" value="@parent?.Id" />
+                                <label class="form-label fw-semibold">Select Workflow Template (Fragnet)</label>
+                                <select name="templateId" id="templateId" class="form-select form-select-sm mb-2" required>
+                                    <option value="">— Choose a pipeline template —</option>
+                                    @{
+                                        var templates = ViewBag.Templates as IEnumerable<WorkflowTemplate>;
+                                        if (templates != null)
+                                        {
+                                            foreach (var t in templates)
+                                            {
+                                                <option value="@t.Id">
+                                                    @t.Name @(t.ProjectId == null ? "(Global)" : "(Project-Specific)")
+                                                    — @t.Stages.Count stage(s)
+                                                </option>
+                                            }
+                                        }
+                                    }
+                                </select>
+                                <div class="alert alert-warning py-2 mb-2" style="font-size:0.82rem;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Applying a template will <strong>replace</strong> any existing workflow sub-tasks.
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-play me-1"></i> Apply Pipeline
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (!Model.Stages.Any())
+            {
+                <div class="text-center py-5 text-muted border rounded-3" style="background:#fafafa;">
+                    <i class="fas fa-project-diagram fa-3x mb-3 opacity-25"></i>
+                    <p class="fw-semibold">No workflow pipeline assigned yet.</p>
+                    <p style="font-size:0.85rem;">Apply a Workflow Template above to spawn stage sub-tasks for this work package.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var stage in Model.Stages.OrderBy(s => s.StageOrder))
+                {
+                    var isActive = stage.Status == "ToDo" || stage.Status == "InProgress" || stage.Status == "Committed";
+                    var isDone = stage.Status == "Done";
+                    var rowClass = isDone ? "done-stage" : isActive ? "active-stage" : "pending-stage";
+
+                    var iconBg = isDone ? "#19875415" : isActive ? "#0d6efd15" : "#f8f9fa";
+                    var iconColor = isDone ? "#198754" : isActive ? "#0d6efd" : "#adb5bd";
+                    var iconName = isDone ? "fa-check-circle" : isActive ? "fa-spinner fa-spin" : "fa-clock";
+
+                    <div class="stage-row @rowClass">
+                        <div class="d-flex align-items-start gap-3">
+                            <!-- Stage Icon -->
+                            <div class="stage-icon" style="background:@iconBg;">
+                                <i class="fas @iconName" style="color:@iconColor;"></i>
+                            </div>
+                            <!-- Stage Details -->
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                                    <span class="fw-bold" style="font-size:0.95rem;">
+                                        @stage.StageOrder. @stage.StageName
+                                    </span>
+                                    <span class="raci-badge raci-r">R: @stage.DefaultRoleTitle</span>
+                                    <span class="badge bg-light text-secondary border" style="font-size:0.68rem;">@stage.Status</span>
+                                </div>
+                                <div style="font-size:0.8rem; color:#6c757d;">
+                                    Assignee: <strong>@(stage.AssigneeName ?? "— Unassigned —")</strong>
+                                    &nbsp;·&nbsp; Time in Status: <strong>@stage.TimeInStatusHours.ToString("F0")h</strong>
+                                </div>
+                                <!-- PERT Mini Strip -->
+                                <div class="d-flex gap-3 mt-2 flex-wrap" style="font-size:0.78rem;">
+                                    <span class="text-muted">O: <strong>@(stage.OptimisticHours?.ToString("F1") ?? "—")h</strong></span>
+                                    <span class="text-muted">M: <strong>@(stage.MostLikelyHours?.ToString("F1") ?? "—")h</strong></span>
+                                    <span class="text-muted">P: <strong>@(stage.PessimisticHours?.ToString("F1") ?? "—")h</strong></span>
+                                    <span class="text-primary fw-semibold">PERT: @(stage.PertHours?.ToString("F1") ?? "—")h</span>
+                                    <span class="@(stage.VarianceHours > 0 ? "text-danger" : "text-success") fw-semibold">
+                                        Actual: @(stage.ActualHours?.ToString("F1") ?? "—")h
+                                        @if (stage.ActualHours.HasValue && stage.PertHours.HasValue)
+                                        {
+                                            <span>(Δ @stage.VarianceHours.ToString("+0.1;-0.1;0")h)</span>
+                                        }
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- Gate Transition Button -->
+                            @if (isActive && (User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator")))
+                            {
+                                <div>
+                                    @{
+                                        var stageSubTaskId = ViewBag.StageSubTaskIds != null
+                                            ? ((Dictionary<int, int>)ViewBag.StageSubTaskIds).GetValueOrDefault(stage.StageOrder)
+                                            : 0;
+                                    }
+                                    @if (stageSubTaskId > 0)
+                                    {
+                                        <form asp-controller="WorkflowTemplates" asp-action="TransitionStage" method="post">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="subTaskId" value="@stageSubTaskId" />
+                                            <input type="hidden" name="parentTaskId" value="@parent?.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                    onclick="return confirm('Trigger stage gate check and pass to next stage?');">
+                                                <i class="fas fa-arrow-right me-1"></i> Pass Gate
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @if (stage != Model.Stages.OrderBy(s => s.StageOrder).Last())
+                    {
+                        <div class="stage-connector mb-1"></div>
+                    }
+                }
+            }
+        </div>
+
+        <!-- Right: PERT Table + Audit Trail -->
+        <div class="col-lg-5">
+
+            <!-- PERT Estimation Summary Table -->
+            <h5 class="fw-bold mb-3">
+                <i class="fas fa-calculator text-success me-2"></i>PERT Estimation Summary
+            </h5>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-0">
+                    <table class="table pert-table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Stage</th>
+                                <th class="text-center">O</th>
+                                <th class="text-center">M</th>
+                                <th class="text-center">P</th>
+                                <th class="text-center text-primary">PERT</th>
+                                <th class="text-center">Actual</th>
+                                <th class="text-center">Δ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.Stages.OrderBy(x => x.StageOrder))
+                            {
+                                <tr>
+                                    <td><span class="fw-semibold">@s.StageName</span><br/><small class="text-muted">@s.DefaultRoleTitle</small></td>
+                                    <td class="text-center text-muted">@(s.OptimisticHours?.ToString("F0") ?? "—")</td>
+                                    <td class="text-center text-muted">@(s.MostLikelyHours?.ToString("F0") ?? "—")</td>
+                                    <td class="text-center text-muted">@(s.PessimisticHours?.ToString("F0") ?? "—")</td>
+                                    <td class="text-center fw-bold text-primary">@(s.PertHours?.ToString("F1") ?? "—")</td>
+                                    <td class="text-center">@(s.ActualHours?.ToString("F1") ?? "—")</td>
+                                    <td class="text-center @(s.VarianceHours > 0 ? "text-danger" : "text-success")">
+                                        @if (s.ActualHours.HasValue && s.PertHours.HasValue)
+                                        {
+                                            @s.VarianceHours.ToString("+0.1;-0.1;0.0")
+                                        }
+                                        else { <span class="text-muted">—</span> }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="4">Total Work Package</td>
+                                <td class="text-center text-primary">@Model.TotalPertEstimatedHours.ToString("F1")</td>
+                                <td class="text-center">@(Model.TotalActualHours > 0 ? Model.TotalActualHours.ToString("F1") : "—")</td>
+                                <td class="text-center @(Model.EffortVarianceHours > 0 ? "text-danger" : "text-success")">
+                                    @(Model.TotalActualHours > 0 ? Model.EffortVarianceHours.ToString("+0.1;-0.1;0.0") : "—")
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RACI Matrix Summary -->
+            <h5 class="fw-bold mb-3">
+                <i class="fas fa-users text-info me-2"></i>RACI Matrix
+            </h5>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <table class="table table-sm mb-0" style="font-size:0.82rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Stage</th>
+                                <th class="text-center"><span class="raci-badge raci-r">R</span></th>
+                                <th class="text-center"><span class="raci-badge raci-a">A</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.Stages.OrderBy(x => x.StageOrder))
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@s.StageName</td>
+                                    <td class="text-center">@(s.AssigneeName ?? "Unassigned")</td>
+                                    <td class="text-center text-muted">@(parent?.AccountableUser?.FullName ?? parent?.CreatedBy?.FullName ?? "—")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Structured Audit Trail -->
+            <h5 class="fw-bold mb-3">
+                <i class="fas fa-history text-warning me-2"></i>Audit Trail
+            </h5>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    @if (parent?.History != null && parent.History.Any())
+                    {
+                        <table class="table table-sm mb-0 audit-row">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>When</th>
+                                    <th>Actor</th>
+                                    <th>Field</th>
+                                    <th>Change</th>
+                                    <th>Role</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var h in parent.History.OrderByDescending(h => h.Timestamp).Take(20))
+                                {
+                                    <tr>
+                                        <td class="text-nowrap text-muted">@h.Timestamp.ToString("dd MMM HH:mm")</td>
+                                        <td>@(h.ChangedBy?.FullName ?? h.ChangedBy?.UserName ?? "System")</td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(h.FieldChanged))
+                                            { <code style="font-size:0.72rem;">@h.FieldChanged</code> }
+                                            else { <span class="text-muted">—</span> }
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(h.OldValue) || !string.IsNullOrEmpty(h.NewValue))
+                                            {
+                                                <span class="text-muted">@(h.OldValue ?? "—")</span>
+                                                <i class="fas fa-arrow-right mx-1 text-muted" style="font-size:0.65rem;"></i>
+                                                <span class="text-dark">@(h.NewValue ?? "—")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted" style="font-size:0.78rem;">@h.ChangeDescription</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (h.RaciRoleAtTime.HasValue)
+                                            {
+                                                var roleClass = h.RaciRoleAtTime == RaciRole.Responsible ? "raci-r" : "raci-a";
+                                                <span class="raci-badge @roleClass">@h.RaciRoleAtTime</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted" style="font-size:0.85rem;">
+                            <i class="fas fa-history opacity-25 fa-2x mb-2 d-block"></i>
+                            No audit entries yet.
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

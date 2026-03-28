@@ -1,0 +1,246 @@
+@model OfficeTaskManagement.Models.WorkflowTemplate
+@using OfficeTaskManagement.Models.Enums
+@{
+    ViewData["Title"] = Model.Id == 0 ? "New Workflow Template" : $"Edit Template — {Model.Name}";
+    var isNew = Model.Id == 0;
+    var stages = Model.Stages?.OrderBy(s => s.Order).ToList() ?? new List<OfficeTaskManagement.Models.WorkflowStage>();
+    var success = TempData["Success"] as string;
+}
+
+<style>
+    .stage-item {
+        border-radius: 10px;
+        border: 1px solid #e9ecef;
+        background: #fff;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .stage-order-badge {
+        width: 32px; height: 32px;
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        color: #fff;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.8rem; font-weight: 700;
+        flex-shrink: 0;
+    }
+    .dep-tag {
+        font-size: 0.72rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #e9ecef;
+        color: #495057;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    @if (!string.IsNullOrEmpty(success))
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fas fa-check-circle me-2"></i>@success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Templates
+        </a>
+        <div>
+            <h2 class="fw-bold mb-0">@ViewData["Title"]</h2>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">
+                Define the Fragnet pipeline — ordered RACI stages that auto-spawn as sub-tasks.
+            </p>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Template Settings -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom fw-bold py-3">
+                    <i class="fas fa-cogs text-primary me-2"></i>Template Settings
+                </div>
+                <div class="card-body">
+                    <form asp-action="@(isNew ? "Create" : "Edit")" method="post">
+                        @Html.AntiForgeryToken()
+                        @if (!isNew)
+                        {
+                            <input type="hidden" asp-for="Id" />
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Template Name <span class="text-danger">*</span></label>
+                            <input asp-for="Name" class="form-control" placeholder="e.g. Standard Dev Pipeline" required />
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="2"
+                                      placeholder="Brief description of when to use this template..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Project Scope</label>
+                            <select asp-for="ProjectId" asp-items="ViewBag.Projects" class="form-select">
+                                <option value="">— Global (all projects) —</option>
+                            </select>
+                            <div class="form-text">Leave blank to make this template available across all projects.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Applicable Task Type</label>
+                            <select asp-for="ApplicableTaskType" class="form-select">
+                                <option value="">— All Task Types —</option>
+                                @foreach (var tt in ViewBag.TaskTypes as IEnumerable<dynamic> ?? new List<dynamic>())
+                                {
+                                    <option value="@tt.Value">@tt.Text</option>
+                                }
+                            </select>
+                            <div class="form-text">Optional. Restrict this template to a specific task type (e.g., Bug, Enhancement).</div>
+                        </div>
+
+                        <div class="mb-3 form-check form-switch">
+                            <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" />
+                            <label class="form-check-label fw-semibold" asp-for="IsActive">Active (visible for assignment)</label>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-1"></i> @(isNew ? "Create Template" : "Save Changes")
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stage Management -->
+        <div class="col-lg-7">
+            @if (!isNew)
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+                        <span class="fw-bold">
+                            <i class="fas fa-list-ol text-success me-2"></i>
+                            Pipeline Stages (@stages.Count)
+                        </span>
+                        <span class="text-muted" style="font-size:0.8rem;">Order = execution sequence (lower = first)</span>
+                    </div>
+                    <div class="card-body">
+                        @if (!stages.Any())
+                        {
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-layer-group fa-2x opacity-25 mb-2 d-block"></i>
+                                No stages yet. Add your first stage below.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var s in stages)
+                            {
+                                <div class="stage-item">
+                                    <div class="stage-order-badge">@s.Order</div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold" style="font-size:0.95rem;">@s.Name</div>
+                                        <div class="d-flex flex-wrap gap-2 mt-1">
+                                            <span class="dep-tag">@s.DefaultRoleTitle</span>
+                                            <span class="dep-tag"><i class="fas fa-link me-1"></i>@s.DependencyType</span>
+                                            @if (s.LagHours != 0)
+                                            {
+                                                <span class="dep-tag">Lag: @s.LagHours h</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(s.DefinitionOfDone))
+                                        {
+                                            <div class="text-muted mt-1" style="font-size:0.78rem;">
+                                                <i class="fas fa-check-circle text-success me-1"></i>@s.DefinitionOfDone
+                                            </div>
+                                        }
+                                    </div>
+                                    <form asp-action="DeleteStage" method="post" onsubmit="return confirm('Remove stage \'@s.Name\'?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="stageId" value="@s.Id" />
+                                        <input type="hidden" name="templateId" value="@Model.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                <!-- Add Stage Form -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white border-bottom fw-bold py-3">
+                        <i class="fas fa-plus-circle text-primary me-2"></i>Add Stage
+                    </div>
+                    <div class="card-body">
+                        <form asp-action="AddStage" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="templateId" value="@Model.Id" />
+
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Stage Name <span class="text-danger">*</span></label>
+                                    <input name="name" class="form-control" placeholder="e.g. Code Review" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Role Title <span class="text-danger">*</span></label>
+                                    <input name="defaultRoleTitle" class="form-control" placeholder="e.g. Tech Lead" required />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Order</label>
+                                    <input name="order" type="number" class="form-control" value="@(stages.Count + 1)" min="1" required />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Lag (hours)</label>
+                                    <input name="lagHours" type="number" step="0.5" class="form-control" value="0" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">RACI Role</label>
+                                    <select name="raciRole" class="form-select">
+                                        @foreach (var r in ViewBag.RaciRoles as IEnumerable<dynamic> ?? new List<dynamic>())
+                                        {
+                                            <option value="@r.Value">@r.Text</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Dependency</label>
+                                    <select name="dependencyType" class="form-select">
+                                        @foreach (var d in ViewBag.DependencyTypes as IEnumerable<dynamic> ?? new List<dynamic>())
+                                        {
+                                            <option value="@d.Value">@d.Text</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Definition of Done</label>
+                                    <textarea name="definitionOfDone" class="form-control" rows="2"
+                                              placeholder="e.g. Status = Committed + actual hours logged + all tests passing"></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-plus me-1"></i> Add Stage to Pipeline
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Save the template first, then you can add pipeline stages.
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -9,6 +9,7 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Settings;
 using OfficeTaskManagement.Services;
+using OfficeTaskManagement.Services.WorkflowEngine;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
@@ -60,6 +61,10 @@ else
 // Resource Management Services
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<ICapacityPlanningService, CapacityPlanningService>();
+
+// Workflow Engine (RACI task lifecycle)
+builder.Services.AddScoped<StageGateService>();
+builder.Services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
 
 // In-process caching for heatmap and utilization data (15-min sliding window)
 builder.Services.AddMemoryCache();

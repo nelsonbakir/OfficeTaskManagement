@@ -1,0 +1,148 @@
+@model IEnumerable<OfficeTaskManagement.Models.WorkflowTemplate>
+@{
+    ViewData["Title"] = "Workflow Templates";
+}
+
+<style>
+    .template-card {
+        border-radius: 14px;
+        border: 1px solid #e9ecef;
+        background: #fff;
+        transition: box-shadow 0.2s, transform 0.2s;
+        overflow: hidden;
+    }
+    .template-card:hover {
+        box-shadow: 0 8px 30px rgba(0,0,0,0.09);
+        transform: translateY(-2px);
+    }
+    .template-header {
+        background: linear-gradient(135deg, #0f2027, #2c5364);
+        padding: 1.25rem 1.5rem;
+        color: #fff;
+    }
+    .global-badge {
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.25);
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .project-badge {
+        background: rgba(13,110,253,0.15);
+        color: #0d6efd;
+        border: 1px solid rgba(13,110,253,0.25);
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+    .stage-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 20px;
+        padding: 3px 10px;
+        font-size: 0.75rem;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h2 class="fw-bold mb-0">
+                <i class="fas fa-project-diagram text-primary me-2"></i>Workflow Templates
+            </h2>
+            <p class="text-muted mb-0" style="font-size:0.88rem;">
+                Manage RACI pipeline Fragnets — reusable, ordered stage sequences applied to tasks.
+            </p>
+        </div>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Template
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-project-diagram fa-4x mb-3 opacity-15"></i>
+            <h5 class="fw-bold">No workflow templates yet.</h5>
+            <p>Create your first Fragnet pipeline to power the RACI task lifecycle.</p>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Create First Template
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var t in Model)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <div class="template-card h-100">
+                        <div class="template-header">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div>
+                                    <span class="@(t.ProjectId == null ? "global-badge" : "project-badge") mb-2 d-inline-block">
+                                        <i class="fas @(t.ProjectId == null ? "fa-globe" : "fa-folder") me-1"></i>
+                                        @(t.ProjectId == null ? "Global" : t.Project?.Name)
+                                    </span>
+                                    <h5 class="fw-bold mb-0 mt-1">@t.Name</h5>
+                                    @if (!string.IsNullOrEmpty(t.Description))
+                                    {
+                                        <p class="mb-0 mt-1" style="font-size:0.8rem; opacity:0.75;">@t.Description</p>
+                                    }
+                                </div>
+                                @if (!t.IsActive)
+                                {
+                                    <span class="badge bg-warning text-dark" style="font-size:0.68rem;">Inactive</span>
+                                }
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <!-- Stages Preview -->
+                            @if (t.Stages.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-2 mb-3">
+                                    @foreach (var s in t.Stages.OrderBy(s => s.Order))
+                                    {
+                                        <span class="stage-pill">
+                                            <span class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                  style="width:16px;height:16px;font-size:0.6rem;">@s.Order</span>
+                                            @s.Name
+                                        </span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <p class="text-muted" style="font-size:0.82rem;">No stages defined yet.</p>
+                            }
+                            @if (t.ApplicableTaskType.HasValue)
+                            {
+                                <div class="text-muted mb-3" style="font-size:0.78rem;">
+                                    <i class="fas fa-tag me-1"></i> Applies to: <strong>@t.ApplicableTaskType</strong>
+                                </div>
+                            }
+                            <div class="d-flex gap-2">
+                                <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-outline-primary flex-grow-1">
+                                    <i class="fas fa-edit me-1"></i> Edit / Manage Stages
+                                </a>
+                                <form asp-action="Delete" method="post" onsubmit="return confirm('Delete \'@t.Name\'?');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

@@ -14,6 +14,7 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.ViewModels;
 using OfficeTaskManagement.Services;
+using OfficeTaskManagement.Services.WorkflowEngine;
 using TaskStatus = OfficeTaskManagement.Models.Enums.TaskStatus;
 
 namespace OfficeTaskManagement.Controllers
@@ -25,13 +26,15 @@ namespace OfficeTaskManagement.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IMediaService _mediaService;
         private readonly IResourceService _resourceService;
+        private readonly IWorkflowEngineService _workflowEngine;
 
-        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService, IResourceService resourceService)
+        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService, IResourceService resourceService, IWorkflowEngineService workflowEngine)
         {
             _context = context;
             _env = env;
             _mediaService = mediaService;
             _resourceService = resourceService;
+            _workflowEngine = workflowEngine;
         }
 
         // GET: TaskItems
@@ -48,6 +51,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.Feature)
                 .Include(t => t.UserStory)
                 .Include(t => t.Areas)
+                .Include(t => t.SubTasks)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -96,6 +100,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.SubTasks)
                 .Include(t => t.UserStory)
                 .Include(t => t.Areas)
+                .Include(t => t.AccountableUser)
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -132,7 +137,9 @@ namespace OfficeTaskManagement.Controllers
                 FeaturesList = new SelectList(new List<Feature>(), "Id", "Name"), // Initially empty
                 UserStoriesList = new SelectList(new List<UserStory>(), "Id", "Title"), // Initially empty
                 AreasList = new MultiSelectList(_context.Areas, "Id", "Name"),
-                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title")
+                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title"),
+                WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name"),
+                AccountableUsersList = new SelectList(_context.Users, "Id", "Email")
             };
             return View(vm);
         }
@@ -150,6 +157,17 @@ namespace OfficeTaskManagement.Controllers
                 // Normalize date times to UTC to satisfy PostgreSQL timestamptz requirements
                 vm.TaskItem.StartDate = EnsureUtc(vm.TaskItem.StartDate);
                 vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
+
+                if (vm.TaskItem.EstimatedOptimisticHours.HasValue ||
+                    vm.TaskItem.EstimatedMostLikelyHours.HasValue ||
+                    vm.TaskItem.EstimatedPessimisticHours.HasValue)
+                {
+                    decimal o = vm.TaskItem.EstimatedOptimisticHours ?? 0;
+                    decimal m = vm.TaskItem.EstimatedMostLikelyHours ?? 0;
+                    decimal p = vm.TaskItem.EstimatedPessimisticHours ?? 0;
+                    vm.TaskItem.PertEstimatedHours = _workflowEngine.CalculatePert(o, m, p);
+                    vm.TaskItem.EstimatedHours = vm.TaskItem.PertEstimatedHours.Value;
+                }
 
                 _context.Add(vm.TaskItem);
 
@@ -178,6 +196,11 @@ namespace OfficeTaskManagement.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                if (vm.SelectedWorkflowTemplateId.HasValue)
+                {
+                    await _workflowEngine.SpawnWorkflowSubTasksAsync(vm.TaskItem.Id, vm.SelectedWorkflowTemplateId.Value);
+                }
 
                 // Check for over-allocation
                 if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
@@ -248,6 +271,8 @@ namespace OfficeTaskManagement.Controllers
             vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
             vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+            vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+            vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
             return View(vm);
         }
 
@@ -278,7 +303,9 @@ namespace OfficeTaskManagement.Controllers
                 UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == taskItem.FeatureId), "Id", "Title", taskItem.UserStoryId),
                 AreasList = new MultiSelectList(_context.Areas, "Id", "Name", taskItem.Areas.Select(a => a.Id)),
                 SelectedAreaIds = taskItem.Areas.Select(a => a.Id).ToList(),
-                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != taskItem.Id), "Id", "Title", taskItem.ParentTaskId)
+                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != taskItem.Id), "Id", "Title", taskItem.ParentTaskId),
+                WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name"),
+                AccountableUsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AccountableUserId)
             };
             
             // Explicitly load SubTasks for the view
@@ -351,6 +378,8 @@ namespace OfficeTaskManagement.Controllers
                         vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
                         vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                         vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                        vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                        vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
                         return View(vm);
                     }
                     
@@ -382,6 +411,8 @@ namespace OfficeTaskManagement.Controllers
                             vm.UserStoriesList = new SelectList(_context.UserStories, "Id", "Title", vm.TaskItem.UserStoryId);
                             vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
                             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                            vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                            vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
                             return View(vm);
                         }
                     }
@@ -448,6 +479,29 @@ namespace OfficeTaskManagement.Controllers
                     existingTask.ParentTaskId = vm.TaskItem.ParentTaskId;
                     existingTask.Type = vm.TaskItem.Type;
 
+                    existingTask.AccountableUserId = vm.TaskItem.AccountableUserId;
+                    existingTask.ActualHours = vm.TaskItem.ActualHours;
+
+                    if (existingTask.EstimatedOptimisticHours != vm.TaskItem.EstimatedOptimisticHours ||
+                        existingTask.EstimatedMostLikelyHours != vm.TaskItem.EstimatedMostLikelyHours ||
+                        existingTask.EstimatedPessimisticHours != vm.TaskItem.EstimatedPessimisticHours)
+                    {
+                        existingTask.EstimatedOptimisticHours = vm.TaskItem.EstimatedOptimisticHours;
+                        existingTask.EstimatedMostLikelyHours = vm.TaskItem.EstimatedMostLikelyHours;
+                        existingTask.EstimatedPessimisticHours = vm.TaskItem.EstimatedPessimisticHours;
+
+                        if (existingTask.EstimatedOptimisticHours.HasValue ||
+                            existingTask.EstimatedMostLikelyHours.HasValue ||
+                            existingTask.EstimatedPessimisticHours.HasValue)
+                        {
+                            decimal o = existingTask.EstimatedOptimisticHours ?? 0;
+                            decimal m = existingTask.EstimatedMostLikelyHours ?? 0;
+                            decimal p = existingTask.EstimatedPessimisticHours ?? 0;
+                            existingTask.PertEstimatedHours = _workflowEngine.CalculatePert(o, m, p);
+                            existingTask.EstimatedHours = existingTask.PertEstimatedHours.Value;
+                        }
+                    }
+
                     // Update Areas
                     existingTask.Areas.Clear();
                     if (vm.SelectedAreaIds != null)
@@ -510,6 +564,18 @@ namespace OfficeTaskManagement.Controllers
                     }
 
                     await _context.SaveChangesAsync();
+
+                    if (vm.SelectedWorkflowTemplateId.HasValue)
+                    {
+                        await _workflowEngine.SpawnWorkflowSubTasksAsync(existingTask.Id, vm.SelectedWorkflowTemplateId.Value);
+                        _context.TaskHistories.Add(new TaskHistory
+                        {
+                            TaskItemId = existingTask.Id,
+                            ChangedById = userId,
+                            ChangeDescription = "Workflow sub-tasks respawned from new template."
+                        });
+                        await _context.SaveChangesAsync();
+                    }
                     
                     // Check for over-allocation
                     if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
@@ -546,6 +612,8 @@ namespace OfficeTaskManagement.Controllers
             vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
             vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+            vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+            vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
             return View(vm);
         }
 

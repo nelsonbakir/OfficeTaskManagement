@@ -225,6 +225,12 @@
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <h1 style="font-size: 1.5rem; margin: 0;">Task Details</h1>
     <div>
+        @if (Model.SubTasks != null && Model.SubTasks.Any(st => st.WorkflowStageId != null))
+        {
+            <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@Model.Id" class="btn btn-info btn-sm me-2 text-white">
+                <i class="fas fa-project-diagram"></i> Work Package
+            </a>
+        }
         <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn btn-primary btn-sm me-2">
             <i class="fas fa-edit"></i> Edit
         </a>
@@ -422,7 +428,18 @@
             <div class="action-divider"></div>
 
             <div class="info-item">
-                <div class="info-label">Assigned To</div>
+                <div class="info-label">Accountable (A)</div>
+                @if (Model.AccountableUser != null) {
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="info-value fw-bold">@Model.AccountableUser.FullName</span>
+                    </div>
+                } else {
+                    <div style="color: #605E5C;">Unassigned</div>
+                }
+            </div>
+
+            <div class="info-item mt-2">
+                <div class="info-label">Assigned To (R)</div>
                 @if (Model.Assignee != null) {
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         @if (!string.IsNullOrEmpty(Model.Assignee.AvatarPath))
@@ -472,8 +489,14 @@
 
             @if (Model.EstimatedHours > 0) {
                 <div class="info-item mt-2">
-                    <div class="info-label">Effort</div>
-                    <div class="info-value">@Model.EstimatedHours hours</div>
+                    <div class="info-label">Baseline Effort (PERT)</div>
+                    <div class="info-value"><strong>@Model.EstimatedHours</strong> hrs</div>
+                </div>
+            }
+            @if (Model.ActualHours > 0) {
+                <div class="info-item mt-2 border-top pt-2">
+                    <div class="info-label text-success">Actual Logged</div>
+                    <div class="info-value text-success"><strong>@Model.ActualHours</strong> hrs</div>
                 </div>
             }
         </div>

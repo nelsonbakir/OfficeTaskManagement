@@ -294,6 +294,11 @@
                                             <i class="fas fa-level-up-alt"></i> Task-@task.ParentTaskId
                                         </span>
                                     }
+                                    @if(task.SubTasks != null && task.SubTasks.Any(st => st.WorkflowStageId != null)) {
+                                        <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@task.Id" class="badge bg-info text-white text-decoration-none ms-1" style="font-size: 0.7rem;" title="View Work Package Pipeline">
+                                            <i class="fas fa-project-diagram"></i> WP
+                                        </a>
+                                    }
                                 </div>
                                 @if (task.Areas != null && task.Areas.Any())
                                 {
@@ -371,6 +376,13 @@
                         }
                         @if(task.ParentTaskId.HasValue) {
                             <div class="small text-muted"><i class="fas fa-level-up-alt"></i> Sub-task of @task.ParentTaskId</div>
+                        }
+                        @if(task.SubTasks != null && task.SubTasks.Any(st => st.WorkflowStageId != null)) {
+                            <div class="mt-1">
+                                <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@task.Id" class="badge bg-info text-white text-decoration-none">
+                                    <i class="fas fa-project-diagram"></i> Work Package
+                                </a>
+                            </div>
                         }
                     </td>
                     <td>

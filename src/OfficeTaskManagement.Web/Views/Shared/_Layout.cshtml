@@ -152,6 +152,15 @@
                     </a>
                 </li>
             }
+            @if (User.IsInRole("Manager") || User.IsInRole("Project Coordinator") || User.IsInRole("Project Lead"))
+            {
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="WorkflowTemplates" asp-action="Index">
+                        <i class="fas fa-project-diagram"></i>
+                        <span>Workflow Templates</span>
+                    </a>
+                </li>
+            }
         </ul>
     </nav>
 

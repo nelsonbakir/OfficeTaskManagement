@@ -24,8 +24,49 @@ namespace OfficeTaskManagement.Models
 
         public bool IsBacklog { get; set; } = false;
 
-        // Efforts required in hours
+        // ── RACI Role Classification ─────────────────────────────────────────
+        /// <summary>
+        /// The RACI role this task represents in its workflow stage.
+        /// Sub-tasks spawned by the WorkflowEngine are always Responsible (R).
+        /// The parent task retains the Accountable (A) designation.
+        /// </summary>
+        public RaciRole RaciRole { get; set; } = RaciRole.Responsible;
+
+        /// <summary>FK to the WorkflowStage this sub-task represents. Null for standalone tasks.</summary>
+        public int? WorkflowStageId { get; set; }
+        public WorkflowStage? WorkflowStage { get; set; }
+
+        /// <summary>
+        /// The Accountable (A) person — typically the PM or Tech Lead.
+        /// Remains fixed for the lifetime of the work package even as the
+        /// Responsible (R) assignee changes between stages.
+        /// </summary>
+        public string? AccountableUserId { get; set; }
+        public User? AccountableUser { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
+        // ── Effort Estimation (PMP Three-Point / PERT) ───────────────────────
+        /// <summary>PM-approved baseline effort in hours (summed from stage PERT estimates).</summary>
         public decimal EstimatedHours { get; set; }
+
+        /// <summary>Optimistic estimate (O) from the Responsible party for this stage.</summary>
+        public decimal? EstimatedOptimisticHours { get; set; }
+
+        /// <summary>Most Likely estimate (M) from the Responsible party for this stage.</summary>
+        public decimal? EstimatedMostLikelyHours { get; set; }
+
+        /// <summary>Pessimistic estimate (P) from the Responsible party for this stage.</summary>
+        public decimal? EstimatedPessimisticHours { get; set; }
+
+        /// <summary>
+        /// PERT calculated estimate stored for reporting: (O + 4M + P) / 6.
+        /// Recomputed and persisted whenever O, M, or P values change.
+        /// </summary>
+        public decimal? PertEstimatedHours { get; set; }
+
+        /// <summary>Actual hours logged by the Responsible party upon stage completion.</summary>
+        public decimal? ActualHours { get; set; }
+        // ────────────────────────────────────────────────────────────────────
 
         // Starting date of the task
         public DateTime? StartDate { get; set; }
