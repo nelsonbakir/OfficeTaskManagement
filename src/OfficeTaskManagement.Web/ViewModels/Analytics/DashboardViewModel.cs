@@ -32,6 +32,9 @@ namespace OfficeTaskManagement.ViewModels.Analytics
         // Employee Dashboard Metrics
         public EmployeeDashboard? EmployeeMetrics { get; set; }
 
+        /// <summary>When true, the unified engagement/delivery/capacity/cost sections are shown below the role overview.</summary>
+        public bool IncludeUnifiedAnalytics { get; set; }
+
         // Resource Management Analytics
         public List<ResourceUtilizationMetric> TeamUtilization { get; set; } = new();
         public List<BenchResourceMetric> BenchResources { get; set; } = new();

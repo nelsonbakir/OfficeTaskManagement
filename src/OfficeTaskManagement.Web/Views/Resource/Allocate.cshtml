@@ -120,10 +120,12 @@
                     $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
                      .done(function(data) {
                          $('#availabilityCheckResult').fadeIn();
-                         
-                         var totalPct = data.currentAllocationPercent + allocPct;
-                         var html = `<p class='mb-1'>Current Allocation: <strong>${data.currentAllocationPercent}%</strong></p>`;
-                         html += `<p class='mb-1'>New Total: <strong>${totalPct}%</strong></p>`;
+                         var basePct = (data.effectiveAllocationPercent != null && data.effectiveAllocationPercent !== undefined)
+                             ? data.effectiveAllocationPercent
+                             : Math.max(data.currentAllocationPercent || 0, data.peakAllocationPercentInRange || 0);
+                         var totalPct = basePct + allocPct;
+                         var html = `<p class='mb-1'>Load in period (worst day): <strong>${basePct}%</strong></p>`;
+                         html += `<p class='mb-1'>New total with this allocation: <strong>${totalPct}%</strong></p>`;
                          
                          if(totalPct > 100) {
                              html += `<div class='alert alert-danger mt-2 py-2 mb-0 border-danger bg-danger text-white'><i class='bi bi-x-circle'></i> Warning: This pushes the user over 100% capacity.</div>`;

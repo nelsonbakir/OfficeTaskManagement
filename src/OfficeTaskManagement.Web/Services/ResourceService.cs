@@ -83,6 +83,39 @@ namespace OfficeTaskManagement.Services
         }
 
         /// <inheritdoc/>
+        public async Task<int> GetPeakAllocationPercentInRangeAsync(string userId, DateTime startDate, DateTime endDate)
+        {
+            var allocations = await _context.ProjectResourceAllocations
+                .Where(a => a.UserId == userId
+                         && a.StartDate.Date <= endDate.Date
+                         && (a.EndDate == null || a.EndDate.Value.Date >= startDate.Date))
+                .ToListAsync();
+
+            var holidays = await _context.PublicHolidays
+                .Where(h => h.Date.Date >= startDate.Date && h.Date.Date <= endDate.Date)
+                .Select(h => h.Date.Date)
+                .ToListAsync();
+
+            var peak = 0;
+            for (var day = startDate.Date; day <= endDate.Date; day = day.AddDays(1))
+            {
+                if (day.DayOfWeek == DayOfWeek.Friday || day.DayOfWeek == DayOfWeek.Saturday)
+                    continue;
+                if (holidays.Contains(day))
+                    continue;
+
+                var dayTotal = allocations
+                    .Where(a => a.StartDate.Date <= day && (a.EndDate == null || a.EndDate.Value.Date >= day))
+                    .Sum(a => a.AllocationPercentage);
+
+                if (dayTotal > peak)
+                    peak = (int)Math.Min(dayTotal, 500);
+            }
+
+            return peak;
+        }
+
+        /// <inheritdoc/>
         public async Task<bool> IsUserOverAllocatedAsync(string userId, DateTime startDate, DateTime endDate)
         {
             var allocations = await _context.ProjectResourceAllocations
@@ -122,6 +155,7 @@ namespace OfficeTaskManagement.Services
                 .Select(a => new AllocationSummaryItem
                 {
                     AllocationId = a.Id,
+                    ProjectId = a.ProjectId,
                     ProjectName = a.Project != null ? a.Project.Name : "(Unknown)",
                     AllocationPercentage = a.AllocationPercentage,
                     StartDate = a.StartDate,

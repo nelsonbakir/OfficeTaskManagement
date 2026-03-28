@@ -1,43 +1,24 @@
 @model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
-@using System.Text.Json
 
-@{
-    ViewData["Title"] = "Analytics Dashboard";
-
-    // Prepare data for charts
-    var velocityLabels = Model.Velocities.Select(v => v.SprintName).ToList();
-    var velocityData = Model.Velocities.Select(v => v.CompletedHours).ToList();
-
-    var burndownSprints = Model.Burndowns.Select(b => b.SprintName).Distinct().ToList();
-    var burndownDatasets = new List<object>();
-
-    foreach (var sprint in burndownSprints)
-    {
-        var dataPoints = Model.Burndowns.Where(b => b.SprintName == sprint).OrderBy(b => b.Date).ToList();
-        burndownDatasets.Add(new
-        {
-            label = sprint,
-            data = dataPoints.Select(d => d.RemainingHours).ToList(),
-            borderColor = "#" + Guid.NewGuid().ToString().Substring(0, 6),
-            fill = false
-        });
-    }
-
-    var sprintDates = Model.Burndowns.OrderBy(b => b.Date).Select(b => b.Date.ToShortDateString()).Distinct().ToList();
-}
-
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+<div id="unified-analytics" class="border-top pt-4 mt-4">
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
-        <h1 style="font-size: 1.75rem; font-weight: 600; color: #252424; margin-bottom: 0.25rem;">
-            <i class="fas fa-chart-pie text-primary me-2"></i> Project Analytics & Reports
-        </h1>
-        <p class="text-muted mb-0" style="font-size: 0.95rem;">Track team engagement, velocity, and sprint performance.</p>
+        <h2 class="h4 mb-1" style="font-weight: 600; color: #252424;">
+            <i class="fas fa-chart-pie text-primary me-2"></i> Analytics &amp; reports
+        </h2>
+        <p class="text-muted mb-0 small">Engagement, delivery, capacity, and cost — use the links to jump to a section.</p>
     </div>
+    <nav class="nav nav-pills flex-wrap gap-1 small" aria-label="Analytics sections">
+        <a class="nav-link py-1 px-2" href="#ua-engagement">Engagement</a>
+        <a class="nav-link py-1 px-2" href="#ua-delivery">Delivery</a>
+        <a class="nav-link py-1 px-2" href="#ua-capacity">Capacity</a>
+        <a class="nav-link py-1 px-2" href="#ua-cost">Cost</a>
+    </nav>
 </div>
 
 <div class="card mb-4" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
     <div class="card-body p-4">
-        <form asp-action="Reports" method="get">
+        <form asp-action="Index" method="get">
             <div class="row align-items-end g-3">
                 <div class="col-md-4">
                     <label for="assigneeId" style="font-weight: 600; color: #605E5C; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Employee</label>
@@ -65,7 +46,7 @@
                     <button type="submit" class="btn btn-primary" style="flex: 1;">
                         <i class="fas fa-filter"></i> Apply Filters
                     </button>
-                    <a asp-action="Reports" class="btn btn-outline-secondary">
+                    <a asp-action="Index" class="btn btn-outline-secondary">
                         <i class="fas fa-times"></i> Clear
                     </a>
                 </div>
@@ -74,6 +55,8 @@
     </div>
 </div>
 
+<!-- Engagement: table / calendar -->
+<section id="ua-engagement" class="scroll-mt-4">
 <!-- Tab Controls for Views -->
 <div class="d-flex mb-3 gap-2">
     <button type="button" class="btn btn-primary btn-sm view-toggle-btn active" id="btnShowTable">
@@ -165,7 +148,9 @@
         </div>
     </div>
 </div>
+</section>
 
+<section id="ua-delivery" class="scroll-mt-4">
 <div class="row">
     <!-- Burndown Chart -->
     <div class="col-md-6 mb-4">
@@ -217,8 +202,10 @@
         </div>
     </div>
 </div>
+</section>
 
 <!-- Resource Management Reports (Phase 6) -->
+<section id="ua-capacity" class="scroll-mt-4">
 <div class="row mt-4">
     <div class="col-12 mb-3">
         <h3 style="font-size: 1.5rem; font-weight: 600; color: #252424; margin-bottom: 0.25rem;">
@@ -377,13 +364,17 @@
             </div>
         </div>
     </div>
+</div>
+</section>
 
+<section id="ua-cost" class="scroll-mt-4">
+<div class="row">
     <!-- Project Costs -->
     <div class="col-md-6 mb-4">
         <div class="card h-100" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
             <div class="card-header pb-0" style="background: transparent; border-bottom: none; padding: 1.25rem 1.25rem 0.5rem;">
                 <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
-                    <i class="fas fa-money-bill-wave text-success me-2"></i> Est. Monthly Project Costs
+                    <i class="fas fa-money-bill-wave text-success me-2"></i> Est. Labour Cost (allocations)
                 </h4>
             </div>
             <div class="card-body" style="max-height: 250px; overflow-y: auto;">
@@ -421,253 +412,6 @@
         </div>
     </div>
 </div>
+</section>
 
-@section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
-
-    <style>
-        .fc {
-            font-family: inherit;
-            color: #252424;
-        }
-
-        .fc .fc-toolbar-title {
-            font-size: 1.25em;
-            font-weight: 600;
-        }
-
-        .fc .fc-button-primary {
-            background-color: #0078D4;
-            border-color: #0078D4;
-        }
-
-        .fc .fc-button-primary:hover {
-            background-color: #106EBE;
-            border-color: #106EBE;
-        }
-
-        .fc .fc-button-primary.fc-button-active {
-            background-color: #005A9E;
-            border-color: #005A9E;
-        }
-
-        .fc-event {
-            padding: 3px 5px !important;
-            border-radius: 4px;
-            border: none;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        .fc-event-title {
-            font-size: 0.8em;
-            font-weight: 500;
-        }
-
-        .fc-daygrid-day-number {
-            padding: 8px;
-            font-weight: 500;
-            color: #605E5C;
-        }
-
-        .fc-day-today {
-            background-color: #F0F6FF !important;
-        }
-
-        .fc-col-header-cell {
-            padding: 0.5rem 0;
-            background-color: #F8F8F8;
-            border-bottom: 2px solid #EDEBE9 !important;
-        }
-
-        .fc-col-header-cell-cushion {
-            color: #605E5C;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-    </style>
-
-    <script>
-        // Prepare engagement data for FullCalendar
-        const engagementData = @Html.Raw(JsonSerializer.Serialize(Model.Engagements.Select(e => new {
-            assigneeName = e.AssigneeName,
-            taskTitle = e.TaskTitle,
-            date = e.Date,
-            hours = e.Hours,
-            isToDo = e.IsToDo
-        }).ToList()));
-
-        // Transform data into FullCalendar events
-        const calendarEvents = engagementData.map((eng, index) => {
-            const dateObj = new Date(eng.date);
-            const endDate = new Date(dateObj);
-            endDate.setHours(endDate.getHours() + Math.ceil(eng.hours));
-
-            return {
-                id: `event-${index}`,
-                title: `${eng.assigneeName}: ${eng.taskTitle} (${eng.hours.toFixed(1)}h)`,
-                start: dateObj.toISOString(),
-                end: endDate.toISOString(),
-                extendedProps: {
-                    assigneeName: eng.assigneeName,
-                    taskTitle: eng.taskTitle,
-                    hours: eng.hours,
-                    isToDo: eng.isToDo
-                },
-                classNames: [eng.isToDo ? 'event-todo' : 'event-active'],
-                backgroundColor: eng.isToDo ? '#EDEBE9' : '#0078D4',
-                borderColor: eng.isToDo ? '#E1DFDD' : '#005A9E',
-                textColor: eng.isToDo ? '#605E5C' : '#FFFFFF'
-            };
-        });
-
-        // Initialize FullCalendar
-        let calendar;
-        document.addEventListener('DOMContentLoaded', function() {
-            const calendarEl = document.getElementById('timetableCalendar');
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: ''
-                },
-                events: calendarEvents,
-                height: 'auto',
-                contentHeight: 'auto',
-                eventClick: function(info) {
-                    const props = info.event.extendedProps;
-                    alert(`Employee: ${props.assigneeName}\nTask: ${props.taskTitle}\nHours: ${props.hours.toFixed(1)}\nStatus: ${props.isToDo ? 'ToDo (Not Active)' : 'Active'}`);
-                },
-                eventDisplay: 'block',
-                dayMaxEventRows: true,
-                navLinks: true,
-                selectConstraint: 'businessHours'
-            });
-
-            calendar.render();
-        });
-
-        // View mode switching
-        document.querySelectorAll('.view-mode-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                const view = this.getAttribute('data-view');
-                calendar.changeView(view);
-            });
-        });
-
-        // Toggle between table and timetable views
-        document.getElementById('btnShowTable').addEventListener('click', function() {
-            document.getElementById('tableViewSection').style.display = 'block';
-            document.getElementById('timetableViewSection').style.display = 'none';
-            this.classList.add('active');
-            this.classList.replace('btn-outline-secondary', 'btn-primary');
-            
-            const btnCalendar = document.getElementById('btnShowCalendar');
-            btnCalendar.classList.remove('active');
-            btnCalendar.classList.replace('btn-primary', 'btn-outline-secondary');
-        });
-
-        document.getElementById('btnShowCalendar').addEventListener('click', function() {
-            document.getElementById('tableViewSection').style.display = 'none';
-            document.getElementById('timetableViewSection').style.display = 'block';
-            this.classList.add('active');
-            this.classList.replace('btn-outline-secondary', 'btn-primary');
-            
-            const btnTable = document.getElementById('btnShowTable');
-            btnTable.classList.remove('active');
-            btnTable.classList.replace('btn-primary', 'btn-outline-secondary');
-
-            if (calendar) {
-                setTimeout(() => calendar.updateSize(), 100);
-            }
-        });
-
-        // Data for Velocity Chart
-        const velocityChartEl = document.getElementById('velocityChart');
-        if (velocityChartEl) {
-            const velocityCtx = velocityChartEl.getContext('2d');
-            const velocityChart = new Chart(velocityCtx, {
-                type: 'bar',
-                data: {
-                    labels: @Html.Raw(JsonSerializer.Serialize(velocityLabels)),
-                    datasets: [{
-                        label: 'Completed Hours',
-                        data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
-                        backgroundColor: 'rgba(0, 120, 212, 0.8)', // Primary Brand
-                        borderColor: 'rgba(0, 120, 212, 1)',
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: { 
-                            beginAtZero: true,
-                            grid: { color: '#F3F2F1' },
-                            border: { display: false }
-                        },
-                        x: {
-                            grid: { display: false },
-                            border: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Data for Burndown Chart
-        const burndownChartEl = document.getElementById('burndownChart');
-        if (burndownChartEl) {
-            var burndownDataObj = @Html.Raw(JsonSerializer.Serialize(burndownDatasets));
-            
-            // Add styling properties dynamically
-            burndownDataObj.forEach(function(ds) {
-                ds.borderWidth = 2;
-                ds.tension = 0.1;
-                ds.pointBackgroundColor = '#FFFFFF';
-                ds.pointBorderWidth = 2;
-                ds.pointRadius = 4;
-            });
-
-            const burndownCtx = burndownChartEl.getContext('2d');
-            const burndownChart = new Chart(burndownCtx, {
-                type: 'line',
-                data: {
-                    labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
-                    datasets: burndownDataObj
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { 
-                            position: 'bottom',
-                            labels: { boxWidth: 12, usePointStyle: true }
-                        }
-                    },
-                    scales: {
-                        y: { 
-                            beginAtZero: true,
-                            grid: { color: '#F3F2F1' },
-                            border: { display: false }
-                        },
-                        x: {
-                            grid: { display: false },
-                            border: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
-}
+</div>

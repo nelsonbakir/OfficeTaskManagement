@@ -213,6 +213,10 @@
         display: block;
         margin-bottom: 0.5rem;
     }
+
+    .scroll-mt-4 {
+        scroll-margin-top: 5rem;
+    }
 </style>
 
 <div class="dashboard-header">
@@ -236,4 +240,16 @@ else if (User.IsInRole("Project Coordinator") && Model.CoordinatorMetrics != nul
 else if (User.IsInRole("Employee") && Model.EmployeeMetrics != null)
 {
     <partial name="_EmployeeDashboard" model="Model.EmployeeMetrics" />
+}
+
+@if (Model.IncludeUnifiedAnalytics)
+{
+    <partial name="_AnalyticsReportsPartial" model="Model" />
+}
+
+@section Scripts {
+    @if (Model.IncludeUnifiedAnalytics)
+    {
+        <partial name="_AnalyticsReportsScripts" model="Model" />
+    }
 }

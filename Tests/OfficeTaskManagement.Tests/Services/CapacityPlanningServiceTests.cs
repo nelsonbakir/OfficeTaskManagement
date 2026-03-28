@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
@@ -25,7 +26,7 @@ namespace OfficeTaskManagement.Tests.Services
 
             _context = new ApplicationDbContext(options);
             _mockResourceService = new Mock<IResourceService>();
-            _capacityPlanningService = new CapacityPlanningService(_context, _mockResourceService.Object);
+            _capacityPlanningService = new CapacityPlanningService(_context, _mockResourceService.Object, new MemoryCache(new MemoryCacheOptions()));
         }
 
         public void Dispose()

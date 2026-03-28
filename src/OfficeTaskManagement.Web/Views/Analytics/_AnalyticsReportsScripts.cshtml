@@ -1,0 +1,268 @@
+@model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
+@using System.Collections.Generic
+@using System.Text.Json
+
+@{
+    var velocityLabels = Model.Velocities.Select(v => v.SprintName).ToList();
+    var velocityData = Model.Velocities.Select(v => v.CompletedHours).ToList();
+
+    var burndownSprints = Model.Burndowns.Select(b => b.SprintName).Distinct().ToList();
+    var burndownDatasets = new List<object>();
+
+    foreach (var sprint in burndownSprints)
+    {
+        var dataPoints = Model.Burndowns.Where(b => b.SprintName == sprint).OrderBy(b => b.Date).ToList();
+        burndownDatasets.Add(new
+        {
+            label = sprint,
+            data = dataPoints.Select(d => d.RemainingHours).ToList(),
+            borderColor = "#" + Guid.NewGuid().ToString().Substring(0, 6),
+            fill = false
+        });
+    }
+
+    var sprintDates = Model.Burndowns.OrderBy(b => b.Date).Select(b => b.Date.ToShortDateString()).Distinct().ToList();
+}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+
+<style>
+    .fc {
+        font-family: inherit;
+        color: #252424;
+    }
+
+    .fc .fc-toolbar-title {
+        font-size: 1.25em;
+        font-weight: 600;
+    }
+
+    .fc .fc-button-primary {
+        background-color: #0078D4;
+        border-color: #0078D4;
+    }
+
+    .fc .fc-button-primary:hover {
+        background-color: #106EBE;
+        border-color: #106EBE;
+    }
+
+    .fc .fc-button-primary.fc-button-active {
+        background-color: #005A9E;
+        border-color: #005A9E;
+    }
+
+    .fc-event {
+        padding: 3px 5px !important;
+        border-radius: 4px;
+        border: none;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .fc-event-title {
+        font-size: 0.8em;
+        font-weight: 500;
+    }
+
+    .fc-daygrid-day-number {
+        padding: 8px;
+        font-weight: 500;
+        color: #605E5C;
+    }
+
+    .fc-day-today {
+        background-color: #F0F6FF !important;
+    }
+
+    .fc-col-header-cell {
+        padding: 0.5rem 0;
+        background-color: #F8F8F8;
+        border-bottom: 2px solid #EDEBE9 !important;
+    }
+
+    .fc-col-header-cell-cushion {
+        color: #605E5C;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+    }
+</style>
+
+<script>
+    const engagementData = @Html.Raw(JsonSerializer.Serialize(Model.Engagements.Select(e => new {
+        assigneeName = e.AssigneeName,
+        taskTitle = e.TaskTitle,
+        date = e.Date,
+        hours = e.Hours,
+        isToDo = e.IsToDo
+    }).ToList()));
+
+    const calendarEvents = engagementData.map((eng, index) => {
+        const dateObj = new Date(eng.date);
+        const endDate = new Date(dateObj);
+        endDate.setHours(endDate.getHours() + Math.ceil(eng.hours));
+
+        return {
+            id: `event-${index}`,
+            title: `${eng.assigneeName}: ${eng.taskTitle} (${eng.hours.toFixed(1)}h)`,
+            start: dateObj.toISOString(),
+            end: endDate.toISOString(),
+            extendedProps: {
+                assigneeName: eng.assigneeName,
+                taskTitle: eng.taskTitle,
+                hours: eng.hours,
+                isToDo: eng.isToDo
+            },
+            classNames: [eng.isToDo ? 'event-todo' : 'event-active'],
+            backgroundColor: eng.isToDo ? '#EDEBE9' : '#0078D4',
+            borderColor: eng.isToDo ? '#E1DFDD' : '#005A9E',
+            textColor: eng.isToDo ? '#605E5C' : '#FFFFFF'
+        };
+    });
+
+    let calendar;
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('timetableCalendar');
+        if (!calendarEl) return;
+        calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: ''
+            },
+            events: calendarEvents,
+            height: 'auto',
+            contentHeight: 'auto',
+            eventClick: function(info) {
+                const props = info.event.extendedProps;
+                alert(`Employee: ${props.assigneeName}\nTask: ${props.taskTitle}\nHours: ${props.hours.toFixed(1)}\nStatus: ${props.isToDo ? 'ToDo (Not Active)' : 'Active'}`);
+            },
+            eventDisplay: 'block',
+            dayMaxEventRows: true,
+            navLinks: true,
+            selectConstraint: 'businessHours'
+        });
+
+        calendar.render();
+    });
+
+    document.querySelectorAll('.view-mode-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.view-mode-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const view = this.getAttribute('data-view');
+            if (calendar) calendar.changeView(view);
+        });
+    });
+
+    const btnShowTable = document.getElementById('btnShowTable');
+    const btnShowCalendar = document.getElementById('btnShowCalendar');
+    if (btnShowTable && btnShowCalendar) {
+        btnShowTable.addEventListener('click', function() {
+            document.getElementById('tableViewSection').style.display = 'block';
+            document.getElementById('timetableViewSection').style.display = 'none';
+            this.classList.add('active');
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+
+            btnShowCalendar.classList.remove('active');
+            btnShowCalendar.classList.replace('btn-primary', 'btn-outline-secondary');
+        });
+
+        btnShowCalendar.addEventListener('click', function() {
+            document.getElementById('tableViewSection').style.display = 'none';
+            document.getElementById('timetableViewSection').style.display = 'block';
+            this.classList.add('active');
+            this.classList.replace('btn-outline-secondary', 'btn-primary');
+
+            btnShowTable.classList.remove('active');
+            btnShowTable.classList.replace('btn-primary', 'btn-outline-secondary');
+
+            if (calendar) {
+                setTimeout(() => calendar.updateSize(), 100);
+            }
+        });
+    }
+
+    const velocityChartEl = document.getElementById('velocityChart');
+    if (velocityChartEl) {
+        const velocityCtx = velocityChartEl.getContext('2d');
+        new Chart(velocityCtx, {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(velocityLabels)),
+                datasets: [{
+                    label: 'Completed Hours',
+                    data: @Html.Raw(JsonSerializer.Serialize(velocityData)),
+                    backgroundColor: 'rgba(0, 120, 212, 0.8)',
+                    borderColor: 'rgba(0, 120, 212, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#F3F2F1' },
+                        border: { display: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    const burndownChartEl = document.getElementById('burndownChart');
+    if (burndownChartEl) {
+        var burndownDataObj = @Html.Raw(JsonSerializer.Serialize(burndownDatasets));
+
+        burndownDataObj.forEach(function(ds) {
+            ds.borderWidth = 2;
+            ds.tension = 0.1;
+            ds.pointBackgroundColor = '#FFFFFF';
+            ds.pointBorderWidth = 2;
+            ds.pointRadius = 4;
+        });
+
+        const burndownCtx = burndownChartEl.getContext('2d');
+        new Chart(burndownCtx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(sprintDates)),
+                datasets: burndownDataObj
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, usePointStyle: true }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#F3F2F1' },
+                        border: { display: false }
+                    },
+                    x: {
+                        grid: { display: false },
+                        border: { display: false }
+                    }
+                }
+            }
+        });
+    }
+</script>

@@ -330,12 +330,15 @@
 
                 $.get('/api/ResourceData/availability', { userId: uid, startDate: start, endDate: end })
                  .done(function(data) {
+                     var pct = (data.effectiveAllocationPercent != null && data.effectiveAllocationPercent !== undefined)
+                         ? data.effectiveAllocationPercent
+                         : Math.max(data.currentAllocationPercent || 0, data.peakAllocationPercentInRange || 0);
                      if(data.isOverAllocated) {
-                         el.html(`<span class="badge bg-danger">${data.currentAllocationPercent}% (Over-allocated)</span>`);
-                     } else if(data.currentAllocationPercent >= 80) {
-                         el.html(`<span class="badge bg-warning text-dark">${data.currentAllocationPercent}%</span>`);
-                     } else if(data.currentAllocationPercent > 0) {
-                         el.html(`<span class="badge bg-info">${data.currentAllocationPercent}%</span>`);
+                         el.html(`<span class="badge bg-danger">${pct}% (Over-allocated)</span>`);
+                     } else if(pct >= 80) {
+                         el.html(`<span class="badge bg-warning text-dark">${pct}%</span>`);
+                     } else if(pct > 0) {
+                         el.html(`<span class="badge bg-info">${pct}%</span>`);
                      } else {
                          el.html(`<span class="badge bg-light text-secondary border">0% (Bench)</span>`);
                      }

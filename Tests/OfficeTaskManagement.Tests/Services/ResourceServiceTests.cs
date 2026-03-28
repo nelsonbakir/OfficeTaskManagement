@@ -47,12 +47,11 @@ namespace OfficeTaskManagement.Tests.Services
             });
             await _context.SaveChangesAsync();
 
-            // Act
-            // 22 working days in Oct 2023 * 8 hours = 176 hours
+            // Act — working days exclude Fri/Sat (Bangladesh weekend); Oct 2023 has 23 such days × 8h
             var capacity = await _resourceService.GetUserAvailableHoursAsync(userId, startDate, endDate);
 
             // Assert
-            Assert.Equal(176m, capacity);
+            Assert.Equal(184m, capacity);
         }
 
         [Fact]
@@ -83,8 +82,8 @@ namespace OfficeTaskManagement.Tests.Services
             // Act
             var capacity = await _resourceService.GetUserAvailableHoursAsync(userId, startDate, endDate);
 
-            // Assert
-            Assert.Equal(160m, capacity); // 176 - 16 = 160
+            // Assert — 184 - 16 (two working days leave)
+            Assert.Equal(168m, capacity);
         }
 
         [Fact]
@@ -150,6 +149,39 @@ namespace OfficeTaskManagement.Tests.Services
 
             // Assert
             Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GetPeakAllocationPercentInRangeAsync_ReturnsMaxDailyCombinedAllocation()
+        {
+            var userId = "peak-user";
+            var start = new DateTime(2023, 10, 2);
+            var end = new DateTime(2023, 10, 3);
+
+            _context.ResourceProfiles.Add(new ResourceProfile { UserId = userId, DailyCapacityHours = 8 });
+            _context.Projects.Add(new Project { Id = 1, Name = "P1" });
+            _context.Projects.Add(new Project { Id = 2, Name = "P2" });
+            _context.ProjectResourceAllocations.Add(new ProjectResourceAllocation
+            {
+                UserId = userId,
+                ProjectId = 1,
+                AllocationPercentage = 60,
+                StartDate = start,
+                EndDate = end
+            });
+            _context.ProjectResourceAllocations.Add(new ProjectResourceAllocation
+            {
+                UserId = userId,
+                ProjectId = 2,
+                AllocationPercentage = 50,
+                StartDate = start,
+                EndDate = end
+            });
+            await _context.SaveChangesAsync();
+
+            var peak = await _resourceService.GetPeakAllocationPercentInRangeAsync(userId, start, end);
+
+            Assert.Equal(110, peak);
         }
     }
 }

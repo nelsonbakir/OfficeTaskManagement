@@ -253,7 +253,7 @@
                 });
 
                 // ── Report Cards ───────────────────────────────────────────
-                var bench = data.filter(r => r.utilization  <= 0 || r.allocatedHours <= 0);
+                var bench = data.filter(r => (r.utilizationPercent ?? 0) < 30 || r.isIdle);
                 var overAlloc = data.filter(r => r.utilizationPercent > 100);
 
                 // Bench card
@@ -264,7 +264,7 @@
                     var benchHtml = bench.map(r =>
                         `<li class="list-group-item d-flex justify-content-between align-items-center">
                             <span>${r.fullName}</span>
-                            <span class="badge bg-secondary">0% allocated</span>
+                            <span class="badge bg-secondary">${(r.utilizationPercent ?? 0).toFixed(0)}% allocated</span>
                         </li>`
                     ).join('');
                     $('#benchList').html(benchHtml);

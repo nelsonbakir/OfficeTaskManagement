@@ -40,13 +40,16 @@ namespace OfficeTaskManagement.Controllers.Api
         public async Task<IActionResult> CheckUserAvailability(string userId, DateTime startDate, DateTime endDate)
         {
             var hours = await _resourceService.GetUserAvailableHoursAsync(userId, startDate, endDate);
-            var pct = await _resourceService.GetUserTotalAllocationPercentAsync(userId, startDate);
+            var pctAtStart = await _resourceService.GetUserTotalAllocationPercentAsync(userId, startDate);
+            var peakPct = await _resourceService.GetPeakAllocationPercentInRangeAsync(userId, startDate, endDate);
             var overAllocated = await _resourceService.IsUserOverAllocatedAsync(userId, startDate, endDate);
 
             return Ok(new 
             {
                 availableHours = hours,
-                currentAllocationPercent = pct,
+                currentAllocationPercent = pctAtStart,
+                peakAllocationPercentInRange = peakPct,
+                effectiveAllocationPercent = Math.Max(pctAtStart, peakPct),
                 isOverAllocated = overAllocated
             });
         }

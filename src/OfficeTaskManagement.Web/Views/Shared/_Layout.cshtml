@@ -34,7 +34,7 @@
             @if (!User.IsInRole("Employee") || User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
             {
                 <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Reports">
+                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index" asp-fragment="unified-analytics">
                         <i class="fas fa-chart-pie"></i>
                         <span>Analytics</span>
                     </a>

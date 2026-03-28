@@ -406,12 +406,15 @@
                     $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
                      .done(function(data) {
                          availDiv.show();
+                         var pct = (data.effectiveAllocationPercent != null && data.effectiveAllocationPercent !== undefined)
+                             ? data.effectiveAllocationPercent
+                             : Math.max(data.currentAllocationPercent || 0, data.peakAllocationPercentInRange || 0);
                          if(data.isOverAllocated) {
-                             availDiv.html(`<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Over-allocated (${data.currentAllocationPercent}%)</span>`);
-                         } else if (data.currentAllocationPercent >= 80) {
-                             availDiv.html(`<span class="text-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Near Capacity (${data.currentAllocationPercent}%)</span>`);
+                             availDiv.html(`<span class="text-danger"><i class="fas fa-exclamation-circle"></i> Over-allocated (${pct}% in period)</span>`);
+                         } else if (pct >= 80) {
+                             availDiv.html(`<span class="text-warning text-dark"><i class="fas fa-exclamation-triangle"></i> Near capacity (${pct}%)</span>`);
                          } else {
-                             availDiv.html(`<span class="text-success"><i class="fas fa-check-circle"></i> Available (${data.currentAllocationPercent}% load)</span>`);
+                             availDiv.html(`<span class="text-success"><i class="fas fa-check-circle"></i> Available (${pct}% load)</span>`);
                          }
                      });
                 } else {
@@ -463,9 +466,12 @@
                     
                     $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
                      .done(function(data) {
+                         var pct = (data.effectiveAllocationPercent != null && data.effectiveAllocationPercent !== undefined)
+                             ? data.effectiveAllocationPercent
+                             : Math.max(data.currentAllocationPercent || 0, data.peakAllocationPercentInRange || 0);
                          var color = '#198754'; // Green
-                         if (data.isOverAllocated || data.currentAllocationPercent > 100) color = '#dc3545'; // Red
-                         else if (data.currentAllocationPercent >= 80) color = '#ffc107'; // Amber
+                         if (data.isOverAllocated || pct > 100) color = '#dc3545'; // Red
+                         else if (pct >= 80) color = '#ffc107'; // Amber
                          
                          optionEl.data('avail-color', color);
                          // Trigger update on select2 for this element

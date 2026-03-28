@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OfficeTaskManagement.csproj" />
+    <ProjectReference Include="..\..\src\OfficeTaskManagement.Web\OfficeTaskManagement.csproj" />
   </ItemGroup>
 
 </Project>

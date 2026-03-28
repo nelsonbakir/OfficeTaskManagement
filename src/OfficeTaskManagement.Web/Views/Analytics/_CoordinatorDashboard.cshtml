@@ -107,39 +107,3 @@ else
         <p>No upcoming deadlines</p>
     </div>
 }
-
-<!-- Task Distribution -->
-<div class="section-header">
-    <i class="fas fa-chart-bar"></i>
-    <h2>Task Distribution</h2>
-</div>
-
-<div class="metric-grid">
-    <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-hourglass-start"></i></div>
-        <div class="metric-label">To Do</div>
-        <p class="metric-value">@Model.ToDoTasks</p>
-        <div class="metric-subtext">@(Model.TotalTasks > 0 ? ((Model.ToDoTasks * 100) / Model.TotalTasks).ToString("F0") : "0")% of total</div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
-        <div class="metric-label">In Progress</div>
-        <p class="metric-value">@Model.InProgressTasks</p>
-        <div class="metric-subtext">@(Model.TotalTasks > 0 ? ((Model.InProgressTasks * 100) / Model.TotalTasks).ToString("F0") : "0")% of total</div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
-        <div class="metric-label">Completed</div>
-        <p class="metric-value">@Model.CompletedTasks</p>
-        <div class="metric-subtext">@(Model.TotalTasks > 0 ? ((Model.CompletedTasks * 100) / Model.TotalTasks).ToString("F0") : "0")% of total</div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-user-slash"></i></div>
-        <div class="metric-label">Unassigned</div>
-        <p class="metric-value">@Model.UnassignedTasks</p>
-        <div class="metric-subtext">need assignment</div>
-    </div>
-</div>

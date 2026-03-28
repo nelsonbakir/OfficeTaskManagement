@@ -22,6 +22,11 @@ namespace OfficeTaskManagement.Services
         Task<int> GetUserTotalAllocationPercentAsync(string userId, DateTime? date = null);
 
         /// <summary>
+        /// Maximum combined allocation percentage on any single working day in the range (weekends and public holidays excluded).
+        /// </summary>
+        Task<int> GetPeakAllocationPercentInRangeAsync(string userId, DateTime startDate, DateTime endDate);
+
+        /// <summary>
         /// Returns true if the user's combined project allocations exceed 100% on any day
         /// within the given date range.
         /// </summary>
@@ -65,6 +70,7 @@ namespace OfficeTaskManagement.Services
     public class AllocationSummaryItem
     {
         public int AllocationId { get; set; }
+        public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public int AllocationPercentage { get; set; }
         public DateTime StartDate { get; set; }

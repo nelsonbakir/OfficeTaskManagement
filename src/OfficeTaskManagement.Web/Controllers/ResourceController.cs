@@ -103,6 +103,7 @@ namespace OfficeTaskManagement.Controllers
                 ActiveAllocations = allocations.Select(a => new ProjectAllocationSummaryViewModel
                 {
                     Id = a.AllocationId,
+                    ProjectId = a.ProjectId,
                     ProjectName = a.ProjectName,
                     AllocationPercentage = a.AllocationPercentage,
                     ProjectRole = a.ProjectRole,

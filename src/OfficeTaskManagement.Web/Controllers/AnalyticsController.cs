@@ -508,6 +508,12 @@ namespace OfficeTaskManagement.Controllers
             else if (isCoordinator)
             {
                 vm.CoordinatorMetrics = await GetCoordinatorMetrics();
+                var assigneesList = await _context.Users
+                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                    .ToListAsync();
+                var projectsList = await _context.Projects.ToListAsync();
+                vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
+                vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
             }
             // EMPLOYEE DASHBOARD
             else if (isEmployee)
@@ -516,36 +522,55 @@ namespace OfficeTaskManagement.Controllers
                 vm.EmployeeMetrics = await GetEmployeeMetrics(userId, user?.FullName ?? "Employee");
             }
 
+            if (isManager || isProjectLead || isCoordinator)
+            {
+                vm.IncludeUnifiedAnalytics = true;
+                await PopulateUnifiedAnalyticsAsync(vm, userId!, userRoles);
+            }
+
             return View("Dashboard", vm);
         }
 
-        public async Task<IActionResult> Reports(string? assigneeId, int? projectId)
+        /// <summary>Legacy URL; merged into the main dashboard.</summary>
+        public IActionResult Reports(string? assigneeId, int? projectId)
         {
-            var vm = new DashboardViewModel
-            {
-                SelectedAssigneeId = assigneeId,
-                SelectedProjectId = projectId
-            };
+            return RedirectToAction(nameof(Index), new { assigneeId, projectId });
+        }
 
-            var assigneesList = await _context.Users
-                .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
-                .ToListAsync();
-            var projectsList = await _context.Projects.ToListAsync();
-            vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
-            vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
+        private async Task PopulateUnifiedAnalyticsAsync(DashboardViewModel vm, string currentUserId, List<string> roles)
+        {
+            var isManager = roles.Contains("Manager");
+            var isProjectLead = roles.Contains("Project Lead");
 
             var tasksQuery = _context.Tasks.Include(t => t.Assignee).Include(t => t.Sprint).AsQueryable();
-            if (!string.IsNullOrEmpty(assigneeId))
-                tasksQuery = tasksQuery.Where(t => t.AssigneeId == assigneeId);
-            if (projectId.HasValue)
-                tasksQuery = tasksQuery.Where(t => t.ProjectId == projectId.Value);
+            if (!string.IsNullOrEmpty(vm.SelectedAssigneeId))
+                tasksQuery = tasksQuery.Where(t => t.AssigneeId == vm.SelectedAssigneeId);
+            if (vm.SelectedProjectId.HasValue)
+                tasksQuery = tasksQuery.Where(t => t.ProjectId == vm.SelectedProjectId.Value);
+            else if (isProjectLead && !isManager)
+            {
+                var leadProjectIds = await _context.Projects
+                    .Where(p => p.CreatedById == currentUserId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+                if (leadProjectIds.Count > 0)
+                    tasksQuery = tasksQuery.Where(t => t.ProjectId.HasValue && leadProjectIds.Contains(t.ProjectId.Value));
+            }
 
             var tasks = await tasksQuery.ToListAsync();
             var sprintsQuery = _context.Sprints.Include(s => s.Tasks).AsQueryable();
-            if (projectId.HasValue)
+            if (vm.SelectedProjectId.HasValue)
+                sprintsQuery = sprintsQuery.Where(s => s.ProjectId == vm.SelectedProjectId.Value);
+            else if (isProjectLead && !isManager)
             {
-                sprintsQuery = sprintsQuery.Where(s => s.ProjectId == projectId.Value);
+                var leadProjectIds = await _context.Projects
+                    .Where(p => p.CreatedById == currentUserId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+                if (leadProjectIds.Count > 0)
+                    sprintsQuery = sprintsQuery.Where(s => leadProjectIds.Contains(s.ProjectId));
             }
+
             var sprints = await sprintsQuery.ToListAsync();
 
             vm.Engagements = tasks.Select(t => new DailyEngagement
@@ -559,29 +584,24 @@ namespace OfficeTaskManagement.Controllers
 
             var currentUtc = DateTime.UtcNow;
 
-            // Definition of completed sprints: Inactive OR EndDate passed OR (Has Tasks AND All Tasks Done)
-            var completedSprints = sprints.Where(s => 
-                !s.IsActive || 
-                s.EndDate < currentUtc || 
+            var completedSprints = sprints.Where(s =>
+                !s.IsActive ||
+                s.EndDate < currentUtc ||
                 (s.Tasks.Any() && s.Tasks.All(t => t.Status == TaskStatus.Done))).ToList();
 
             vm.Velocities = completedSprints.Select(s => new SprintVelocity
-           {
-               SprintName = s.Name,
-               CompletedHours = s.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours)
-           }).ToList();
+            {
+                SprintName = s.Name,
+                CompletedHours = s.Tasks.Where(t => t.Status == TaskStatus.Done).Sum(t => t.EstimatedHours)
+            }).ToList();
 
             var activeSprints = sprints.Where(s => !completedSprints.Contains(s)).ToList();
 
             foreach (var sprint in activeSprints)
             {
                 var sprintTasks = sprint.Tasks.AsEnumerable();
-                
-                // If an Assignee filter is active, only calculate burndown for their tasks
-                if (!string.IsNullOrEmpty(assigneeId))
-                {
-                    sprintTasks = sprintTasks.Where(t => t.AssigneeId == assigneeId);
-                }
+                if (!string.IsNullOrEmpty(vm.SelectedAssigneeId))
+                    sprintTasks = sprintTasks.Where(t => t.AssigneeId == vm.SelectedAssigneeId);
 
                 var totalHours = sprintTasks.Sum(t => t.EstimatedHours);
                 var days = (sprint.EndDate - sprint.StartDate).Days;
@@ -601,90 +621,51 @@ namespace OfficeTaskManagement.Controllers
                 }
             }
 
-            // --- Resource Management Analytics (Phase 6) ---
-            var startOfMonth = new DateTime(currentUtc.Year, currentUtc.Month, 1);
-            var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
-
-            // 1. Team Utilization & 2. Bench/Idle track (Filter IsResource)
-            var allResourceProfiles = await _context.ResourceProfiles
-                .Where(rp => rp.IsResource)
-                .Include(rp => rp.User)
-                .ToListAsync();
-            foreach(var profile in allResourceProfiles)
+            var monthUtc = DateTime.UtcNow;
+            var teamRows = await _resourceService.GetTeamUtilizationAsync(monthUtc.Year, monthUtc.Month);
+            foreach (var u in teamRows)
             {
-                var capacity = await _resourceService.GetUserAvailableHoursAsync(profile.UserId, startOfMonth, endOfMonth);
-                
-                // Get allocation % 
-                var currentAllocations = await _context.ProjectResourceAllocations
-                    .Where(a => a.UserId == profile.UserId && a.StartDate <= endOfMonth && (a.EndDate == null || a.EndDate >= startOfMonth))
-                    .ToListAsync();
-                    
-                var totalAllocationPct = currentAllocations.Sum(a => a.AllocationPercentage);
-                
-                vm.TeamUtilization.Add(new ResourceUtilizationMetric 
+                vm.TeamUtilization.Add(new ResourceUtilizationMetric
                 {
-                    UserName = profile.User!.FullName ?? profile.User!.Email,
-                    UtilizationPercentage = totalAllocationPct,
-                    AllocatedHours = (totalAllocationPct / 100m) * capacity,
-                    CapacityHours = capacity
+                    UserName = u.FullName,
+                    UtilizationPercentage = u.UtilizationPercent,
+                    AllocatedHours = u.AllocatedHours,
+                    CapacityHours = u.AvailableHours
                 });
-
-                if (totalAllocationPct < 30) // Less than 30% allocated is considered Bench
+                if (u.IsIdle)
                 {
                     vm.BenchResources.Add(new BenchResourceMetric
                     {
-                        UserName = profile.User!.FullName ?? profile.User!.Email,
-                        Department = profile.Department ?? "General",
-                        CurrentUtilization = totalAllocationPct
+                        UserName = u.FullName,
+                        Department = u.Department ?? "General",
+                        CurrentUtilization = u.UtilizationPercent
                     });
                 }
             }
 
-            // 3. Project Costs
-            var projectsWithAllocations = await _context.Projects
-                .Include(p => p.ResourceAllocations)
-                .ThenInclude(a => a.User)
-                .ThenInclude(u => u.ResourceProfile)
-                .ToListAsync();
-
-            foreach(var proj in projectsWithAllocations)
+            foreach (var row in await _resourceService.GetProjectCostReportAsync())
             {
-                decimal totalCost = 0;
-                foreach(var alloc in proj.ResourceAllocations)
-                {
-                    if (alloc.User?.ResourceProfile != null && alloc.User.ResourceProfile.HourlyRate > 0)
-                    {
-                        // Simplified cost tracking for 'this month'
-                        var workDaysInMonth = 22m; // rough approx
-                        var dailyCap = alloc.User.ResourceProfile.DailyCapacityHours;
-                        var hoursAllocated = workDaysInMonth * dailyCap * (alloc.AllocationPercentage / 100m);
-                        totalCost += hoursAllocated * alloc.User.ResourceProfile.HourlyRate;
-                    }
-                }
-                if (totalCost > 0)
+                if (row.EstimatedLaborCost > 0)
                 {
                     vm.ProjectCosts.Add(new CostTrackingMetric
                     {
-                        ProjectName = proj.Name,
-                        EstimatedCost = Math.Round(totalCost, 2)
+                        ProjectName = row.ProjectName,
+                        EstimatedCost = row.EstimatedLaborCost
                     });
                 }
             }
 
-            // 4. Sprint capacities
-            foreach(var sprint in activeSprints)
+            foreach (var sprint in activeSprints)
             {
-                var capacity = await _capacityService.GetSprintCapacityVsDemandAsync(sprint.Id);
+                var cap = await _capacityService.GetSprintCapacityVsDemandAsync(sprint.Id);
                 vm.SprintCapacities.Add(new SprintCapacityMetric
                 {
                     SprintName = sprint.Name,
-                    PlannedCapacity = capacity.PlannedCapacityHours,
-                    TaskDemand = capacity.DemandHours,
-                    Delta = capacity.Delta
+                    PlannedCapacity = cap.PlannedCapacityHours,
+                    TaskDemand = cap.DemandHours,
+                    Delta = cap.Delta
                 });
             }
-
-            return View("Index", vm);
         }
 
         public async Task<IActionResult> AIInsights()
@@ -740,11 +721,12 @@ namespace OfficeTaskManagement.Controllers
                 });
             }
 
-            // Employee metrics
+            // Employee metrics (utilization from ResourceService — same formula as Capacity / Resource Pool)
+            var nowUtc = DateTime.UtcNow;
             foreach (var employee in allUsers)
             {
                 var employeeTasks = allTasks.Where(t => t.AssigneeId == employee.Id).ToList();
-                var utilization = GetEmployeeUtilization(employee.Id, employeeTasks);
+                var utilization = await _resourceService.GetUserUtilizationPercentAsync(employee.Id, nowUtc.Year, nowUtc.Month);
                 metrics.EmployeeMetrics.Add(new EmployeeMetric
                 {
                     EmployeeId = employee.Id,
@@ -840,17 +822,21 @@ namespace OfficeTaskManagement.Controllers
 
                 // Team member metrics
                 var teamMembers = allProjectTasks.Select(t => t.AssigneeId).Distinct().ToList();
+                var nowUtc = DateTime.UtcNow;
                 foreach (var memberId in teamMembers)
                 {
                     var memberTasks = allProjectTasks.Where(t => t.AssigneeId == memberId).ToList();
                     var member = await _context.Users.FindAsync(memberId);
+                    var utilization = memberId != null
+                        ? await _resourceService.GetUserUtilizationPercentAsync(memberId, nowUtc.Year, nowUtc.Month)
+                        : 0;
                     metrics.TeamMetrics.Add(new TeamMemberMetric
                     {
                         MemberId = memberId,
                         MemberName = member?.FullName ?? "Unknown",
                         AssignedTasks = memberTasks.Count,
                         CompletedTasks = memberTasks.Count(t => t.Status == TaskStatus.Done),
-                        Utilization = GetEmployeeUtilization(memberId, memberTasks)
+                        Utilization = utilization
                     });
                 }
 
@@ -988,16 +974,6 @@ namespace OfficeTaskManagement.Controllers
                 .ToList();
 
             return metrics;
-        }
-
-        private decimal GetEmployeeUtilization(string employeeId, List<Models.TaskItem> tasks)
-        {
-            if (!tasks.Any()) return 0;
-
-            var inProgressHours = tasks.Where(t => t.Status == TaskStatus.InProgress || t.Status == TaskStatus.Committed || t.Status == TaskStatus.Tested).Sum(t => t.EstimatedHours);
-            var totalHours = tasks.Sum(t => t.EstimatedHours);
- 
-            return totalHours > 0 ? (inProgressHours / totalHours) * 100 : 0;
         }
 
         private string DetermineProjectStatus(List<Models.TaskItem> tasks)
