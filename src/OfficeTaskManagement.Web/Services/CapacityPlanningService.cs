@@ -111,13 +111,12 @@ namespace OfficeTaskManagement.Services
             if (_cache.TryGetValue(cacheKey, out HeatmapData? cached) && cached != null)
                 return cached;
 
-            // Normalize inputs to UTC/Neutral start/end of month
             var firstOfMonth = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var lastOfMonth = firstOfMonth.AddMonths(1).AddDays(-1).AddHours(23).AddMinutes(59).AddSeconds(59);
-            
-            var daysInMonth = Enumerable.Range(1, DateTime.DaysInMonth(year, month)).ToList();
+            var lastOfMonth = firstOfMonth.AddMonths(1).AddDays(-1);
+            var daysInMonthCount = DateTime.DaysInMonth(year, month);
+            var daysInMonth = Enumerable.Range(1, daysInMonthCount).ToList();
 
-            // Fix #17: Only include genuine resources (not external stakeholders)
+            // 1. Fetch data efficiently
             var users = await _context.Users
                 .Include(u => u.ResourceProfile)
                 .Include(u => u.AvailabilityBlocks)
@@ -125,8 +124,12 @@ namespace OfficeTaskManagement.Services
                 .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
                 .ToListAsync();
 
-            var allActiveTasks = await _context.Tasks
+            var allActiveTasksRaw = await _context.Tasks
+                .Include(t => t.Project)
                 .Include(t => t.Sprint)
+                .Include(t => t.Epic)
+                .Include(t => t.Feature).ThenInclude(f => f.Epic)
+                .Include(t => t.UserStory).ThenInclude(us => us.Feature).ThenInclude(f => f.Epic)
                 .Where(t => t.AssigneeId != null && t.Status != Models.Enums.TaskStatus.Done && t.Status != Models.Enums.TaskStatus.Approved)
                 .ToListAsync();
 
@@ -135,6 +138,38 @@ namespace OfficeTaskManagement.Services
                 .Select(h => h.Date.Date)
                 .ToListAsync();
 
+            // 2. Resolve Tasks (Project, Dates, and pre-calculate daily load)
+            var resolvedTasks = new List<ResolvedTaskLoad>();
+            foreach (var t in allActiveTasksRaw)
+            {
+                int? projectId = t.ProjectId 
+                              ?? t.Sprint?.ProjectId 
+                              ?? t.Epic?.ProjectId 
+                              ?? t.Feature?.Epic?.ProjectId 
+                              ?? t.UserStory?.Feature?.Epic?.ProjectId;
+
+                DateTime? start = t.StartDate ?? t.Sprint?.StartDate;
+                DateTime? end = t.DueDate ?? t.Sprint?.EndDate;
+
+                if (projectId.HasValue && start.HasValue && end.HasValue)
+                {
+                    // Calculate working days once per task to avoid loops later
+                    int workDaysInTask = await CountWorkingDaysAsync(start.Value, end.Value);
+                    if (workDaysInTask > 0)
+                    {
+                        resolvedTasks.Add(new ResolvedTaskLoad
+                        {
+                            TaskId = t.Id,
+                            AssigneeId = t.AssigneeId!,
+                            ProjectId = projectId.Value,
+                            StartDate = start.Value.Date,
+                            EndDate = end.Value.Date,
+                            DailyHours = (decimal)t.EstimatedHours / workDaysInTask
+                        });
+                    }
+                }
+            }
+
             var heatmap = new HeatmapData
             {
                 Year = year,
@@ -142,80 +177,89 @@ namespace OfficeTaskManagement.Services
                 Days = daysInMonth
             };
 
+            // 3. Generate Heatmap Rows
             foreach (var user in users)
             {
-                var profile = user.ResourceProfile;
-                var dailyCap = profile?.DailyCapacityHours ?? 8;
-                
-                var userTasks = allActiveTasks.Where(t => t.AssigneeId == user.Id).ToList();
-
                 var row = new HeatmapRow
                 {
                     UserId = user.Id,
                     FullName = user.FullName ?? user.Email ?? user.Id
                 };
 
+                var dailyCap = user.ResourceProfile?.DailyCapacityHours ?? 8;
+                var userTasks = resolvedTasks.Where(rt => rt.AssigneeId == user.Id).ToList();
+
                 foreach (var day in daysInMonth)
                 {
-                    // Create date object for comparison (normalized)
-                    var date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+                    var date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc).Date;
 
-                    // Bangladesh Weekends: Friday and Saturday OR Public Holiday
-                    if (date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday || holidays.Contains(date.Date))
+                    // Weekend/Holiday check
+                    if (date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday || holidays.Contains(date))
                     {
                         row.DailyAvailability[day] = 0;
                         row.DailyAllocation[day] = 0;
                         continue;
                     }
 
-                    // Check availability blocks (leave, etc.)
+                    // Leave check
                     bool isBlocked = user.AvailabilityBlocks.Any(b => 
-                        b.StartDate.Date <= date.Date && b.EndDate.Date >= date.Date && b.ApprovalStatus == Models.Enums.LeaveApprovalStatus.Approved);
+                        b.StartDate.Date <= date && b.EndDate.Date >= date && b.ApprovalStatus == Models.Enums.LeaveApprovalStatus.Approved);
                     
                     row.DailyAvailability[day] = isBlocked ? 0 : dailyCap;
 
-                    // 1. Sum current project allocations for this specific day
-                    var allocationPct = user.ProjectAllocations
-                        .Where(a => a.StartDate.Date <= date.Date && (a.EndDate == null || a.EndDate.Value.Date >= date.Date))
-                        .Sum(a => a.AllocationPercentage);
-
-                    // 2. Add task-based "effective" percentage (Dynamic calculation)
-                    foreach (var task in userTasks)
+                    if (isBlocked)
                     {
-                        // Check if task overlaps this specific day
-                        DateTime? tStart = task.StartDate ?? task.Sprint?.StartDate;
-                        DateTime? tEnd = task.DueDate ?? task.Sprint?.EndDate;
+                        row.DailyAllocation[day] = 0;
+                        continue;
+                    }
 
-                        if (tStart.HasValue && tEnd.HasValue)
+                    // Unified PMP Logic: Track Strategic (Alloc), Operational (Task), and Combined (Total)
+                    var projectStats = new Dictionary<int, (int AllocPct, int TaskPct)>();
+
+                    // Add allocations (Strategic)
+                    foreach (var alloc in user.ProjectAllocations.Where(a => a.StartDate.Date <= date && (a.EndDate == null || a.EndDate.Value.Date >= date)))
+                    {
+                        projectStats[alloc.ProjectId] = (alloc.AllocationPercentage, 0);
+                    }
+
+                    // Add tasks (Operational)
+                    foreach (var rt in userTasks.Where(rt => rt.StartDate <= date && rt.EndDate >= date))
+                    {
+                        var taskPct = (int)Math.Round((rt.DailyHours / dailyCap) * 100);
+                        if (projectStats.TryGetValue(rt.ProjectId, out var existing))
                         {
-                            if (tStart.Value.Date <= date.Date && tEnd.Value.Date >= date.Date)
-                            {
-                                // Calculate how much daily load this task represents
-                                var totalWorkingDaysInTask = await CountWorkingDaysAsync(tStart.Value, tEnd.Value);
-                                if (totalWorkingDaysInTask > 0)
-                                {
-                                    // Spread the estimated hours over the working days
-                                    var dailyTaskHours = (decimal)task.EstimatedHours / totalWorkingDaysInTask;
-                                    var taskPct = (int)Math.Round((dailyTaskHours / dailyCap) * 100);
-                                    
-                                    // Add to this day's total allocation
-                                    allocationPct += taskPct;
-                                }
-                            }
+                            projectStats[rt.ProjectId] = (existing.AllocPct, existing.TaskPct + taskPct);
+                        }
+                        else
+                        {
+                            projectStats[rt.ProjectId] = (0, taskPct);
                         }
                     }
 
-                    row.DailyAllocation[day] = allocationPct;
+                    // Populate the three separate metrics for the front-end
+                    int strategicTotal = projectStats.Values.Sum(s => s.AllocPct);
+                    int operationalTotal = projectStats.Values.Sum(s => s.TaskPct);
+                    int combinedTotal = projectStats.Values.Sum(s => Math.Max(s.AllocPct, s.TaskPct));
+
+                    row.DailyAllocation[day] = strategicTotal;
+                    row.DailyTaskDemand[day] = operationalTotal;
+                    row.DailyTotalLoad[day] = combinedTotal;
                 }
                 heatmap.Rows.Add(row);
             }
 
-            _cache.Set(cacheKey, heatmap, new MemoryCacheEntryOptions
-            {
-                SlidingExpiration = TimeSpan.FromMinutes(15)
-            });
-
+            _cache.Set(cacheKey, heatmap, new MemoryCacheEntryOptions { SlidingExpiration = TimeSpan.FromMinutes(15) });
             return heatmap;
+        }
+
+        private class ResolvedTaskLoad
+        {
+            public int TaskId { get; set; }
+            public string AssigneeId { get; set; } = string.Empty;
+            public int ProjectId { get; set; }
+            public DateTime StartDate { get; set; }
+            public DateTime EndDate { get; set; }
+            public decimal DailyHours { get; set; }
         }
 
 

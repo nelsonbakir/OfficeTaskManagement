@@ -15,13 +15,28 @@
     <div class="col-md-12">
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Team Allocation Model (Current Month)</h5>
-                <div>
-                    <select id="monthSelector" class="form-select form-select-sm" style="width: auto;">
-                        <option value="@DateTime.UtcNow.Month">Current Month</option>
-                        <option value="@DateTime.UtcNow.AddMonths(1).Month">Next Month</option>
-                    </select>
-                </div>
+                <h5 class="mb-0">
+                    Team Allocation Model (Current Month)
+                    <button type="button" class="btn btn-link p-0 ms-1 text-primary" data-bs-toggle="modal" data-bs-target="#pmpGapModal">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                </h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Heatmap Mode">
+                            <input type="radio" class="btn-check" name="heatmapMode" id="modeCombined" value="total" checked>
+                            <label class="btn btn-outline-primary" for="modeCombined" title="Max of Allocations or Tasks">Total Load</label>
+                            
+                            <input type="radio" class="btn-check" name="heatmapMode" id="modeStrategic" value="alloc">
+                            <label class="btn btn-outline-primary" for="modeStrategic" title="Allocations Only">Strategic</label>
+                            
+                            <input type="radio" class="btn-check" name="heatmapMode" id="modeOperational" value="task">
+                            <label class="btn btn-outline-primary" for="modeOperational" title="Task Demand Only">Operational</label>
+                        </div>
+                        <select id="monthSelector" class="form-select form-select-sm" style="width: auto;">
+                            <option value="@DateTime.UtcNow.Month">Current Month</option>
+                            <option value="@DateTime.UtcNow.AddMonths(1).Month">Next Month</option>
+                        </select>
+                    </div>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -35,17 +50,55 @@
                                 <tr><td colspan="32" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td></tr>
                             </tbody>
                         </table>
-                        <div class="d-flex justify-content-center mt-2 small text-muted gap-3">
-                            <span><div class="d-inline-block rounded-circle bg-success me-1" style="width:12px;height:12px;"></div> Available</span>
-                            <span><div class="d-inline-block rounded-circle bg-warning me-1" style="width:12px;height:12px;"></div> Near Capacity (80-100%)</span>
-                            <span><div class="d-inline-block rounded-circle bg-danger me-1" style="width:12px;height:12px;"></div> Over-Allocated (>100%)</span>
-                            <span><div class="d-inline-block rounded-circle bg-secondary me-1" style="width:12px;height:12px;"></div> Weekend (Fri/Sat) / Holiday</span>
+                        <div class="d-flex justify-content-center mt-2 small text-muted gap-3 flex-wrap" id="heatmapLegend">
+                            <!-- Legend items injected via JS based on mode -->
                         </div>
+                        <style>
+                            /* --- High-End Fintech Triple-Palette System --- */
+                            
+                            /* 1. STRATEGIC MODE (Blue Palette: Planned Budget/Commitment) */
+                            .cell-strat-vlow { background-color: #eef2ff !important; color: #312e81 !important; }
+                            .cell-strat-opt  { background-color: #6366f1 !important; color: #fff !important; }
+                            .cell-strat-high { background-color: #4338ca !important; color: #fff !important; }
+                            .cell-strat-peak { background-color: #3730a3 !important; color: #fff !important; }
+                            .cell-strat-over { background-color: #1e1b4b !important; color: #fff !important; font-weight: bold; animation: pulse-blue 2s infinite; }
+
+                            /* 2. OPERATIONAL MODE (Orange Palette: Actual Task Engagement) */
+                            .cell-oper-vlow { background-color: #fff7ed !important; color: #7c2d12 !important; }
+                            .cell-oper-opt  { background-color: #f97316 !important; color: #fff !important; }
+                            .cell-oper-high { background-color: #ea580c !important; color: #fff !important; }
+                            .cell-oper-peak { background-color: #c2410c !important; color: #fff !important; }
+                            .cell-oper-over { background-color: #7c2d12 !important; color: #fff !important; font-weight: bold; animation: pulse-orange 2s infinite; }
+
+                            /* 3. TOTAL LOAD / VARIANCE MODE (Performance Trio) */
+                            .cell-total-match   { background-color: #22c55e !important; color: #fff !important; } /* On-Track */
+                            .cell-total-over    { background-color: #ef4444 !important; color: #fff !important; font-weight: bold; animation: pulse-red 2s infinite; }
+                            .cell-total-idle-l  { background-color: #ecfeff !important; color: #083344 !important; }
+                            .cell-total-idle-m  { background-color: #22d3ee !important; color: #083344 !important; }
+                            .cell-total-idle-s  { background-color: #0891b2 !important; color: #fff !important; }
+                            .cell-total-burn-l  { background-color: #fdf2f8 !important; color: #701a75 !important; }
+                            .cell-total-burn-m  { background-color: #f472b6 !important; color: #701a75 !important; }
+                            .cell-total-burn-s  { background-color: #be185d !important; color: #fff !important; }
+                            
+                            .heatmap-cell { height: 32px; vertical-align: middle; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+                            .heatmap-cell:hover { transform: scale(1.1); z-index: 100; cursor: pointer; border: 2px solid #333 !important; box-shadow: 0 10px 25px rgba(0,0,0,0.2) !important; border-radius: 4px; }
+
+                            @@keyframes pulse-red { 0%, 100% { background-color: #ef4444; } 50% { background-color: #dc2626; } }
+                            @@keyframes pulse-blue { 0%, 100% { background-color: #1e1b4b; } 50% { background-color: #312e81; } }
+                            @@keyframes pulse-orange { 0%, 100% { background-color: #7c2d12; } 50% { background-color: #f97316; } }
+                            
+                            .bg-light.opacity-50 { background-color: #f9fafb !important; color: #d1d5db; }
+                        </style>
                     </div>
                     
                     <!-- Right: Utilization Summary Chart -->
                     <div class="col-lg-4 border-start">
-                        <h6 class="text-center mb-4 text-muted">Utilization Overview</h6>
+                        <h6 class="text-center mb-4 text-muted">
+                            Utilization Overview
+                            <button type="button" class="btn btn-link p-0 text-primary" data-bs-toggle="modal" data-bs-target="#pmpMetricModal">
+                                <i class="fas fa-info-circle" style="font-size:0.8rem;"></i>
+                            </button>
+                        </h6>
                         <canvas id="utilizationChart" height="250"></canvas>
                     </div>
                 </div>
@@ -102,7 +155,12 @@
             <div class="card shadow-sm h-100 border-primary">
                 <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center gap-2">
                     <i class="bi bi-cash-stack text-primary fs-5"></i>
-                    <h6 class="mb-0">Est. Labour Cost</h6>
+                    <h6 class="mb-0">
+                        Est. Labour Cost (Allocations)
+                        <button type="button" class="btn btn-link p-0 ms-1 text-primary" data-bs-toggle="modal" data-bs-target="#pmpCostModal">
+                            <i class="fas fa-info-circle" style="font-size:0.8rem;"></i>
+                        </button>
+                    </h6>
                     <span class="badge bg-primary ms-auto" id="costProjectCount">–</span>
                 </div>
                 <div class="card-body p-0">
@@ -113,7 +171,7 @@
                     </ul>
                 </div>
                 <div class="card-footer text-muted small">
-                    <i class="bi bi-info-circle"></i> Allocation hours × hourly rate per project
+                    <i class="fas fa-info-circle"></i> Allocation hours × hourly rate per project
                 </div>
             </div>
         </div>
@@ -121,12 +179,132 @@
 
 </div>
 
+<!-- PMP Education Modals -->
+
+<!-- 1. Metric Logic Modal -->
+<div class="modal fade" id="pmpMetricModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-gear-wide-connected"></i> Understanding Utilization Metrics</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <h6>The PMP "Dual-Track" Model</h6>
+                <p>To ensure financial transparency, our system tracks two distinct types of engagement:</p>
+                <ul>
+                    <li><strong>Strategic (Allocations)</strong>: High-level resource reservations by project managers. This represents your <strong>Planned Budgeted Effort</strong>.</li>
+                    <li><strong>Operational (Task Demand)</strong>: Real-world engagement based on estimated hours of tasks assigned. This represents your <strong>Actual Operational Burden</strong>.</li>
+                </ul>
+                <div class="alert alert-info">
+                    <strong>Total Load Calculation</strong>: In "Combined" mode, we use the <code>Max(Strategic, Operational)</code> logic. If you allocate 20% to a project but the resource is doing 40% worth of tasks, we count the 40% to protect against delivery bottlenecks.
+                </div>
+                <hr />
+                <h6>Example:</h6>
+                <div class="bg-light p-3 rounded">
+                    <p class="mb-1"><strong>Resource A</strong> is allocated 50% to <em>Project Blue</em> (Strategic).</p>
+                    <p class="mb-1">However, <strong>Resource A</strong> has tasks totaling 80% effort in <em>Project Blue</em> this week (Operational).</p>
+                    <p class="mb-0 text-danger"><strong>Result</strong>: The dashboard shows 80% load to flag the over-engagement risk.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Gap Analysis Modal -->
+<div class="modal fade" id="pmpGapModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-search"></i> Gap Analysis & Variance Heatmap</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p>The "Total Load" view uses a specialized colorscheme to highlight <strong>Planning Variance</strong>:</p>
+                
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-info">
+                            <div class="card-body">
+                                <h6 class="text-info"><i class="bi bi-snow"></i> Idling Gap (Cyan/Blue)</h6>
+                                <p class="small">Reserved capacity is unused. You are paying for a resource that has no tasks assigned to the project.</p>
+                                <div class="bg-light p-2 small"><em>Example:</em> 100% Allocated but 0% Tasks.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-magenta" style="border-color: #f06292;">
+                            <div class="card-body">
+                                <h6 style="color: #f06292;"><i class="bi bi-fire"></i> Burnout Risk (Purple/Pink)</h6>
+                                <p class="small">Operational work exceeds authorization. The resource is working more than planned, risking quality or delay.</p>
+                                <div class="bg-light p-2 small"><em>Example:</em> 20% Allocated but 60% Tasks.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>Green/Matched</strong>: Plan and Tasks are within 15% of each other. The project is "on track" from a capacity perspective.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Cost Analysis Modal -->
+<div class="modal fade" id="pmpCostModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-cash-stack"></i> Financial Variance: PV vs EAC</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <h6>Cost Calculation Logic</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered small">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Metric</th>
+                                <th>PMP Logic</th>
+                                <th>Purpose</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PV (Planned Value)</strong></td>
+                                <td>Allocation % × Daily Capacity × Rate</td>
+                                <td>Official budgeted reserve.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>EAC (Est. at Completion)</strong></td>
+                                <td>Task Estimate Hours × Rate</td>
+                                <td>Real-world labor cost based on scope.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-warning">
+                    <strong>Variance Analysis</strong>: If EAC > PV, your project scope is larger than your resource authorization. You may need to allocate more resources or reduce task scope to prevent burnout.
+                </div>
+                <h6>Example:</h6>
+                <div class="p-3 border rounded">
+                    <p class="mb-0">Project X has <strong>PV: $1,000</strong> (based on 100h allocated).</p>
+                    <p class="mb-0">Task estimates total <strong>EAC: $1,500</strong> (based on 150h tasks).</p>
+                    <p class="mt-2 fw-bold text-danger">Variance: -$500 Under-resourced / Scope Creep.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function() {
             var utilChartInstance = null;
-            
+            var chartDataCache = null;
+
             function loadDashboardData(month) {
                 // Load Heatmap Data
                 $.get('/api/ResourceData/heatmap', { month: month })
@@ -137,11 +315,14 @@
                 // Load Utilization Summary for the Chart
                 $.get('/api/ResourceData/utilization', { month: month })
                  .done(function(data) {
+                     chartDataCache = data;
                      renderChart(data);
                  });
             }
             
             function renderHeatmap(data) {
+                var currentMode = $('input[name="heatmapMode"]:checked').val() || 'total';
+                
                 var thead = '<tr><th class="text-start" style="min-width: 150px;">Resource</th>';
                 data.days.forEach(d => {
                     thead += `<th style="width: 30px; font-size:0.8rem;">${d}</th>`;
@@ -159,47 +340,138 @@
                      
                      data.days.forEach(d => {
                           var avail = row.dailyAvailability[d];
-                          var allocPct = row.dailyAllocation[d];
+                          var allocPct = row.dailyAllocation[d] || 0;
+                          var taskPct = row.dailyTaskDemand[d] || 0;
+                          var totalPct = row.dailyTotalLoad[d] || 0;
                           
+                          var displayPct = totalPct;
+                          if (currentMode === 'alloc') displayPct = allocPct;
+                          if (currentMode === 'task') displayPct = taskPct;
+
                           var cellClass = "bg-light";
-                          var tooltip = "Weekend (Fri/Sat) / Public Holiday";
-                          var cellText = "";
+                          var tooltip = `Strategic: ${allocPct}% | Operational: ${taskPct}%`;
+                          var cellContent = "";
                           
                           if(avail > 0) {
-                              if(allocPct > 100) { cellClass = "bg-danger text-white"; tooltip = "Over-Allocated: " + allocPct + "%"; }
-                              else if (allocPct >= 80) { cellClass = "bg-warning"; tooltip = "Near Capacity: " + allocPct + "%"; }
-                              else if (allocPct > 0) { cellClass = "bg-success text-white"; tooltip = "Optimal: " + allocPct + "%"; }
-                              else { cellClass = "bg-success opacity-50 text-white"; tooltip = "Available: 0% allocated"; }
+                              var gap = taskPct - allocPct; // Positive = Burnout, Negative = Idle
+
+                              if (currentMode === 'total') {
+                                  if (Math.abs(gap) <= 15) {
+                                      // Matched Engagement (within 15%): Performance Emerald
+                                      if (displayPct > 105) cellClass = "cell-total-over";
+                                      else if (displayPct > 0) cellClass = "cell-total-match";
+                                  } else if (gap > 0) {
+                                      // Burnout Gap (Tasks > Allocation): Magenta Palette
+                                      if (gap > 60) cellClass = "cell-total-burn-s";
+                                      else if (gap > 30) { cellClass = "cell-total-burn-m"; cellContent = '<i class="bi bi-fire" style="font-size: 0.7rem;"></i>'; }
+                                      else cellClass = "cell-total-burn-l";
+                                  } else {
+                                      // Idling Gap (Allocation > Tasks): Cyan Palette
+                                      var absGap = Math.abs(gap);
+                                      if (absGap > 60) cellClass = "cell-total-idle-s";
+                                      else if (absGap > 30) { cellClass = "cell-total-idle-m"; cellContent = '<i class="bi bi-snow" style="font-size: 0.7rem;"></i>'; }
+                                      else cellClass = "cell-total-idle-l";
+                                  }
+                              } else {
+                                  // Strategic/Operational Mode: Mode-Specific 5-step colors
+                                  var prefix = (currentMode === 'alloc') ? 'cell-strat' : 'cell-oper';
+                                  if (displayPct > 105) cellClass = prefix + "-over";
+                                  else if (displayPct >= 95) cellClass = prefix + "-peak";
+                                  else if (displayPct >= 80) cellClass = prefix + "-high";
+                                  else if (displayPct >= 30) cellClass = prefix + "-opt";
+                                  else if (displayPct > 0) cellClass = prefix + "-vlow";
+                              }
+                          } else {
+                              tooltip = "Weekend (Fri/Sat) / Public Holiday";
                           }
                           
-                          tbody += `<td class="${cellClass}" title="${tooltip}" data-bs-toggle="tooltip"></td>`;
+                          tbody += `<td class="heatmap-cell ${cellClass} p-0" title="${tooltip}" data-bs-toggle="tooltip">${cellContent}</td>`;
                      });
                      tbody += `</tr>`;
                 });
                 
                 $('#heatmapBody').html(tbody);
+                updateLegend(currentMode);
                 $('[data-bs-toggle="tooltip"]').tooltip();
+            }
+
+            function updateLegend(mode) {
+                var html = '';
+                if (mode === 'total') {
+                    html = `
+                        <span><div class="d-inline-block rounded me-1 cell-total-match" style="width:12px;height:12px;"></div> Matched</span>
+                        <span><div class="d-inline-block rounded me-1 cell-total-burn-s" style="width:12px;height:12px;"></div> Burnout 🔥</span>
+                        <span><div class="d-inline-block rounded me-1 cell-total-idle-s" style="width:12px;height:12px;"></div> Idle ❄️</span>
+                        <span><div class="d-inline-block rounded me-1 cell-total-over" style="width:12px;height:12px;"></div> Critical Overload</span>
+                    `;
+                } else if (mode === 'alloc') {
+                    html = `
+                        <span><div class="d-inline-block rounded me-1 cell-strat-vlow" style="width:12px;height:12px;"></div> Under-Alloc</span>
+                        <span><div class="d-inline-block rounded me-1 cell-strat-opt" style="width:12px;height:12px;"></div> Optimal Plan</span>
+                        <span><div class="d-inline-block rounded me-1 cell-strat-high" style="width:12px;height:12px;"></div> High Reserve</span>
+                        <span><div class="d-inline-block rounded me-1 cell-strat-over" style="width:12px;height:12px;"></div> Over-Alloc</span>
+                    `;
+                } else {
+                    html = `
+                        <span><div class="d-inline-block rounded me-1 cell-oper-vlow" style="width:12px;height:12px;"></div> Under-Demand</span>
+                        <span><div class="d-inline-block rounded me-1 cell-oper-opt" style="width:12px;height:12px;"></div> Active Work</span>
+                        <span><div class="d-inline-block rounded me-1 cell-oper-high" style="width:12px;height:12px;"></div> Heavy Burden</span>
+                        <span><div class="d-inline-block rounded me-1 cell-oper-over" style="width:12px;height:12px;"></div> Risk Zone</span>
+                    `;
+                }
+                $('#heatmapLegend').html(html);
             }
             
             function renderChart(data) {
                 var ctx = document.getElementById('utilizationChart').getContext('2d');
-                
+                var currentMode = $('input[name="heatmapMode"]:checked').val() || 'total';
+
                 var labels = [];
-                var allocated = [];
-                var effectiveRem = [];
-                var efficiencyBuffer = [];
+                var datasets = [];
                 
-                // Sort by effective utilization desc, take top 8
-                data.sort((a,b) => b.effectiveUtilizationPercent - a.effectiveUtilizationPercent).slice(0, 8).forEach(res => {
-                    labels.push(res.fullName.split(' ')[0]);
-                    allocated.push(res.allocatedHours);
-                    effectiveRem.push(res.remainingEffectiveHours);
-                    
-                    // The "Standard" buffer (Total - Effective)
-                    var buffer = Math.max(0, res.availableHours - res.effectiveCapacityHours);
-                    efficiencyBuffer.push(buffer);
-                });
+                // Sort contextually: if strategic mode, sort by allocation; if operational, by tasks.
+                var sortedData = [...data];
+                if (currentMode === 'alloc') sortedData.sort((a,b) => b.strategicUtilizationPercent - a.strategicUtilizationPercent);
+                else if (currentMode === 'task') sortedData.sort((a,b) => b.operationalUtilizationPercent - a.operationalUtilizationPercent);
+                else sortedData.sort((a,b) => b.utilizationPercent - a.utilizationPercent);
                 
+                var topResources = sortedData.slice(0, 8);
+                topResources.forEach(res => labels.push(res.fullName.split(' ')[0]));
+
+                if (currentMode === 'alloc') {
+                    datasets.push({
+                        label: 'Allocated (Strategic)',
+                        data: topResources.map(r => r.allocatedHours),
+                        backgroundColor: '#0d6efd',
+                        borderRadius: 4
+                    });
+                } else if (currentMode === 'task') {
+                    datasets.push({
+                        label: 'Task Demand (Operational)',
+                        data: topResources.map(r => r.taskDemandHours),
+                        backgroundColor: '#fd7e14',
+                        borderRadius: 4
+                    });
+                } else {
+                    // Total Load View: Present both for PMP Gap Analysis
+                    datasets.push({
+                        label: 'Planned (Allocated)',
+                        data: topResources.map(r => r.allocatedHours),
+                        backgroundColor: '#0d6efd', // Primary
+                        borderColor: '#0d6efd',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    });
+                    datasets.push({
+                        label: 'Real (Task Demand)',
+                        data: topResources.map(r => r.taskDemandHours),
+                        backgroundColor: '#fd7e14', // Orange
+                        borderColor: '#fd7e14',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    });
+                }
+
                 if(utilChartInstance) {
                     utilChartInstance.destroy();
                 }
@@ -208,45 +480,22 @@
                     type: 'bar',
                     data: {
                         labels: labels,
-                        datasets: [
-                            {
-                                label: 'Allocated (Committed)',
-                                data: allocated,
-                                backgroundColor: '#0d6efd',
-                            },
-                            {
-                                label: 'Remaining Productive (80%)',
-                                data: effectiveRem,
-                                backgroundColor: '#198754', // Green
-                            },
-                            {
-                                label: 'Efficiency Buffer (PMP Std)',
-                                data: efficiencyBuffer,
-                                backgroundColor: '#e9ecef', // Light grey
-                            }
-                        ]
+                        datasets: datasets
                     },
                     options: {
                         responsive: true,
                         scales: {
-                            x: { stacked: true },
+                            x: { stacked: false },
                             y: { 
-                                stacked: true, 
                                 beginAtZero: true,
                                 title: { display: true, text: 'Hours / Month' }
                             }
                         },
                         plugins: {
+                            legend: { display: true, position: 'top' },
                             tooltip: { 
                                 mode: 'index', 
-                                intersect: false,
-                                callbacks: {
-                                    footer: (tooltipItems) => {
-                                        let total = 0;
-                                        tooltipItems.forEach(i => total += i.parsed.y);
-                                        return 'Total Available: ' + total.toFixed(1) + 'h';
-                                    }
-                                }
+                                intersect: false
                             }
                         }
                     }
@@ -318,9 +567,24 @@
             loadDashboardData($('#monthSelector').val());
             loadCostReport();
             
-            $('#monthSelector').change(function() {
-                loadDashboardData($(this).val());
+            $('#monthSelector, input[name="heatmapMode"]').change(function() {
+                var month = $('#monthSelector').val();
+                if (this.name === 'heatmapMode' && chartDataCache) {
+                    // Just re-render everything from cache if only the mode changed
+                    // (But we reload if the month changed)
+                    renderHeatmap({ ...window.lastHeatmapData }); 
+                    renderChart(chartDataCache);
+                } else {
+                    loadDashboardData(month);
+                }
             });
+
+            // Store last heatmap data globally for easy re-render on mode switch
+            window.renderHeatmapOriginal = renderHeatmap;
+            renderHeatmap = function(data) {
+                window.lastHeatmapData = data;
+                window.renderHeatmapOriginal(data);
+            };
         });
     </script>
 }

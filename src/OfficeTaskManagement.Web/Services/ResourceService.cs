@@ -168,7 +168,6 @@ namespace OfficeTaskManagement.Services
                 .ToListAsync();
         }
 
-        /// <inheritdoc/>
         public async Task<decimal> GetUserUtilizationPercentAsync(string userId, int year, int month)
         {
             var startDate = new DateTime(year, month, 1);
@@ -199,24 +198,35 @@ namespace OfficeTaskManagement.Services
                 }
             }
 
-            // 2. Get Task-based Estimates (for tasks active this month)
-            // Fix #2: Added .Where(t.ProjectId != null) to prevent NullReferenceException
-            var tasks = await _context.Tasks
+            // 2. Get Task-based Estimates with Hierarchical Resolution
+            var allTasks = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Sprint)
+                .Include(t => t.Epic)
+                .Include(t => t.Feature).ThenInclude(f => f.Epic)
+                .Include(t => t.UserStory).ThenInclude(us => us.Feature).ThenInclude(f => f.Epic)
                 .Where(t => t.AssigneeId == userId
-                         && t.ProjectId != null
                          && t.Status != Models.Enums.TaskStatus.Done
                          && t.Status != Models.Enums.TaskStatus.Approved)
                 .ToListAsync();
 
             var projectTaskHours = new Dictionary<int, decimal>();
-            foreach (var task in tasks)
+            foreach (var t in allTasks)
             {
-                if (!projectTaskHours.ContainsKey(task.ProjectId.Value)) projectTaskHours[task.ProjectId.Value] = 0;
-                projectTaskHours[task.ProjectId.Value] += (decimal)task.EstimatedHours;
+                int? resolvedId = t.ProjectId 
+                               ?? t.Sprint?.ProjectId 
+                               ?? t.Epic?.ProjectId 
+                               ?? t.Feature?.Epic?.ProjectId 
+                               ?? t.UserStory?.Feature?.Epic?.ProjectId;
+
+                if (resolvedId.HasValue)
+                {
+                    if (!projectTaskHours.ContainsKey(resolvedId.Value)) projectTaskHours[resolvedId.Value] = 0;
+                    projectTaskHours[resolvedId.Value] += (decimal)t.EstimatedHours;
+                }
             }
 
             // 3. Combine: Use Max(Allocation, Tasks) per project to avoid double counting 
-            // but reflect over-assignment of tasks.
             decimal totalAllocatedHours = 0;
             var allProjectIds = projectAllocatedHours.Keys.Union(projectTaskHours.Keys);
             
@@ -233,32 +243,87 @@ namespace OfficeTaskManagement.Services
         /// <inheritdoc/>
         public async Task<IEnumerable<UserUtilizationDto>> GetTeamUtilizationAsync(int year, int month)
         {
-            // Fix #17: Only include users with IsResource=true (excludes external stakeholders)
+            var startDate = new DateTime(year, month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+
+            // 1. Fetch resources
             var users = await _context.Users
                 .Include(u => u.ResourceProfile)
                 .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
                 .ToListAsync();
 
             var result = new List<UserUtilizationDto>();
+
+            // 2. Process each user (optimized)
             foreach (var user in users)
             {
-                var startDate = new DateTime(year, month, 1);
-                var endDate = startDate.AddMonths(1).AddDays(-1);
-
                 var available = await GetUserAvailableHoursAsync(user.Id, startDate, endDate);
-                var utilPercent = await GetUserUtilizationPercentAsync(user.Id, year, month);
-                var allocated = available * (utilPercent / 100m);
+                if (available <= 0) continue;
+
+                var profile = user.ResourceProfile!;
+
+                // A. Strategic Allocations
+                var allocations = await _context.ProjectResourceAllocations
+                    .Where(a => a.UserId == user.Id && a.StartDate.Date <= endDate.Date && (a.EndDate == null || a.EndDate.Value.Date >= startDate.Date))
+                    .ToListAsync();
+
+                var projectAllocatedHours = new Dictionary<int, decimal>();
+                foreach (var alloc in allocations)
+                {
+                    var allocStart = alloc.StartDate > startDate ? alloc.StartDate : startDate;
+                    var allocEnd = (alloc.EndDate.HasValue && alloc.EndDate.Value < endDate) ? alloc.EndDate.Value : endDate;
+                    
+                    if (allocEnd >= allocStart)
+                    {
+                        var days = await CountWorkingDaysAsync(allocStart, allocEnd);
+                        var hours = days * profile.DailyCapacityHours * (alloc.AllocationPercentage / 100m);
+                        if (!projectAllocatedHours.ContainsKey(alloc.ProjectId)) projectAllocatedHours[alloc.ProjectId] = 0;
+                        projectAllocatedHours[alloc.ProjectId] += hours;
+                    }
+                }
+
+                // B. Operational Tasks (Hierarchical)
+                var allTasks = await _context.Tasks
+                    .Include(t => t.Sprint)
+                    .Include(t => t.Epic)
+                    .Include(t => t.Feature).ThenInclude(f => f.Epic)
+                    .Include(t => t.UserStory).ThenInclude(us => us.Feature).ThenInclude(f => f.Epic)
+                    .Where(t => t.AssigneeId == user.Id && t.Status != Models.Enums.TaskStatus.Done && t.Status != Models.Enums.TaskStatus.Approved)
+                    .ToListAsync();
+
+                var projectTaskHours = new Dictionary<int, decimal>();
+                foreach (var t in allTasks)
+                {
+                    int? resId = t.ProjectId ?? t.Sprint?.ProjectId ?? t.Epic?.ProjectId ?? t.Feature?.Epic?.ProjectId ?? t.UserStory?.Feature?.Epic?.ProjectId;
+                    if (resId.HasValue)
+                    {
+                        if (!projectTaskHours.ContainsKey(resId.Value)) projectTaskHours[resId.Value] = 0;
+                        projectTaskHours[resId.Value] += (decimal)t.EstimatedHours;
+                    }
+                }
+
+                // C. Combine for PMP "Total Load"
+                decimal totalSafetyHours = 0;
+                var allPids = projectAllocatedHours.Keys.Union(projectTaskHours.Keys);
+                foreach (var pid in allPids)
+                {
+                    decimal h1 = projectAllocatedHours.TryGetValue(pid, out var v1) ? v1 : 0;
+                    decimal h2 = projectTaskHours.TryGetValue(pid, out var v2) ? v2 : 0;
+                    totalSafetyHours += Math.Max(h1, h2);
+                }
 
                 result.Add(new UserUtilizationDto
                 {
                     UserId = user.Id,
                     FullName = user.FullName ?? user.Email ?? user.Id,
-                    Department = user.ResourceProfile?.Department,
+                    Department = profile.Department,
                     AvailableHours = available,
-                    AllocatedHours = Math.Round(allocated, 1),
-                    UtilizationPercent = utilPercent
+                    AllocatedHours = Math.Round(projectAllocatedHours.Values.Sum(), 1),
+                    TaskDemandHours = Math.Round(projectTaskHours.Values.Sum(), 1),
+                    UtilizationPercent = Math.Round((totalSafetyHours / available) * 100, 1)
                 });
             }
+
             return result;
         }
 

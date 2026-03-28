@@ -9,6 +9,7 @@
     <title>@ViewData["Title"] - TaskFlow</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/css/modern-theme.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/auth-styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
@@ -33,12 +34,12 @@
             </li>
             @if (!User.IsInRole("Employee") || User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
             {
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index" asp-fragment="unified-analytics">
                         <i class="fas fa-chart-pie"></i>
                         <span>Analytics</span>
                     </a>
-                </li>
+                </li> -->
                 <li class="nav-item">
                     <a class="nav-link text-info fw-bold" asp-area="" asp-controller="Analytics" asp-action="AIInsights">
                         <i class="fas fa-robot"></i>

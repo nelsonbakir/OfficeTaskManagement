@@ -73,7 +73,14 @@ namespace OfficeTaskManagement.Services
         public string FullName { get; set; } = string.Empty;
         /// <summary>Key = day number, value = available hours (0 = unavailable).</summary>
         public Dictionary<int, decimal> DailyAvailability { get; set; } = new();
-        /// <summary>Key = day number, value = allocation % (sum across all projects).</summary>
+        
+        /// <summary>Strategic: Key = day, value = allocation % (from project assignments).</summary>
         public Dictionary<int, int> DailyAllocation { get; set; } = new();
+        
+        /// <summary>Operational: Key = day, value = task demand % (from task estimates).</summary>
+        public Dictionary<int, int> DailyTaskDemand { get; set; } = new();
+        
+        /// <summary>Combined: Key = day, value = Max(Allocation, TaskDemand) - PMP Safety Load.</summary>
+        public Dictionary<int, int> DailyTotalLoad { get; set; } = new();
     }
 }

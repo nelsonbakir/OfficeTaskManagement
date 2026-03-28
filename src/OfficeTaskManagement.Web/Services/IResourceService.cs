@@ -112,20 +112,30 @@ namespace OfficeTaskManagement.Services
         /// <summary>Realistic productive capacity (usually 80% of AvailableHours per PMP standards).</summary>
         public decimal EffectiveCapacityHours => Math.Round(AvailableHours * 0.8m, 1);
         
+        /// <summary>Strategic: Hours reserved via project allocations.</summary>
         public decimal AllocatedHours { get; set; }
+
+        /// <summary>Operational: Hours engaged via active task estimates.</summary>
+        public decimal TaskDemandHours { get; set; }
         
-        /// <summary>Utilization against raw availability.</summary>
+        /// <summary>Utilization based on Strategic Allocations.</summary>
+        public decimal StrategicUtilizationPercent => AvailableHours > 0 ? Math.Round((AllocatedHours / AvailableHours) * 100, 1) : 0;
+
+        /// <summary>Utilization based on Operational Task Demand.</summary>
+        public decimal OperationalUtilizationPercent => AvailableHours > 0 ? Math.Round((TaskDemandHours / AvailableHours) * 100, 1) : 0;
+
+        /// <summary>Total Load: Combined safety utilization (Max of Alloc or Task per project).</summary>
         public decimal UtilizationPercent { get; set; }
         
-        /// <summary>Utilization against realistic productive capacity.</summary>
+        /// <summary>Effective Utilization against realistic capacity (80% rule).</summary>
         public decimal EffectiveUtilizationPercent => EffectiveCapacityHours > 0 
-            ? Math.Round((AllocatedHours / EffectiveCapacityHours) * 100, 1) 
+            ? Math.Round((Math.Max(AllocatedHours, TaskDemandHours) / EffectiveCapacityHours) * 100, 1) 
             : 0;
             
-        public decimal RemainingEffectiveHours => Math.Max(0, EffectiveCapacityHours - AllocatedHours);
+        public decimal RemainingEffectiveHours => Math.Max(0, EffectiveCapacityHours - Math.Max(AllocatedHours, TaskDemandHours));
         
         public bool IsOverAllocated => UtilizationPercent > 100;
         public bool IsAtRisk => EffectiveUtilizationPercent > 100 && !IsOverAllocated;
-        public bool IsIdle => UtilizationPercent < 30;
+        public bool IsIdle => StrategicUtilizationPercent < 30 && OperationalUtilizationPercent < 30;
     }
 }
