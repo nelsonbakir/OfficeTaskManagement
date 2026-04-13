@@ -90,7 +90,7 @@ namespace OfficeTaskManagement.Data
                 .HasOne(t => t.ParentTask)
                 .WithMany(t => t.SubTasks)
                 .HasForeignKey(t => t.ParentTaskId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade); // C4 fix: cascade-delete sub-tasks when parent is deleted
 
             builder.Entity<Sprint>()
                 .HasOne(s => s.Project)
@@ -220,12 +220,13 @@ namespace OfficeTaskManagement.Data
                 .HasForeignKey(t => t.AccountableUserId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // WorkflowTemplate → Project (optional project scoping)
+            // WorkflowTemplate → Project (Restrict: deactivate templates before deleting project
+            // to prevent orphaned sub-tasks that lose their stage definition context)
             builder.Entity<WorkflowTemplate>()
                 .HasOne(wt => wt.Project)
                 .WithMany()
                 .HasForeignKey(wt => wt.ProjectId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict); // L3 fix: was Cascade
 
             // WorkflowStage → WorkflowTemplate
             builder.Entity<WorkflowStage>()

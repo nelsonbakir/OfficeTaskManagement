@@ -28,9 +28,10 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
 
         /// <summary>
         /// Validates the DoD for the given sub-task's stage.
-        /// Throws <see cref="InvalidOperationException"/> if the gate is not satisfied.
+        /// Throws <see cref="InvalidOperationException"/> if the gate is not satisfied
+        /// or if the actor is not authorized per RACI roles.
         /// </summary>
-        public async Task EnforceGateAsync(TaskItem subTask)
+        public async Task EnforceGateAsync(TaskItem subTask, string actorUserId)
         {
             var stage = subTask.WorkflowStage
                 ?? await _db.WorkflowStages.FindAsync(subTask.WorkflowStageId);
@@ -41,59 +42,79 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 return;
             }
 
-            var roleTitle = stage.DefaultRoleTitle.ToLowerInvariant();
-
-            // ── Gate 1: Developer Stage ─────────────────────────────────────────
-            if (roleTitle.Contains("developer") || roleTitle.Contains("development"))
+            // ── RACI Enforcement ────────────────────────────────────────────────
+            // 1. Verify if Accountable sign-off is required and provided by an Accountable user
+            if (stage.RequiresAccountableSignoff)
             {
-                if (subTask.Status != TaskStatus.Committed)
-                    throw new InvalidOperationException(
-                        "Development Gate: Task must be in 'Committed' status before transitioning to Code Review. " +
-                        "Set Status = Committed when your implementation is ready.");
-
-                if ((subTask.ActualHours ?? 0) <= 0)
-                    throw new InvalidOperationException(
-                        "Development Gate: Actual hours must be logged before the gate can pass. " +
-                        "Please record the time spent on implementation.");
-            }
-
-            // ── Gate 2: Code Review Stage ───────────────────────────────────────
-            else if (roleTitle.Contains("review"))
-            {
-                if (subTask.Status != TaskStatus.Committed)
-                    throw new InvalidOperationException(
-                        "Code Review Gate: Task must be in 'Committed' status before transitioning to QA. " +
-                        "Set Status = Committed when review is approved.");
-
-                var hasReviewerComment = await _db.TaskComments
-                    .AnyAsync(c => c.TaskId == subTask.Id);
-
-                if (!hasReviewerComment)
-                    throw new InvalidOperationException(
-                        "Code Review Gate: At least one review comment must be recorded before the gate can pass. " +
-                        "Add your review findings or approval note as a comment.");
-            }
-
-            // ── Gate 3: QA / Testing Stage ──────────────────────────────────────
-            else if (roleTitle.Contains("qa") || roleTitle.Contains("test"))
-            {
-                if (subTask.Status != TaskStatus.Tested)
-                    throw new InvalidOperationException(
-                        "QA Gate: Task must be in 'Tested' status before closing the work package. " +
-                        "Set Status = Tested when all test cases have been executed.");
-
-                // Check linked UserStory test cases if the parent has a UserStoryId
-                if (subTask.UserStoryId.HasValue)
+                if (actorUserId != subTask.AccountableUserId)
                 {
-                    var allPassed = await _db.TestCases
-                        .Where(tc => tc.UserStoryId == subTask.UserStoryId)
-                        .AllAsync(tc => tc.IsPassed);
-
-                    if (!allPassed)
-                        throw new InvalidOperationException(
-                            "QA Gate: Not all test cases are marked as passed. " +
-                            "All linked test cases must pass before closing the QA stage.");
+                    throw new InvalidOperationException(
+                        $"Governance Gate: Stage '{stage.Name}' requires sign-off from the Accountable party. " +
+                        "Only the project Lead or PM can transition this gate.");
                 }
+            }
+            // 2. Otherwise, ensure the actor is the assigned Responsible party
+            else if (actorUserId != subTask.AssigneeId)
+            {
+                throw new InvalidOperationException(
+                    "RACI Violation: You must be the assigned 'Responsible' user to transition this stage. " +
+                    "Assign the task to yourself or contact the owner.");
+            }
+
+            // ── Gate Enforcement by Type ────────────────────────────────────────
+            switch (stage.GateType)
+            {
+                case StageGateType.None:
+                    // No programmatic gate to enforce
+                    break;
+
+                case StageGateType.CommittedOnly:
+                    if (subTask.Status != TaskStatus.Committed)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: Task must be in 'Committed' status to pass. " +
+                            "Set Status = Committed when the work package is delivered.");
+                    break;
+
+                case StageGateType.CommittedWithHours:
+                    if (subTask.Status != TaskStatus.Committed)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: Task must be in 'Committed' status to pass.");
+
+                    if ((subTask.ActualHours ?? 0) <= 0)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: Actual hours must be logged as evidence of work performed.");
+                    break;
+
+                case StageGateType.CommittedWithPeerReview:
+                    if (subTask.Status != TaskStatus.Committed)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: Task must be in 'Committed' status (Review Approved).");
+
+                    var hasComment = await _db.TaskComments.AnyAsync(c => c.TaskId == subTask.Id);
+                    if (!hasComment)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: At least one reviewer comment or approval note must be recorded.");
+                    break;
+
+                case StageGateType.TestedWithAllCasesPassed:
+                    if (subTask.Status != TaskStatus.Tested)
+                        throw new InvalidOperationException(
+                            $"{stage.Name} Gate: Task must be in 'Tested' status.");
+
+                    if (subTask.UserStoryId.HasValue)
+                    {
+                        var allPassed = await _db.TestCases
+                            .Where(tc => tc.UserStoryId == subTask.UserStoryId)
+                            .AllAsync(tc => tc.IsPassed);
+
+                        if (!allPassed)
+                            throw new InvalidOperationException(
+                                $"{stage.Name} Gate: All linked test cases must be marked as 'Passed' before closing.");
+                    }
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(stage.GateType), "Unsupported StageGateType.");
             }
         }
     }

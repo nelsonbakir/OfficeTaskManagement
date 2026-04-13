@@ -34,6 +34,13 @@ namespace OfficeTaskManagement.Models
         [StringLength(255)]
         public string FileName { get; set; } = string.Empty;
 
+        /// <summary>File size in bytes — populated from IFormFile.Length at upload time.</summary>
+        public long FileSizeBytes { get; set; }
+
+        /// <summary>MIME content type — populated from IFormFile.ContentType at upload time.</summary>
+        [StringLength(100)]
+        public string? ContentType { get; set; }
+
         public string? UploadedById { get; set; }
         public User? UploadedBy { get; set; }
 

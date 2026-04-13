@@ -106,8 +106,13 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 .FirstOrDefaultAsync(t => t.Id == subTaskId)
                 ?? throw new InvalidOperationException($"Sub-task {subTaskId} not found.");
 
-            // Enforce stage gate — throws if DoD criteria not met
-            await _gate.EnforceGateAsync(current);
+            // Enforce RACI-based stage gate — throws if criteria or permissions not met
+            await _gate.EnforceGateAsync(current, actorUserId);
+
+            // Determine local RACI role of the actor for audit purposes
+            var actorRaciRole = actorUserId == current.AccountableUserId 
+                ? RaciRole.Accountable 
+                : RaciRole.Responsible;
 
             // Find the next sibling sub-task in order
             var nextSubTask = await _db.Tasks
@@ -129,15 +134,14 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 field:       "Status",
                 oldValue:    oldStatus,
                 newValue:    TaskStatus.Done.ToString(),
-                raciRole:    RaciRole.Responsible,
-                description: $"Stage '{current.WorkflowStage?.Name}' completed. Gate passed.");
+                raciRole:    actorRaciRole,
+                description: $"Stage '{current.WorkflowStage?.Name}' completed. Gate passed by {actorRaciRole}.");
 
             if (nextSubTask != null)
             {
                 // Apply lag if defined (FinishToStart logic — immediate activation by default)
                 var lag = nextSubTask.WorkflowStage?.LagHours ?? 0;
-                // For non-zero lag, a background job would schedule activation.
-                // For now, activate immediately (lag == 0 is the common case).
+                
                 if (lag <= 0)
                 {
                     nextSubTask.Status = TaskStatus.ToDo;
@@ -147,8 +151,8 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                         field:       "Status",
                         oldValue:    TaskStatus.New.ToString(),
                         newValue:    TaskStatus.ToDo.ToString(),
-                        raciRole:    RaciRole.Accountable,
-                        description: $"Stage '{nextSubTask.WorkflowStage?.Name}' activated after predecessor gate passed.");
+                        raciRole:    RaciRole.Accountable, // Next stage activation is an oversight/planning event
+                        description: $"Stage '{nextSubTask.WorkflowStage?.Name}' activated automatically after predecessor gate passed.");
                 }
             }
             else
@@ -157,15 +161,16 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 var parent = await _db.Tasks.FindAsync(current.ParentTaskId);
                 if (parent != null)
                 {
+                    var oldParentStatus = parent.Status.ToString();
                     parent.Status = TaskStatus.Done;
                     await _db.SaveChangesAsync();
 
                     await WriteAuditAsync(parent.Id, actorUserId,
                         field:       "Status",
-                        oldValue:    TaskStatus.Tested.ToString(),
+                        oldValue:    oldParentStatus,
                         newValue:    TaskStatus.Done.ToString(),
                         raciRole:    RaciRole.Accountable,
-                        description: "All workflow stages completed. Work package closed.");
+                        description: $"All workflow stages completed. Work package successfully closed by {actorRaciRole}.");
                 }
             }
         }

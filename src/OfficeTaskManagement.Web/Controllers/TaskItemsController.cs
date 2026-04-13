@@ -249,11 +249,13 @@ namespace OfficeTaskManagement.Controllers
                             var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
                             _context.Attachments.Add(new Attachment
                             {
-                                TaskItemId = vm.TaskItem.Id,
-                                FileName = file.FileName,
-                                FilePath = filePath,
-                                UploadedById = currentUserId,
-                                UploadedAt = DateTime.UtcNow
+                                TaskItemId    = vm.TaskItem.Id,
+                                FileName      = file.FileName,
+                                FilePath      = filePath,
+                                FileSizeBytes = file.Length,
+                                ContentType   = file.ContentType,
+                                UploadedById  = currentUserId,
+                                UploadedAt    = DateTime.UtcNow
                             });
                         }
                     }
@@ -575,11 +577,13 @@ namespace OfficeTaskManagement.Controllers
                                 var filePath = await _mediaService.UploadAsync(stream, file.FileName, file.ContentType);
                                 _context.Attachments.Add(new Attachment
                                 {
-                                    TaskItemId = existingTask.Id,
-                                    FileName = file.FileName,
-                                    FilePath = filePath,
-                                    UploadedById = userId,
-                                    UploadedAt = DateTime.UtcNow
+                                    TaskItemId    = existingTask.Id,
+                                    FileName      = file.FileName,
+                                    FilePath      = filePath,
+                                    FileSizeBytes = file.Length,
+                                    ContentType   = file.ContentType,
+                                    UploadedById  = userId,
+                                    UploadedAt    = DateTime.UtcNow
                                 });
                             }
                         }

@@ -6,7 +6,7 @@ namespace OfficeTaskManagement.Models
     /// <summary>
     /// Represents one step in a WorkflowTemplate pipeline (e.g., "Development", "Code Review", "QA Testing").
     /// Each stage defines:
-    /// - Which RACI role is Responsible for work at this step.
+    /// - Which gate type enforces the Definition of Done criteria (GateType enum).
     /// - The dependency type to its predecessor (Finish-to-Start or Start-to-Start).
     /// - An optional lag (delay hours) before this stage activates after its predecessor.
     /// When the WorkflowEngine spawns sub-tasks, one TaskItem is created per stage.
@@ -38,6 +38,16 @@ namespace OfficeTaskManagement.Models
         public RaciRole RaciRole { get; set; } = RaciRole.Responsible;
 
         /// <summary>
+        /// The Definition-of-Done gate enforced by StageGateService before this stage
+        /// can be transitioned to the next.
+        /// - None:            Stage passes freely (planning, documentation, etc.)
+        /// - DevelopmentGate: Status=Committed + ActualHours logged
+        /// - ReviewGate:      Status=Committed + at least 1 reviewer comment
+        /// - QaGate:          Status=Tested + all linked TestCases passed
+        /// </summary>
+        public StageGateType GateType { get; set; } = StageGateType.None;
+
+        /// <summary>
         /// Human-readable label for the role performing this stage (e.g., "Developer", "Tech Lead", "QA Engineer").
         /// Used for display and to guide the PM when assigning the spawned sub-task.
         /// </summary>
@@ -55,6 +65,13 @@ namespace OfficeTaskManagement.Models
         /// Supports PMP Lead/Lag scheduling. Negative values represent Lead (early start).
         /// </summary>
         public decimal LagHours { get; set; } = 0;
+
+        /// <summary>
+        /// If true, the gate for this stage can only be passed if the actor is the
+        /// Accountable party (A) on the task, even if the work is performed by the Responsible party.
+        /// Use for high-governance checkpoints (Release Approval, Security Audit).
+        /// </summary>
+        public bool RequiresAccountableSignoff { get; set; } = false;
 
         /// <summary>
         /// Definition of Done criteria text for this stage. The StageGateService enforces

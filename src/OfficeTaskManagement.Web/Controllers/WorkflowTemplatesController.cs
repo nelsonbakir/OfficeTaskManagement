@@ -48,6 +48,7 @@ namespace OfficeTaskManagement.Controllers
         {
             ViewBag.Projects = new SelectList(_db.Projects, "Id", "Name");
             ViewBag.TaskTypes = Enum.GetValues<TaskType>()
+                .Where(t => t != TaskType.Unknown)
                 .Select(t => new { Value = (int)t, Text = t.ToString() })
                 .ToList();
             return View("Edit", new WorkflowTemplate());
@@ -67,6 +68,7 @@ namespace OfficeTaskManagement.Controllers
             }
             ViewBag.Projects = new SelectList(_db.Projects, "Id", "Name", model.ProjectId);
             ViewBag.TaskTypes = Enum.GetValues<TaskType>()
+                .Where(t => t != TaskType.Unknown)
                 .Select(t => new { Value = (int)t, Text = t.ToString() })
                 .ToList();
             return View("Edit", model);
@@ -125,10 +127,17 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddStage(int templateId, string name, string defaultRoleTitle,
-            int order, RaciRole raciRole, StageDependency dependencyType, decimal lagHours, string? definitionOfDone)
+            int order, StageDependency dependencyType, decimal lagHours, string? definitionOfDone)
         {
             var template = await _db.WorkflowTemplates.FindAsync(templateId);
             if (template == null) return NotFound();
+
+            // ── Auto-infer GateType from the stage name ──────────────────────────
+            // The PM never needs to manually select a gate type. The inference
+            // service analyses the stage name keyword and assigns the appropriate
+            // DoD criteria pattern automatically. The PM can override from the
+            // stage edit form if the inference does not match their intent.
+            var inferredGateType = StageGateInferenceService.InferFromName(name);
 
             _db.WorkflowStages.Add(new WorkflowStage
             {
@@ -136,14 +145,15 @@ namespace OfficeTaskManagement.Controllers
                 Name               = name,
                 DefaultRoleTitle   = defaultRoleTitle,
                 Order              = order,
-                RaciRole           = raciRole,
+                RaciRole           = RaciRole.Responsible,
                 DependencyType     = dependencyType,
                 LagHours           = lagHours,
-                DefinitionOfDone   = definitionOfDone
+                DefinitionOfDone   = definitionOfDone,
+                GateType           = inferredGateType
             });
 
             await _db.SaveChangesAsync();
-            TempData["Success"] = $"Stage '{name}' added.";
+            TempData["Success"] = $"Stage '{name}' added with gate: {StageGateInferenceService.DescribeGateType(inferredGateType)}";
             return RedirectToAction(nameof(Edit), new { id = templateId });
         }
 
@@ -162,19 +172,66 @@ namespace OfficeTaskManagement.Controllers
             return RedirectToAction(nameof(Edit), new { id = templateId });
         }
 
+        // GET: WorkflowTemplates/Delete/5
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var template = await _db.WorkflowTemplates
+                .Include(wt => wt.Stages)
+                .FirstOrDefaultAsync(wt => wt.Id == id);
+            if (template == null) return NotFound();
+            return View(template);
+        }
+
         // POST: WorkflowTemplates/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Project Coordinator")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var template = await _db.WorkflowTemplates.FindAsync(id);
-            if (template != null)
+            var template = await _db.WorkflowTemplates
+                .Include(wt => wt.Stages)
+                .FirstOrDefaultAsync(wt => wt.Id == id);
+
+            if (template == null) return NotFound();
+
+            // Safety: if any active sub-tasks reference stages of this template,
+            // soft-delete (deactivate) rather than hard-delete to preserve audit integrity.
+            var stageIds = template.Stages.Select(s => s.Id).ToList();
+            var inUse = stageIds.Any() && await _db.Tasks
+                .AnyAsync(t => t.WorkflowStageId != null && stageIds.Contains(t.WorkflowStageId!.Value));
+
+            if (inUse)
+            {
+                template.IsActive = false;
+                await _db.SaveChangesAsync();
+                TempData["Success"] = $"Template '{template.Name}' deactivated — it is referenced by active tasks and cannot be hard-deleted.";
+            }
+            else
             {
                 _db.WorkflowTemplates.Remove(template);
                 await _db.SaveChangesAsync();
                 TempData["Success"] = $"Template '{template.Name}' deleted.";
             }
+
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: WorkflowTemplates/SuggestGateType?name=Code+Review
+        /// <summary>
+        /// AJAX endpoint called by the stage editor UI as the PM types a stage name.
+        /// Returns the inferred StageGateType so the form can display a real-time suggestion.
+        /// </summary>
+        [HttpGet]
+        public IActionResult SuggestGateType(string name)
+        {
+            var inferred = StageGateInferenceService.InferFromName(name ?? string.Empty);
+            return Json(new
+            {
+                gateType    = (int)inferred,
+                gateName    = inferred.ToString(),
+                description = StageGateInferenceService.DescribeGateType(inferred)
+            });
         }
 
         // GET: WorkflowTemplates/WorkPackage/{taskId}
@@ -182,7 +239,6 @@ namespace OfficeTaskManagement.Controllers
         /// Displays the RACI Work Package view for a parent task — the PM reporting dashboard
         /// showing per-stage PERT estimates, actual hours, variance, and structured audit trail.
         /// </summary>
-        [AllowAnonymous]
         [Authorize]
         public async Task<IActionResult> WorkPackage(int id)
         {
