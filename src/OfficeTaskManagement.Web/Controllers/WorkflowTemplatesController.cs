@@ -172,6 +172,44 @@ namespace OfficeTaskManagement.Controllers
             return RedirectToAction(nameof(Edit), new { id = templateId });
         }
 
+        // POST: WorkflowTemplates/EditStage
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Project Coordinator")]
+        public async Task<IActionResult> EditStage(
+            int stageId,
+            int templateId,
+            string name,
+            OfficeTaskManagement.Models.Enums.StageGateType gateType,
+            string? definitionOfDone,
+            int lagHours,
+            string? defaultRoleTitle)
+        {
+            var stage = await _db.WorkflowStages.FindAsync(stageId);
+            if (stage == null) return NotFound();
+
+            // Block edits if live tasks are currently using this stage
+            var inUse = await _db.Tasks.AnyAsync(t =>
+                t.WorkflowStageId == stageId &&
+                t.Status >= OfficeTaskManagement.Models.Enums.TaskStatus.InProgress);
+
+            if (inUse)
+            {
+                TempData["Error"] = $"Cannot edit stage '{stage.Name}' while tasks are actively working it. Complete or reset those tasks first.";
+                return RedirectToAction(nameof(Edit), new { id = templateId });
+            }
+
+            stage.Name = name.Trim();
+            stage.GateType = gateType;
+            stage.DefinitionOfDone = definitionOfDone?.Trim();
+            stage.LagHours = lagHours;
+            stage.DefaultRoleTitle = defaultRoleTitle?.Trim();
+
+            await _db.SaveChangesAsync();
+            TempData["Success"] = $"Stage '{stage.Name}' updated.";
+            return RedirectToAction(nameof(Edit), new { id = templateId });
+        }
+
         // GET: WorkflowTemplates/Delete/5
         [HttpGet]
         public async Task<IActionResult> Delete(int id)
@@ -256,6 +294,24 @@ namespace OfficeTaskManagement.Controllers
                 if (parent == null) return NotFound();
 
                 ViewBag.ParentTask = parent;
+
+                // Build StageOrder → SubTaskId map so the "Pass Gate" buttons
+                // can reference the correct sub-task for each stage row.
+                var stageSubTasks = await _db.Tasks
+                    .Include(t => t.WorkflowStage)
+                    .Where(t => t.ParentTaskId == id && t.WorkflowStageId != null)
+                    .ToListAsync();
+
+                ViewBag.StageSubTaskIds = stageSubTasks
+                    .Where(t => t.WorkflowStage != null)
+                    .ToDictionary(t => t.WorkflowStage!.Order, t => t.Id);
+
+                // Templates list for the "Apply / Change Template" collapse panel
+                ViewBag.Templates = await _db.WorkflowTemplates
+                    .Include(wt => wt.Stages)
+                    .Where(wt => wt.IsActive)
+                    .ToListAsync();
+
                 return View(summary);
             }
             catch (InvalidOperationException ex)

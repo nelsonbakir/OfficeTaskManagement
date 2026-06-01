@@ -153,19 +153,65 @@ namespace OfficeTaskManagement.Controllers.Api
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusModel model)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+            var task = await _context.Tasks
+                .Include(t => t.WorkflowStage)
+                .FirstOrDefaultAsync(t => t.Id == id);
 
             if (task == null) return NotFound();
             
             if (task.AssigneeId != userId && task.CreatedById != userId && !User.IsInRole("Manager"))
-            {
                 return Forbid();
-            }
 
-            task.Status = (OfficeTaskManagement.Models.Enums.TaskStatus)model.StatusId;
+            var newStatus = (OfficeTaskManagement.Models.Enums.TaskStatus)model.StatusId;
 
+            // Block manual status changes on Work Package summary tasks
+            if (task.IsWorkPackage)
+                return BadRequest(new { error = "Work Package status is managed by stage gates." });
+
+            // ToDo requires an assignee
+            if (newStatus == OfficeTaskManagement.Models.Enums.TaskStatus.ToDo && string.IsNullOrEmpty(task.AssigneeId))
+                return BadRequest(new { error = "Tasks in ToDo must have an assignee." });
+
+            // Block paused tasks
+            if (task.IsPaused)
+                return BadRequest(new { error = "This task is paused. Resume it before changing status." });
+
+            var oldStatus = task.Status;
+            task.Status = newStatus;
             _context.Update(task);
+
+            // Audit entry
+            _context.TaskHistories.Add(new TaskHistory
+            {
+                TaskItemId = task.Id,
+                ChangedById = userId,
+                FieldChanged = "Status",
+                OldValue = oldStatus.ToString(),
+                NewValue = newStatus.ToString(),
+                ChangeDescription = $"Status changed from {oldStatus} to {newStatus} via Kanban board.",
+                Timestamp = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
+
+            // Sync parent Work Package if this is a stage sub-task
+            if (task.ParentTaskId.HasValue && task.WorkflowStageId.HasValue)
+            {
+                var engine = HttpContext.RequestServices.GetRequiredService<OfficeTaskManagement.Services.WorkflowEngine.IWorkflowEngineService>();
+                await engine.SyncParentStatusAsync(task.ParentTaskId.Value, userId);
+            }
+            // Regular sub-task: escalate parent to InProgress
+            else if (task.ParentTaskId.HasValue && newStatus >= OfficeTaskManagement.Models.Enums.TaskStatus.InProgress)
+            {
+                var parent = await _context.Tasks.FindAsync(task.ParentTaskId);
+                if (parent != null && parent.Status < OfficeTaskManagement.Models.Enums.TaskStatus.InProgress
+                    && parent.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done)
+                {
+                    parent.Status = OfficeTaskManagement.Models.Enums.TaskStatus.InProgress;
+                    _context.Update(parent);
+                    await _context.SaveChangesAsync();
+                }
+            }
             
             return Ok(new { success = true, id = task.Id, status = task.Status.ToString() });
         }

@@ -1,10 +1,11 @@
 @model OfficeTaskManagement.ViewModels.TaskItemViewModel
-@using OfficeTaskManagement.Data
-@inject ApplicationDbContext DbContext
+@using OfficeTaskManagement.Services.WorkflowEngine
+@using OfficeTaskManagement.Models.Enums
 @inject OfficeTaskManagement.Services.IMediaService MediaService
 @{ 
     ViewData["Title"] = "Edit Task"; 
-    var allUsers = DbContext.Users.ToList();
+    var allUsers = ViewBag.AllUsers as List<OfficeTaskManagement.Models.User> ?? new List<OfficeTaskManagement.Models.User>();
+    var isWorkPackage = Model.TaskItem.IsWorkPackage;
 }
 
 <style>
@@ -149,6 +150,23 @@
         background: #CFF0E7;
         color: #0B5A46;
     }
+
+    .status-badge.reviewed {
+        background: #F0E9FF;
+        color: #5C2D91;
+    }
+
+    .gate-instruction {
+        background: #F0F8FF;
+        border: 1px solid #CFE2FF;
+        border-radius: 4px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.8rem;
+        color: #0d47a1;
+        margin-top: 0.5rem;
+    }
+
+    .gate-instruction i { margin-right: 0.3rem; }
 
     .assignee-avatar {
         width: 32px;
@@ -375,10 +393,34 @@
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <h1 style="font-size: 1.5rem; margin: 0;">Edit Task</h1>
-    <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-arrow-left"></i> Back to Tasks
-    </a>
+    <div style="display:flex; gap:0.5rem;">
+        @if (isWorkPackage) {
+            <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@Model.TaskItem.Id" class="btn btn-sm" style="background:#5C2D91; color:white;">
+                <i class="fas fa-sitemap"></i> View Pipeline
+            </a>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Tasks
+        </a>
+    </div>
 </div>
+
+@if (isWorkPackage) {
+    <div class="alert mb-3" style="background:linear-gradient(135deg,#5C2D91 0%,#7B4BB9 100%); color:white; border:none; border-radius:8px; padding:1rem 1.25rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <i class="fas fa-project-diagram" style="font-size:1.3rem;"></i>
+            <div>
+                <strong>RACI Work Package</strong> — Status is managed by stage gates.
+                <div style="font-size:0.82rem; opacity:0.9; margin-top:0.2rem;">Use the <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@Model.TaskItem.Id" style="color:#E0D0FF; text-decoration:underline;">Pipeline view</a> to advance stages. Manual status changes are blocked.</div>
+            </div>
+        </div>
+    </div>
+}
+@if (Model.TaskItem.IsPaused) {
+    <div class="alert alert-danger mb-3" style="border-radius:8px;">
+        <i class="fas fa-pause-circle"></i> <strong>Paused</strong> — This task is currently paused. Status changes are blocked.
+    </div>
+}
 
 <form asp-action="Edit" enctype="multipart/form-data">
     <div class="task-editor-container">
@@ -712,12 +754,51 @@
             <!-- Status Panel -->
             <div class="sidebar-panel">
                 <h3 class="sidebar-panel-title">Status</h3>
-                <select asp-for="TaskItem.Status" class="form-select" style="margin-bottom: 1rem;">
-                    <option value="">-- Select Status --</option>
-                    @foreach (var status in Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.TaskStatus>()) {
-                        <option value="@status.Value">@status.Text</option>
-                    }
+            @{
+                // Gate-aware status lifecycle:
+                // If this task belongs to a workflow stage, only show the steps
+                // relevant to that stage's gate type — not the full enum list.
+                List<SelectListItem> statusOptions;
+                var stage = Model.TaskItem.WorkflowStage;
+                if (stage != null)
+                {
+                    var lifecycle = StageLifecycleMap.LifecycleFor(stage.GateType);
+                    statusOptions = lifecycle.Select(s => new SelectListItem
+                    {
+                        Value    = ((int)s).ToString(),
+                        Text     = s.ToString(),
+                        Selected = (Model.TaskItem.Status == s)
+                    }).ToList();
+                }
+                else
+                {
+                    // Standalone task: show all operational statuses (exclude New / Approved — those are Backlog)
+                    statusOptions = Enum.GetValues<OfficeTaskManagement.Models.Enums.TaskStatus>()
+                        .Where(s => s >= OfficeTaskManagement.Models.Enums.TaskStatus.ToDo)
+                        .Select(s => new SelectListItem
+                        {
+                            Value    = ((int)s).ToString(),
+                            Text     = s.ToString(),
+                            Selected = (Model.TaskItem.Status == s)
+                        }).ToList();
+                }
+            }
+            @if (isWorkPackage) {
+                <input type="hidden" asp-for="TaskItem.Status" />
+                <select class="form-select" disabled style="margin-bottom: 0.5rem; opacity:0.6;">
+                    <option selected>@Model.TaskItem.Status</option>
                 </select>
+                <small class="text-muted"><i class="fas fa-lock"></i> Locked — managed by pipeline</small>
+            } else {
+                <select asp-for="TaskItem.Status" class="form-select" asp-items="statusOptions" style="margin-bottom: 0.5rem;"></select>
+            }
+            @if (stage != null)
+            {
+                <div class="gate-instruction">
+                    <i class="fas fa-shield-alt"></i>
+                    <strong>Gate instruction:</strong> @StageLifecycleMap.GateInstruction(stage.GateType)
+                </div>
+            }
 
                 <div class="status-badge @Model.TaskItem.Status.ToString().ToLower()">
                     @Model.TaskItem.Status

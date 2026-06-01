@@ -27,20 +27,32 @@ namespace OfficeTaskManagement.Controllers
         private readonly IMediaService _mediaService;
         private readonly IResourceService _resourceService;
         private readonly IWorkflowEngineService _workflowEngine;
+        private readonly KanbanGovernanceService _kanbanGovernance;
 
-        public TaskItemsController(ApplicationDbContext context, IWebHostEnvironment env, IMediaService mediaService, IResourceService resourceService, IWorkflowEngineService workflowEngine)
+        public TaskItemsController(
+            ApplicationDbContext context,
+            IWebHostEnvironment env,
+            IMediaService mediaService,
+            IResourceService resourceService,
+            IWorkflowEngineService workflowEngine,
+            KanbanGovernanceService kanbanGovernance)
         {
             _context = context;
             _env = env;
             _mediaService = mediaService;
             _resourceService = resourceService;
             _workflowEngine = workflowEngine;
+            _kanbanGovernance = kanbanGovernance;
         }
 
         // GET: TaskItems
-        public async Task<IActionResult> Index(bool showBacklog = false)
+        // showStages=true: reveal stage Activity sub-tasks ("My Stages" view)
+        // projectId: optional filter to scope the board to a single project (drives Kanban columns)
+        public async Task<IActionResult> Index(bool showBacklog = false, bool showStages = false, int? projectId = null)
         {
             ViewBag.ShowBacklog = showBacklog;
+            ViewBag.ShowStages = showStages;
+            ViewBag.ProjectId = projectId;
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Tasks
                 .Include(t => t.Assignee)
@@ -58,7 +70,7 @@ namespace OfficeTaskManagement.Controllers
             {
                 if (User.IsInRole("Project Lead"))
                 {
-                    query = query.Where(t => t.AssigneeId == userId || 
+                    query = query.Where(t => t.AssigneeId == userId ||
                                              t.CreatedById == userId ||
                                              (t.Project != null && (t.Project.CreatedById == userId || t.Project.Sprints.Any(s => s.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId)) || t.Project.Epics.Any(ep => ep.Features.Any(fe => fe.Tasks.Any(task => task.AssigneeId == userId || task.CreatedById == userId))))));
                 }
@@ -67,7 +79,11 @@ namespace OfficeTaskManagement.Controllers
                     query = query.Where(t => t.AssigneeId == userId || t.CreatedById == userId);
                 }
             }
-            
+
+            // Optional project scope filter
+            if (projectId.HasValue)
+                query = query.Where(t => t.ProjectId == projectId.Value);
+
             if (showBacklog)
             {
                 query = query.Where(t => t.Status == TaskStatus.New || t.Status == TaskStatus.Approved);
@@ -76,7 +92,19 @@ namespace OfficeTaskManagement.Controllers
             {
                 query = query.Where(t => t.Status >= TaskStatus.ToDo);
             }
-            
+
+            // By default hide stage Activity sub-tasks from the Kanban board.
+            // Work Packages and standalone tasks are shown. Switch to "My Stages" view to see activities.
+            if (!showStages)
+                query = query.Where(t => t.WorkflowStageId == null);
+            else
+                query = query.Where(t => t.WorkflowStageId != null); // "My Stages" shows only activities
+
+            // Compute dynamic Kanban columns from project's active workflow template
+            ViewBag.KanbanColumns = showBacklog
+                ? null  // backlog uses its own fixed columns (New, Approved)
+                : await _kanbanGovernance.GetColumnsAsync(projectId);
+
             return View(await query.ToListAsync());
         }
 
@@ -101,6 +129,7 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.UserStory)
                 .Include(t => t.Areas)
                 .Include(t => t.AccountableUser)
+                .Include(t => t.WorkflowStage)  // Required for DoD panel
                 .AsQueryable();
 
             if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
@@ -158,6 +187,39 @@ namespace OfficeTaskManagement.Controllers
                 vm.TaskItem.StartDate = EnsureUtc(vm.TaskItem.StartDate);
                 vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
 
+                // ── P3-3: Circular parent prevention ────────────────────────────
+                // For a brand-new task there is no self-id yet, so a cycle can only
+                // exist if the proposed parent already has this task as an ancestor.
+                // We guard by checking that the proposed parent isn't itself a
+                // descendant of a new task (impossible for new — handled in Edit).
+                // We still validate that the parent isn't a work-package stage child.
+                if (vm.TaskItem.ParentTaskId.HasValue)
+                {
+                    var proposedParent = await _context.Tasks.AsNoTracking()
+                        .FirstOrDefaultAsync(t => t.Id == vm.TaskItem.ParentTaskId.Value);
+                    if (proposedParent?.IsWorkPackage == false && proposedParent.WorkflowStageId.HasValue)
+                    {
+                        ModelState.AddModelError("TaskItem.ParentTaskId",
+                            "Cannot assign a stage activity as a parent task. Choose the Work Package instead.");
+                    }
+                }
+                // ────────────────────────────────────────────────────────────────
+
+                if (!ModelState.IsValid)
+                {
+                    vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                    vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                    vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
+                    vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                    vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+                    vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
+                    vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
+                    vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                    vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                    vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
+                    return View(vm);
+                }
+
                 if (vm.TaskItem.EstimatedOptimisticHours.HasValue ||
                     vm.TaskItem.EstimatedMostLikelyHours.HasValue ||
                     vm.TaskItem.EstimatedPessimisticHours.HasValue)
@@ -184,11 +246,20 @@ namespace OfficeTaskManagement.Controllers
                     }
                 }
                 
-                // If this is a sub-task and its status is worked on (InProgress/Committed/Tested), ensure parent is also InProgress
-                if (vm.TaskItem.ParentTaskId.HasValue && (vm.TaskItem.Status == TaskStatus.InProgress || vm.TaskItem.Status == TaskStatus.Committed || vm.TaskItem.Status == TaskStatus.Tested))
+                // If this is a sub-task and its status is being actively worked (InProgress/Committed/Reviewed/Tested), ensure parent is also InProgress
+                if (vm.TaskItem.ParentTaskId.HasValue &&
+                    (vm.TaskItem.Status == TaskStatus.InProgress ||
+                     vm.TaskItem.Status == TaskStatus.Committed  ||
+                     vm.TaskItem.Status == TaskStatus.Reviewed   ||
+                     vm.TaskItem.Status == TaskStatus.Tested))
                 {
                     var parent = await _context.Tasks.FindAsync(vm.TaskItem.ParentTaskId);
-                    if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Committed && parent.Status != TaskStatus.Tested && parent.Status != TaskStatus.Done)
+                    if (parent != null &&
+                        parent.Status != TaskStatus.InProgress &&
+                        parent.Status != TaskStatus.Committed  &&
+                        parent.Status != TaskStatus.Reviewed   &&
+                        parent.Status != TaskStatus.Tested     &&
+                        parent.Status != TaskStatus.Done)
                     {
                         parent.Status = TaskStatus.InProgress;
                         _context.Update(parent);
@@ -330,6 +401,13 @@ namespace OfficeTaskManagement.Controllers
                 await _context.Entry(comment).Reference(c => c.User).LoadAsync();
             }
 
+            // Load WorkflowStage for gate-aware status rendering in the view
+            if (taskItem.WorkflowStageId.HasValue)
+                await _context.Entry(taskItem).Reference(t => t.WorkflowStage).LoadAsync();
+
+            // Pass data to view so it doesn't need to inject DbContext
+            ViewBag.AllUsers = await _context.Users.ToListAsync();
+
             return View(vm);
         }
 
@@ -390,8 +468,71 @@ namespace OfficeTaskManagement.Controllers
                         return View(vm);
                     }
                     
-                    // Logic to enforce who can mark as done
-                    if (vm.TaskItem.Status == TaskStatus.Done)
+                    // ── P3-3: Circular parent prevention ────────────────────────
+                    if (vm.TaskItem.ParentTaskId.HasValue)
+                    {
+                        // Self-assignment guard
+                        if (vm.TaskItem.ParentTaskId.Value == id)
+                        {
+                            ModelState.AddModelError("TaskItem.ParentTaskId",
+                                "A task cannot be its own parent.");
+                        }
+                        // Ancestor cycle guard — walk proposed parent's chain
+                        else if (await WouldCreateCycleAsync(id, vm.TaskItem.ParentTaskId.Value))
+                        {
+                            ModelState.AddModelError("TaskItem.ParentTaskId",
+                                "Circular parent detected: the chosen parent is already a descendant of this task. Choose a different parent.");
+                        }
+                        // Stage-activity guard — cannot parent to a stage sub-task
+                        else
+                        {
+                            var proposedParent = await _context.Tasks.AsNoTracking()
+                                .FirstOrDefaultAsync(t => t.Id == vm.TaskItem.ParentTaskId.Value);
+                            if (proposedParent is { WorkflowStageId: not null, IsWorkPackage: false })
+                            {
+                                ModelState.AddModelError("TaskItem.ParentTaskId",
+                                    "Cannot assign a stage activity as a parent. Choose the Work Package instead.");
+                            }
+                        }
+
+                        if (!ModelState.IsValid)
+                        {
+                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                            vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
+                            vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                            vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+                            vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
+                            vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
+                            vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                            vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                            vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
+                            ViewBag.AllUsers = await _context.Users.ToListAsync();
+                            return View(vm);
+                        }
+                    }
+                    // ────────────────────────────────────────────────────────────
+
+                    // GAP 9: Block manual status changes on Work Package Summary Tasks.
+                    // Their status is derived exclusively via SyncParentStatusAsync.
+                    if (existingTask.IsWorkPackage && vm.TaskItem.Status != existingTask.Status)
+                    {
+                        ModelState.AddModelError("", "The status of a Work Package is managed automatically by its stage gates. Use the Work Package pipeline view to advance stages.");
+                        vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                        vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
+                        vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
+                        vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
+                        vm.FeaturesList = new SelectList(_context.Features.Where(f => f.EpicId == vm.TaskItem.EpicId), "Id", "Name", vm.TaskItem.FeatureId);
+                        vm.UserStoriesList = new SelectList(_context.UserStories.Where(u => u.FeatureId == vm.TaskItem.FeatureId), "Id", "Title", vm.TaskItem.UserStoryId);
+                        vm.AreasList = new MultiSelectList(_context.Areas, "Id", "Name", vm.SelectedAreaIds);
+                        vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
+                        vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
+                        vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
+                        return View(vm);
+                    }
+
+                    // Logic to enforce who can mark as done (non-WP standalone tasks)
+                    if (!existingTask.IsWorkPackage && vm.TaskItem.Status == TaskStatus.Done)
                     {
                         if (!userRole && existingTask.CreatedById != userId)
                         {
@@ -448,52 +589,106 @@ namespace OfficeTaskManagement.Controllers
                         }
                     }
 
-                    // Log history and push notifications for what changed
-                    var changes = new List<string>();
-                    if (existingTask.Title != vm.TaskItem.Title) changes.Add("Title updated.");
-                    if (existingTask.Status != vm.TaskItem.Status)
-                    {
-                        changes.Add($"Status changed from {existingTask.Status} to {vm.TaskItem.Status}.");
-                        if (vm.TaskItem.Status == TaskStatus.Done && existingTask.CreatedById != userId)
-                        {
-                            _context.Notifications.Add(new Notification
-                            {
-                                UserId = existingTask.CreatedById,
-                                Title = "Task Completed",
-                                Message = $"Task '{vm.TaskItem.Title}' was marked as Done.",
-                                Link = $"/TaskItems/Details/{existingTask.Id}",
-                                Type = "StatusUpdate"
-                            });
-                        }
-                    }
-                    if (existingTask.AssigneeId != vm.TaskItem.AssigneeId)
-                    {
-                        changes.Add("Assignee changed.");
-                        if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId) && vm.TaskItem.AssigneeId != userId)
-                        {
-                            _context.Notifications.Add(new Notification
-                            {
-                                UserId = vm.TaskItem.AssigneeId,
-                                Title = "Task Assignment Updated",
-                                Message = $"You have been assigned to: {vm.TaskItem.Title}",
-                                Link = $"/TaskItems/Details/{existingTask.Id}",
-                                Type = "Assignment"
-                            });
-                        }
-                    }
-                    if (existingTask.EstimatedHours != vm.TaskItem.EstimatedHours) changes.Add("Estimated Hours changed.");
-                    if (existingTask.StartDate != vm.TaskItem.StartDate) changes.Add("Start Date changed.");
-                    
-                    if (changes.Any())
-                    {
+                    // ── P3-4: Structured per-field audit history ────────────────
+                    var actorRaci = userRole
+                        ? OfficeTaskManagement.Models.Enums.RaciRole.Accountable
+                        : OfficeTaskManagement.Models.Enums.RaciRole.Responsible;
+                    var auditNow  = DateTime.UtcNow;
+
+                    void AddAudit(string field, string? oldVal, string? newVal, string desc) =>
                         _context.TaskHistories.Add(new TaskHistory
                         {
-                            TaskItemId = vm.TaskItem.Id,
-                            ChangedById = userId,
-                            ChangeDescription = string.Join(" ", changes),
-                            Timestamp = DateTime.UtcNow
+                            TaskItemId        = existingTask.Id,
+                            ChangedById       = userId,
+                            FieldChanged      = field,
+                            OldValue          = oldVal,
+                            NewValue          = newVal,
+                            RaciRoleAtTime    = actorRaci,
+                            ChangeDescription = desc,
+                            Timestamp         = auditNow
                         });
+
+                    if (existingTask.Title != vm.TaskItem.Title)
+                        AddAudit("Title", existingTask.Title, vm.TaskItem.Title, $"Title changed.");
+
+                    if (existingTask.Status != vm.TaskItem.Status)
+                    {
+                        AddAudit("Status", existingTask.Status.ToString(), vm.TaskItem.Status.ToString(),
+                            $"Status changed from {existingTask.Status} to {vm.TaskItem.Status}.");
+
+                        // Set CompletedAt when transitioning to Done (standalone tasks)
+                        if (vm.TaskItem.Status == TaskStatus.Done && !existingTask.IsWorkPackage)
+                            existingTask.CompletedAt = auditNow;
+
+                        // Notify creator on completion
+                        if (vm.TaskItem.Status == TaskStatus.Done && existingTask.CreatedById != userId)
+                            _context.Notifications.Add(new Notification
+                            {
+                                UserId  = existingTask.CreatedById,
+                                Title   = "Task Completed",
+                                Message = $"Task '{vm.TaskItem.Title}' was marked as Done.",
+                                Link    = $"/TaskItems/Details/{existingTask.Id}",
+                                Type    = "StatusUpdate"
+                            });
                     }
+
+                    if (existingTask.AssigneeId != vm.TaskItem.AssigneeId)
+                    {
+                        AddAudit("Assignee", existingTask.AssigneeId, vm.TaskItem.AssigneeId, "Assignee changed.");
+                        if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId) && vm.TaskItem.AssigneeId != userId)
+                            _context.Notifications.Add(new Notification
+                            {
+                                UserId  = vm.TaskItem.AssigneeId,
+                                Title   = "Task Assignment Updated",
+                                Message = $"You have been assigned to: {vm.TaskItem.Title}",
+                                Link    = $"/TaskItems/Details/{existingTask.Id}",
+                                Type    = "Assignment"
+                            });
+                    }
+
+                    if (existingTask.AccountableUserId != vm.TaskItem.AccountableUserId)
+                        AddAudit("AccountableUser", existingTask.AccountableUserId, vm.TaskItem.AccountableUserId,
+                            "Accountable (A) party changed.");
+
+                    if (existingTask.Priority != vm.TaskItem.Priority)
+                        AddAudit("Priority", existingTask.Priority.ToString(), vm.TaskItem.Priority.ToString(),
+                            $"Priority changed from {existingTask.Priority} to {vm.TaskItem.Priority}.");
+
+                    if (existingTask.StartDate != vm.TaskItem.StartDate)
+                        AddAudit("StartDate",
+                            existingTask.StartDate?.ToString("o"), vm.TaskItem.StartDate?.ToString("o"),
+                            "Start Date changed.");
+
+                    if (existingTask.DueDate != vm.TaskItem.DueDate)
+                        AddAudit("DueDate",
+                            existingTask.DueDate?.ToString("o"), vm.TaskItem.DueDate?.ToString("o"),
+                            "Due Date changed.");
+
+                    if (existingTask.EstimatedHours != vm.TaskItem.EstimatedHours)
+                        AddAudit("EstimatedHours",
+                            existingTask.EstimatedHours.ToString("F2"),
+                            vm.TaskItem.EstimatedHours.ToString("F2"),
+                            "Estimated Hours changed.");
+
+                    if (existingTask.ActualHours != vm.TaskItem.ActualHours)
+                        AddAudit("ActualHours",
+                            existingTask.ActualHours?.ToString("F2"),
+                            vm.TaskItem.ActualHours?.ToString("F2"),
+                            "Actual Hours updated.");
+
+                    if (existingTask.ParentTaskId != vm.TaskItem.ParentTaskId)
+                        AddAudit("ParentTask",
+                            existingTask.ParentTaskId?.ToString(), vm.TaskItem.ParentTaskId?.ToString(),
+                            "Parent task reassigned.");
+
+                    if (existingTask.SprintId != vm.TaskItem.SprintId)
+                        AddAudit("Sprint", existingTask.SprintId?.ToString(), vm.TaskItem.SprintId?.ToString(),
+                            "Sprint changed.");
+
+                    if (existingTask.ProjectId != vm.TaskItem.ProjectId)
+                        AddAudit("Project", existingTask.ProjectId?.ToString(), vm.TaskItem.ProjectId?.ToString(),
+                            "Project changed.");
+                    // ────────────────────────────────────────────────────────────
 
                     existingTask.Title = vm.TaskItem.Title;
                     existingTask.Description = vm.TaskItem.Description;
@@ -550,10 +745,19 @@ namespace OfficeTaskManagement.Controllers
                     _context.Update(existingTask);
                     
                     // If a sub-task is moving into a worked state, parent must be at least InProgress
-                    if (existingTask.ParentTaskId.HasValue && (existingTask.Status == TaskStatus.InProgress || existingTask.Status == TaskStatus.Committed || existingTask.Status == TaskStatus.Tested))
+                    if (existingTask.ParentTaskId.HasValue &&
+                        (existingTask.Status == TaskStatus.InProgress ||
+                         existingTask.Status == TaskStatus.Committed  ||
+                         existingTask.Status == TaskStatus.Reviewed   ||
+                         existingTask.Status == TaskStatus.Tested))
                     {
                         var parent = await _context.Tasks.FindAsync(existingTask.ParentTaskId);
-                        if (parent != null && parent.Status != TaskStatus.InProgress && parent.Status != TaskStatus.Committed && parent.Status != TaskStatus.Tested && parent.Status != TaskStatus.Done)
+                        if (parent != null &&
+                            parent.Status != TaskStatus.InProgress &&
+                            parent.Status != TaskStatus.Committed  &&
+                            parent.Status != TaskStatus.Reviewed   &&
+                            parent.Status != TaskStatus.Tested     &&
+                            parent.Status != TaskStatus.Done)
                         {
                             parent.Status = TaskStatus.InProgress;
                             _context.Update(parent);
@@ -628,7 +832,13 @@ namespace OfficeTaskManagement.Controllers
                         
                         await _context.SaveChangesAsync();
                     }
-                    
+
+                    // GAP 2: After editing a stage sub-task, roll up the parent WP status
+                    if (existingTask.ParentTaskId.HasValue && existingTask.WorkflowStageId.HasValue)
+                    {
+                        await _workflowEngine.SyncParentStatusAsync(existingTask.ParentTaskId.Value, userId);
+                    }
+
                     // Check for over-allocation
                     if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
                     {
@@ -643,19 +853,23 @@ namespace OfficeTaskManagement.Controllers
                         }
                     }
                 }
+                catch (InvalidOperationException ex)
+                {
+                    // Gate violation from StageGateService — show as friendly form error
+                    ModelState.AddModelError("", $"Stage Gate: {ex.Message}");
+                }
                 catch (DbUpdateConcurrencyException)
                 {
                     if (!TaskItemExists(vm.TaskItem.Id))
-                    {
                         return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    throw;
                 }
-                return RedirectToAction(nameof(Index));
+
+                if (ModelState.IsValid)
+                    return RedirectToAction(nameof(Index));
             }
+
+            // Re-populate all lists for error re-render
             vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
@@ -666,6 +880,7 @@ namespace OfficeTaskManagement.Controllers
             vm.ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null && t.Id != vm.TaskItem.Id), "Id", "Title", vm.TaskItem.ParentTaskId);
             vm.WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name");
             vm.AccountableUsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AccountableUserId);
+            ViewBag.AllUsers = await _context.Users.ToListAsync();
             return View(vm);
         }
 
@@ -688,6 +903,18 @@ namespace OfficeTaskManagement.Controllers
             {
                 return NotFound();
             }
+
+            // Cascade warning counts
+            var subTaskCount = await _context.Tasks.CountAsync(t => t.ParentTaskId == id);
+            var stageActivityCount = await _context.Tasks
+                .CountAsync(t => t.ParentTaskId == id && t.WorkflowStageId != null);
+            var commentCount = await _context.TaskComments.CountAsync(c => c.TaskId == id);
+            var historyCount = await _context.TaskHistories.CountAsync(h => h.TaskItemId == id);
+
+            ViewBag.SubTaskCount = subTaskCount;
+            ViewBag.StageActivityCount = stageActivityCount;
+            ViewBag.CommentCount = commentCount;
+            ViewBag.HistoryCount = historyCount;
 
             return View(taskItem);
         }
@@ -853,9 +1080,106 @@ namespace OfficeTaskManagement.Controllers
             return Json(stories);
         }
 
+        // POST: TaskItems/UpdateStatus (AJAX — cookie auth for Kanban drag-and-drop)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStatus(int id, int statusId)
+        {
+            var task = await _context.Tasks
+                .Include(t => t.WorkflowStage)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (task == null) return NotFound();
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var newStatus = (Models.Enums.TaskStatus)statusId;
+
+            // Block Work Package summary tasks
+            if (task.IsWorkPackage)
+                return Json(new { success = false, error = "Work Package status is managed by stage gates." });
+
+            // Block paused tasks
+            if (task.IsPaused)
+                return Json(new { success = false, error = "This task is paused." });
+
+            // ToDo requires assignee
+            if (newStatus == TaskStatus.ToDo && string.IsNullOrEmpty(task.AssigneeId))
+                return Json(new { success = false, error = "Tasks in ToDo must have an assignee." });
+
+            var oldStatus = task.Status;
+            task.Status = newStatus;
+
+            _context.TaskHistories.Add(new TaskHistory
+            {
+                TaskItemId = task.Id,
+                ChangedById = userId,
+                FieldChanged = "Status",
+                OldValue = oldStatus.ToString(),
+                NewValue = newStatus.ToString(),
+                ChangeDescription = $"Status changed from {oldStatus} to {newStatus} via Kanban board.",
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            // Sync parent if stage sub-task
+            if (task.ParentTaskId.HasValue && task.WorkflowStageId.HasValue)
+                await _workflowEngine.SyncParentStatusAsync(task.ParentTaskId.Value, userId);
+            else if (task.ParentTaskId.HasValue && newStatus >= TaskStatus.InProgress)
+            {
+                var parent = await _context.Tasks.FindAsync(task.ParentTaskId);
+                if (parent != null && parent.Status < TaskStatus.InProgress && parent.Status != TaskStatus.Done)
+                {
+                    parent.Status = TaskStatus.InProgress;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return Json(new { success = true, status = newStatus.ToString() });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetSprints(int projectId)
+        {
+            var sprints = await _context.Sprints
+                .Where(s => s.ProjectId == projectId)
+                .Select(s => new { id = s.Id, name = s.Name })
+                .ToListAsync();
+            return Json(sprints);
+        }
+
         private bool TaskItemExists(int id)
         {
             return _context.Tasks.Any(e => e.Id == id);
+        }
+
+        /// <summary>
+        /// P3-3: Detects if setting <paramref name="proposedParentId"/> as the parent of
+        /// <paramref name="childId"/> would create a circular ancestor chain.
+        /// Walks the proposed parent's ancestor chain; if it encounters <paramref name="childId"/>
+        /// the assignment would create a cycle.
+        /// </summary>
+        private async Task<bool> WouldCreateCycleAsync(int childId, int proposedParentId)
+        {
+            const int maxDepth = 50; // guard against degenerate chains
+            var current = proposedParentId;
+            var visited = new HashSet<int>();
+
+            for (int depth = 0; depth < maxDepth; depth++)
+            {
+                if (current == childId) return true; // cycle detected
+                if (!visited.Add(current)) return false; // already seen, no cycle
+
+                var task = await _context.Tasks
+                    .AsNoTracking()
+                    .Where(t => t.Id == current)
+                    .Select(t => new { t.ParentTaskId })
+                    .FirstOrDefaultAsync();
+
+                if (task?.ParentTaskId == null) return false; // reached root
+                current = task.ParentTaskId.Value;
+            }
+
+            return false; // depth limit hit — assume no cycle rather than false-positive
         }
 
         private static DateTime EnsureUtc(DateTime dt)

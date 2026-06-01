@@ -65,6 +65,10 @@ builder.Services.AddScoped<ICapacityPlanningService, CapacityPlanningService>();
 // Workflow Engine (RACI task lifecycle)
 builder.Services.AddScoped<StageGateService>();
 builder.Services.AddScoped<IWorkflowEngineService, WorkflowEngineService>();
+builder.Services.AddScoped<KanbanGovernanceService>();
+
+// P3-2: Lag Scheduling — promotes stage sub-tasks to ToDo when PlannedStartDate elapses
+builder.Services.AddHostedService<LagSchedulingService>();
 
 // In-process caching for heatmap and utilization data (15-min sliding window)
 builder.Services.AddMemoryCache();

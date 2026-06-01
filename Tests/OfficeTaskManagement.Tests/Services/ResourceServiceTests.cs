@@ -68,13 +68,14 @@ namespace OfficeTaskManagement.Tests.Services
                 DailyCapacityHours = 8
             });
 
-            // Add 2 days of leave (16 hours)
+            // Add 2 days of leave (16 hours) — must be Approved to be deducted
             _context.ResourceAvailabilityBlocks.Add(new ResourceAvailabilityBlock
             {
-                UserId = userId,
-                StartDate = new DateTime(2023, 10, 2), // Monday
-                EndDate = new DateTime(2023, 10, 3),   // Tuesday
-                Reason = AvailabilityBlockReason.Leave
+                UserId         = userId,
+                StartDate      = new DateTime(2023, 10, 2), // Monday
+                EndDate        = new DateTime(2023, 10, 3), // Tuesday
+                Reason         = AvailabilityBlockReason.Leave,
+                ApprovalStatus = OfficeTaskManagement.Models.Enums.LeaveApprovalStatus.Approved
             });
             
             await _context.SaveChangesAsync();

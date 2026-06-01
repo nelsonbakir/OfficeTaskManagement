@@ -114,8 +114,32 @@
     
     <div class="delete-body">
         <p class="delete-message">
-            Are you sure you want to permanently delete this task? This action cannot be undone and will remove all associated comments, history, and references.
+            Are you sure you want to permanently delete this task? <strong>This action cannot be undone.</strong>
         </p>
+
+        @if (Model.IsWorkPackage) {
+            <div class="alert alert-danger" style="border-radius:6px; margin-bottom:1rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Work Package Warning</strong> — Deleting this will also destroy all stage activity sub-tasks and their audit history.
+            </div>
+        }
+
+        @{
+            var subTaskCount = ViewBag.SubTaskCount as int? ?? 0;
+            var stageCount = ViewBag.StageActivityCount as int? ?? 0;
+            var commentCount = ViewBag.CommentCount as int? ?? 0;
+            var historyCount = ViewBag.HistoryCount as int? ?? 0;
+        }
+        @if (subTaskCount > 0 || commentCount > 0 || historyCount > 0) {
+            <div style="background:#FFF4CE; border:1px solid #FFD335; border-radius:6px; padding:1rem; margin-bottom:1.5rem;">
+                <div style="font-weight:600; margin-bottom:0.5rem; color:#7A4F00;"><i class="fas fa-exclamation-circle"></i> The following will also be permanently deleted:</div>
+                <ul style="margin:0; padding-left:1.25rem; color:#7A4F00; font-size:0.9rem;">
+                    @if (subTaskCount > 0) { <li>@subTaskCount sub-task(s)@(stageCount > 0 ? $" (including {stageCount} stage activities)" : "")</li> }
+                    @if (commentCount > 0) { <li>@commentCount comment(s)</li> }
+                    @if (historyCount > 0) { <li>@historyCount audit history record(s)</li> }
+                </ul>
+            </div>
+        }
         
         <div class="item-preview">
             <h3 class="item-preview-title">@Model.Title</h3>

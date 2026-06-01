@@ -24,6 +24,13 @@ namespace OfficeTaskManagement.Models
 
         public bool IsBacklog { get; set; } = false;
 
+        /// <summary>
+        /// True when a RACI workflow template has been applied to this task,
+        /// transforming it into a Summary Task (Accountable-only container).
+        /// Its status and estimated hours are rolled up from its stage sub-tasks.
+        /// </summary>
+        public bool IsWorkPackage { get; set; } = false;
+
         // ── RACI Role Classification ─────────────────────────────────────────
         /// <summary>
         /// The RACI role this task represents in its workflow stage.
@@ -73,6 +80,13 @@ namespace OfficeTaskManagement.Models
 
         public DateTime? DueDate { get; set; }
 
+        /// <summary>
+        /// For workflow stage sub-tasks: the earliest date this stage may be
+        /// activated, calculated as Predecessor.CompletedAt + WorkflowStage.LagHours.
+        /// Null for standalone tasks and for stages with LagHours = 0.
+        /// </summary>
+        public DateTime? PlannedStartDate { get; set; }
+
         public int? SprintId { get; set; }
         public Sprint? Sprint { get; set; }
 
@@ -117,6 +131,14 @@ namespace OfficeTaskManagement.Models
 
         public string? PausedById { get; set; }
         public User? PausedBy { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
+        // ── Lifecycle Timestamps ─────────────────────────────────────────────
+        /// <summary>
+        /// Set when Status transitions to Done. Used for cycle-time analytics
+        /// and lag-aware PlannedStartDate calculations on successor stages.
+        /// </summary>
+        public DateTime? CompletedAt { get; set; }
         // ────────────────────────────────────────────────────────────────────
     }
 }

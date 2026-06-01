@@ -11,10 +11,13 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
 {
     /// <summary>
     /// Enforces the Definition of Done (DoD) gate criteria before a workflow
-    /// stage transition is permitted. Each gate is checked per stage role:
-    ///   - Developer → Review Gate: Status=Committed + ActualHours logged
-    ///   - Review → QA Gate:       Status=Committed + at least 1 reviewer comment
-    ///   - QA → Done Gate:         Status=Tested + all linked TestCases passed
+    /// stage transition is permitted. Gate → required terminal status:
+    ///   - CommittedWithHours:      Status = Committed  + ActualHours logged
+    ///   - CommittedWithPeerReview: Status = Reviewed   + at least 1 reviewer comment
+    ///   - TestedWithAllCasesPassed:Status = Tested     + all linked TestCases passed
+    ///   - CommittedOnly:           Status = Committed
+    ///   - None:                    no status check
+    /// See StageLifecycleMap for the authoritative gate → status mapping.
     /// Throws InvalidOperationException with a user-facing message on failure.
     /// </summary>
     public class StageGateService
@@ -41,6 +44,38 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 // No stage context — standalone task, no gate to enforce
                 return;
             }
+
+            // ── P3: IsPaused Guard ───────────────────────────────────────────────
+            // A paused task is governance-blocked: no gate transitions until unpaused by the PM.
+            if (subTask.IsPaused)
+            {
+                var pausedByName = subTask.PausedById != null
+                    ? (await _db.Users.FindAsync(subTask.PausedById))?.FullName ?? "PM"
+                    : "PM";
+                var reason = !string.IsNullOrWhiteSpace(subTask.PauseReason)
+                    ? $": \"{subTask.PauseReason}\""
+                    : string.Empty;
+
+                throw new InvalidOperationException(
+                    $"Governance Block: Stage '{stage.Name}' is paused by {pausedByName}{reason}. " +
+                    "The task must be unpaused before this gate can be transitioned.");
+            }
+
+            // Also check the parent Work Package for a pause flag — if the WP is paused, all its stages are blocked
+            if (subTask.ParentTaskId.HasValue)
+            {
+                var parent = await _db.Tasks.FindAsync(subTask.ParentTaskId.Value);
+                if (parent is { IsPaused: true })
+                {
+                    var reason = !string.IsNullOrWhiteSpace(parent.PauseReason)
+                        ? $": \"{parent.PauseReason}\""
+                        : string.Empty;
+                    throw new InvalidOperationException(
+                        $"Governance Block: The parent Work Package is paused{reason}. " +
+                        "All stage gates are blocked until the Work Package is unpaused.");
+                }
+            }
+            // ────────────────────────────────────────────────────────────────────
 
             // ── RACI Enforcement ────────────────────────────────────────────────
             // 1. Verify if Accountable sign-off is required and provided by an Accountable user
@@ -86,9 +121,13 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                     break;
 
                 case StageGateType.CommittedWithPeerReview:
-                    if (subTask.Status != TaskStatus.Committed)
+                    // Review/audit/approval gates require Status = Reviewed (not Committed).
+                    // This distinguishes a reviewed task from a committed-but-not-reviewed one
+                    // and drives the correct "Reviewed" Kanban column placement.
+                    if (subTask.Status != TaskStatus.Reviewed)
                         throw new InvalidOperationException(
-                            $"{stage.Name} Gate: Task must be in 'Committed' status (Review Approved).");
+                            $"{stage.Name} Gate: Set status to 'Reviewed' to confirm the review is complete, " +
+                            "then ensure at least one review comment is recorded.");
 
                     var hasComment = await _db.TaskComments.AnyAsync(c => c.TaskId == subTask.Id);
                     if (!hasComment)
