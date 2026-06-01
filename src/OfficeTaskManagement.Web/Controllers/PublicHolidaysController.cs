@@ -21,13 +21,13 @@ namespace OfficeTaskManagement.Controllers
 
         public async Task<IActionResult> Index()
         {
-            var holidays = await _context.PublicHolidays.OrderByDescending(h => h.Date).ToListAsync();
+            var holidays = await _context.PublicHolidays.OrderByDescending(h => h.FromDate).ToListAsync();
             return View(holidays);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name,Date,IsFixedDate")] PublicHoliday publicHoliday)
+        public async Task<IActionResult> Create([Bind("Id,Name,FromDate,ToDate,IsFixedDate")] PublicHoliday publicHoliday)
         {
             if (ModelState.IsValid)
             {
@@ -55,22 +55,67 @@ namespace OfficeTaskManagement.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,FromDate,ToDate,IsFixedDate")] PublicHoliday publicHoliday)
+        {
+            if (id != publicHoliday.Id)
+            {
+                return NotFound();
+            }
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    var existing = await _context.PublicHolidays.FindAsync(id);
+                    if (existing != null)
+                    {
+                        existing.Name = publicHoliday.Name;
+                        existing.FromDate = publicHoliday.FromDate;
+                        existing.ToDate = publicHoliday.ToDate;
+                        existing.IsFixedDate = publicHoliday.IsFixedDate;
+                        _context.Update(existing);
+                        await _context.SaveChangesAsync();
+                        TempData["SuccessMessage"] = "Holiday updated successfully.";
+                    }
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!await _context.PublicHolidays.AnyAsync(e => e.Id == id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                return RedirectToAction(nameof(Index));
+            }
+            TempData["ErrorMessage"] = "Failed to update holiday. Please check your inputs.";
+            return RedirectToAction(nameof(Index));
+        }
+
         public IActionResult DownloadSampleExcel()
         {
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Public Holidays");
             
             worksheet.Cell(1, 1).Value = "Name";
-            worksheet.Cell(1, 2).Value = "Date (YYYY-MM-DD)";
-            worksheet.Cell(1, 3).Value = "IsFixedDate (true/false)";
+            worksheet.Cell(1, 2).Value = "FromDate (YYYY-MM-DD)";
+            worksheet.Cell(1, 3).Value = "ToDate (YYYY-MM-DD)";
+            worksheet.Cell(1, 4).Value = "IsFixedDate (true/false)";
 
             worksheet.Cell(2, 1).Value = "New Year's Day";
             worksheet.Cell(2, 2).Value = new System.DateTime(System.DateTime.UtcNow.Year, 1, 1).ToString("yyyy-MM-dd");
-            worksheet.Cell(2, 3).Value = "true";
+            worksheet.Cell(2, 3).Value = new System.DateTime(System.DateTime.UtcNow.Year, 1, 1).ToString("yyyy-MM-dd");
+            worksheet.Cell(2, 4).Value = "true";
 
-            worksheet.Cell(3, 1).Value = "Labor Day";
-            worksheet.Cell(3, 2).Value = new System.DateTime(System.DateTime.UtcNow.Year, 5, 1).ToString("yyyy-MM-dd");
-            worksheet.Cell(3, 3).Value = "true";
+            worksheet.Cell(3, 1).Value = "Eid-ul-Fitr";
+            worksheet.Cell(3, 2).Value = new System.DateTime(System.DateTime.UtcNow.Year, 3, 20).ToString("yyyy-MM-dd");
+            worksheet.Cell(3, 3).Value = new System.DateTime(System.DateTime.UtcNow.Year, 3, 22).ToString("yyyy-MM-dd");
+            worksheet.Cell(3, 4).Value = "false";
 
             worksheet.Columns().AdjustToContents();
 

@@ -59,9 +59,10 @@ namespace OfficeTaskManagement.Data
             {
                 context.PublicHolidays.AddRange(new List<PublicHoliday>
                 {
-                    new PublicHoliday { Name = "Independence Day", Date = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
-                    new PublicHoliday { Name = "Victory Day", Date = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
-                    new PublicHoliday { Name = "May Day", Date = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true }
+                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
+                    new PublicHoliday { Name = "Victory Day", FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
+                    new PublicHoliday { Name = "May Day", FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
+                    new PublicHoliday { Name = "Eid-ul-Fitr", FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false }
                 });
                 await context.SaveChangesAsync();
             }

@@ -134,8 +134,7 @@ namespace OfficeTaskManagement.Services
                 .ToListAsync();
 
             var holidays = await _context.PublicHolidays
-                .Where(h => h.Date.Year == year && h.Date.Month == month)
-                .Select(h => h.Date.Date)
+                .Where(h => (h.FromDate.Year == year && h.FromDate.Month == month) || (h.ToDate.Year == year && h.ToDate.Month == month))
                 .ToListAsync();
 
             // 2. Resolve Tasks (Project, Dates, and pre-calculate daily load)
@@ -194,7 +193,8 @@ namespace OfficeTaskManagement.Services
                     var date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc).Date;
 
                     // Weekend/Holiday check
-                    if (date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday || holidays.Contains(date))
+                    bool isHoliday = holidays.Any(h => h.FromDate.Date <= date && h.ToDate.Date >= date);
+                    if (date.DayOfWeek == DayOfWeek.Friday || date.DayOfWeek == DayOfWeek.Saturday || isHoliday)
                     {
                         row.DailyAvailability[day] = 0;
                         row.DailyAllocation[day] = 0;
@@ -267,9 +267,8 @@ namespace OfficeTaskManagement.Services
 
         private async Task<int> CountWorkingDaysAsync(DateTime start, DateTime end)
         {
-            var holidays = await _context.PublicHolidays
-                .Where(h => h.Date.Date >= start.Date && h.Date.Date <= end.Date)
-                .Select(h => h.Date.Date)
+            var holidayRanges = await _context.PublicHolidays
+                .Where(h => h.ToDate.Date >= start.Date && h.FromDate.Date <= end.Date)
                 .ToListAsync();
 
             int count = 0;
@@ -278,7 +277,8 @@ namespace OfficeTaskManagement.Services
                 // Bangladesh Weekends: Friday and Saturday
                 if (day.DayOfWeek != DayOfWeek.Friday && day.DayOfWeek != DayOfWeek.Saturday)
                 {
-                    if (!holidays.Contains(day))
+                    bool isHoliday = holidayRanges.Any(h => h.FromDate.Date <= day && h.ToDate.Date >= day);
+                    if (!isHoliday)
                     {
                         count++;
                     }

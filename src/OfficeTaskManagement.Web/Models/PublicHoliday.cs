@@ -13,7 +13,10 @@ namespace OfficeTaskManagement.Models
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public DateTime Date { get; set; }
+        public DateTime FromDate { get; set; }
+
+        [Required]
+        public DateTime ToDate { get; set; }
 
         /// <summary>True if the holiday occurs on the same day every year (not fully accurate for lunar, but useful for fixed dates like Dec 16).</summary>
         public bool IsFixedDate { get; set; } = false;

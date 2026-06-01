@@ -95,9 +95,8 @@ namespace OfficeTaskManagement.Services
                          && (a.EndDate == null || a.EndDate.Value.Date >= startDate.Date))
                 .ToListAsync();
 
-            var holidays = await _context.PublicHolidays
-                .Where(h => h.Date.Date >= startDate.Date && h.Date.Date <= endDate.Date)
-                .Select(h => h.Date.Date)
+            var holidayRanges = await _context.PublicHolidays
+                .Where(h => h.ToDate.Date >= startDate.Date && h.FromDate.Date <= endDate.Date)
                 .ToListAsync();
 
             var peak = 0;
@@ -105,7 +104,8 @@ namespace OfficeTaskManagement.Services
             {
                 if (day.DayOfWeek == DayOfWeek.Friday || day.DayOfWeek == DayOfWeek.Saturday)
                     continue;
-                if (holidays.Contains(day))
+                bool isHoliday = holidayRanges.Any(h => h.FromDate.Date <= day && h.ToDate.Date >= day);
+                if (isHoliday)
                     continue;
 
                 var dayTotal = allocations
@@ -129,17 +129,16 @@ namespace OfficeTaskManagement.Services
                 .ToListAsync();
 
             // Fix #11: Load public holidays for the period to exclude them
-            var holidays = await _context.PublicHolidays
-                .Where(h => h.Date.Date >= startDate.Date && h.Date.Date <= endDate.Date)
-                .Select(h => h.Date.Date)
+            var holidayRanges = await _context.PublicHolidays
+                .Where(h => h.ToDate.Date >= startDate.Date && h.FromDate.Date <= endDate.Date)
                 .ToListAsync();
 
             for (var day = startDate.Date; day <= endDate.Date; day = day.AddDays(1))
             {
                 // Fix #1: Bangladesh weekends are Friday and Saturday
                 if (day.DayOfWeek == DayOfWeek.Friday || day.DayOfWeek == DayOfWeek.Saturday) continue;
-                // Fix #11: skip public holidays
-                if (holidays.Contains(day)) continue;
+                bool isHoliday = holidayRanges.Any(h => h.FromDate.Date <= day && h.ToDate.Date >= day);
+                if (isHoliday) continue;
 
                 var dayTotal = allocations
                     .Where(a => a.StartDate.Date <= day && (a.EndDate == null || a.EndDate.Value.Date >= day))
@@ -552,9 +551,8 @@ namespace OfficeTaskManagement.Services
 
         private async Task<int> CountWorkingDaysAsync(DateTime start, DateTime end)
         {
-            var holidays = await _context.PublicHolidays
-                .Where(h => h.Date.Date >= start.Date && h.Date.Date <= end.Date)
-                .Select(h => h.Date.Date)
+            var holidayRanges = await _context.PublicHolidays
+                .Where(h => h.ToDate.Date >= start.Date && h.FromDate.Date <= end.Date)
                 .ToListAsync();
 
             int count = 0;
@@ -563,7 +561,8 @@ namespace OfficeTaskManagement.Services
                 // Bangladesh Weekends: Friday and Saturday
                 if (day.DayOfWeek != DayOfWeek.Friday && day.DayOfWeek != DayOfWeek.Saturday)
                 {
-                    if (!holidays.Contains(day))
+                    bool isHoliday = holidayRanges.Any(h => h.FromDate.Date <= day && h.ToDate.Date >= day);
+                    if (!isHoliday)
                     {
                         count++;
                     }

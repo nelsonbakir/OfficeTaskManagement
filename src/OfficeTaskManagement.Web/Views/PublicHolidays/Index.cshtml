@@ -38,7 +38,8 @@
                 <thead class="table-light">
                     <tr>
                         <th>Holiday Name</th>
-                        <th>Date</th>
+                        <th>From Date</th>
+                        <th>To Date</th>
                         <th>Type</th>
                         <th class="text-end">Actions</th>
                     </tr>
@@ -48,7 +49,8 @@
                     {
                         <tr>
                             <td><strong>@item.Name</strong></td>
-                            <td>@item.Date.ToLongDateString()</td>
+                            <td>@item.FromDate.ToLongDateString()</td>
+                            <td>@item.ToDate.ToLongDateString()</td>
                             <td>
                                 @if (item.IsFixedDate)
                                 {
@@ -60,7 +62,11 @@
                                 }
                             </td>
                             <td class="text-end">
-                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" onsubmit="return confirm('Delete this holiday?');">
+                                <button type="button" class="btn btn-sm btn-outline-primary me-1" 
+                                        onclick="openEditModal(@item.Id, '@item.Name.Replace("'", "\\'")', '@item.FromDate.ToString("yyyy-MM-dd")', '@item.ToDate.ToString("yyyy-MM-dd")', @item.IsFixedDate.ToString().ToLower())">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('Delete this holiday?');">
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -71,7 +77,7 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="4" class="text-center py-4 text-muted">No public holidays defined.</td>
+                            <td colspan="5" class="text-center py-4 text-muted">No public holidays defined.</td>
                         </tr>
                     }
                 </tbody>
@@ -94,9 +100,15 @@
                         <label for="Name" class="form-label">Holiday Name</label>
                         <input name="Name" id="Name" class="form-control" placeholder="e.g. Independence Day" required />
                     </div>
-                    <div class="mb-3">
-                        <label for="Date" class="form-label">Date</label>
-                        <input name="Date" id="Date" type="date" class="form-control" required />
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label for="FromDate" class="form-label">From Date</label>
+                            <input name="FromDate" id="FromDate" type="date" class="form-control" required />
+                        </div>
+                        <div class="col-6">
+                            <label for="ToDate" class="form-label">To Date</label>
+                            <input name="ToDate" id="ToDate" type="date" class="form-control" required />
+                        </div>
                     </div>
                     <div class="mb-3 form-check">
                         <input name="IsFixedDate" id="IsFixedDate" type="checkbox" value="true" class="form-check-input" />
@@ -108,6 +120,47 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create Holiday</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Holiday Modal -->
+<div class="modal fade" id="editHolidayModal" tabindex="-1" aria-labelledby="editHolidayModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Edit" method="post">
+                <input type="hidden" id="EditId" name="Id" />
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title" id="editHolidayModalLabel">Edit Public Holiday</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="EditName" class="form-label">Holiday Name</label>
+                        <input name="Name" id="EditName" class="form-control" required />
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label for="EditFromDate" class="form-label">From Date</label>
+                            <input name="FromDate" id="EditFromDate" type="date" class="form-control" required />
+                        </div>
+                        <div class="col-6">
+                            <label for="EditToDate" class="form-label">To Date</label>
+                            <input name="ToDate" id="EditToDate" type="date" class="form-control" required />
+                        </div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input name="IsFixedDate" id="EditIsFixedDate" type="checkbox" value="true" class="form-check-input" />
+                        <label class="form-check-label" for="EditIsFixedDate">
+                            Fixed date (same day every year)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -156,7 +209,8 @@
                             <thead class="table-light" style="position: sticky; top: 0;">
                                 <tr>
                                     <th>Name</th>
-                                    <th>Date (YYYY-MM-DD)</th>
+                                    <th>From Date (YYYY-MM-DD)</th>
+                                    <th>To Date (YYYY-MM-DD)</th>
                                     <th>IsFixedDate</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
@@ -182,6 +236,17 @@
     <!-- Include SheetJS from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script>
+        function openEditModal(id, name, fromDate, toDate, isFixed) {
+            document.getElementById('EditId').value = id;
+            document.getElementById('EditName').value = name;
+            document.getElementById('EditFromDate').value = fromDate;
+            document.getElementById('EditToDate').value = toDate;
+            document.getElementById('EditIsFixedDate').checked = isFixed;
+
+            var editModal = new bootstrap.Modal(document.getElementById('editHolidayModal'));
+            editModal.show();
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const fileInput = document.getElementById('excelFile');
             const previewSection = document.getElementById('previewSection');
@@ -224,21 +289,30 @@
                         parsedData = [];
                         for (let i = 1; i < jsonData.length; i++) {
                             const row = jsonData[i];
-                            if (!row || row.length === 0 || (!row[0] && !row[1])) continue;
+                            if (!row || row.length === 0 || (!row[0] && !row[1] && !row[2])) continue;
 
-                            let dateStr = '';
+                            let fromDateStr = '';
                             if (row[1] instanceof Date) {
                                 const d = new Date(row[1]);
-                                dateStr = d.toISOString().split('T')[0];
+                                fromDateStr = d.toISOString().split('T')[0];
                             } else {
-                                dateStr = row[1] ? row[1].toString() : '';
+                                fromDateStr = row[1] ? row[1].toString() : '';
+                            }
+
+                            let toDateStr = '';
+                            if (row[2] instanceof Date) {
+                                const d = new Date(row[2]);
+                                toDateStr = d.toISOString().split('T')[0];
+                            } else {
+                                toDateStr = row[2] ? row[2].toString() : '';
                             }
 
                             parsedData.push({
                                 id: Date.now() + i,
                                 name: row[0] ? row[0].toString() : '',
-                                date: dateStr,
-                                isFixedDate: row[2] ? row[2].toString().toLowerCase() === 'true' : false
+                                fromDate: fromDateStr,
+                                toDate: toDateStr,
+                                isFixedDate: row[3] ? row[3].toString().toLowerCase() === 'true' : false
                             });
                         }
 
@@ -264,7 +338,10 @@
                             <input type="text" class="form-control form-control-sm" value="${item.name}" data-field="name" data-id="${item.id}">
                         </td>
                         <td>
-                            <input type="date" class="form-control form-control-sm" value="${item.date}" data-field="date" data-id="${item.id}">
+                            <input type="date" class="form-control form-control-sm" value="${item.fromDate}" data-field="fromDate" data-id="${item.id}">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control form-control-sm" value="${item.toDate}" data-field="toDate" data-id="${item.id}">
                         </td>
                         <td>
                             <select class="form-select form-select-sm" data-field="isFixedDate" data-id="${item.id}">
@@ -320,15 +397,16 @@
                     return;
                 }
 
-                const invalidRows = parsedData.filter(x => !x.name || !x.date);
+                const invalidRows = parsedData.filter(x => !x.name || !x.fromDate || !x.toDate);
                 if (invalidRows.length > 0) {
-                    showAlert('Some rows have missing Name or Date. Please fix them before submitting.', 'danger');
+                    showAlert('Some rows have missing Name or Dates. Please fix them before submitting.', 'danger');
                     return;
                 }
 
                 const payload = parsedData.map(x => ({
                     Name: x.name,
-                    Date: x.date,
+                    FromDate: x.fromDate,
+                    ToDate: x.toDate,
                     IsFixedDate: x.isFixedDate
                 }));
 
@@ -336,7 +414,6 @@
                 btnSubmitData.disabled = true;
                 btnSubmitData.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
 
-                // We need to pass the anti forgery token. We can grab it from any form on the page
                 const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
 
                 fetch('/PublicHolidays/BulkCreate', {
