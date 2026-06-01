@@ -51,12 +51,18 @@
                         </div>
                         <div class="col-md-6">
                             <label asp-for="SeniorityLevel" class="form-label"></label>
-                            <select asp-for="SeniorityLevel" asp-items="Html.GetEnumSelectList<OfficeTaskManagement.Models.Enums.SeniorityLevel>()" class="form-select"></select>
+                            <select asp-for="SeniorityLevel" asp-items="Html.GetEnumSelectList<SeniorityLevel>()" class="form-select"></select>
                             <span asp-validation-for="SeniorityLevel" class="text-danger"></span>
                         </div>
                     </div>
 
                     <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="ResourceType" class="form-label"></label>
+                            <select asp-for="ResourceType" asp-items="Html.GetEnumSelectList<ResourceType>()" class="form-select"></select>
+                            <span asp-validation-for="ResourceType" class="text-danger"></span>
+                            <div class="form-text">Drives salary-type defaults and analytics.</div>
+                        </div>
                         <div class="col-md-6">
                             <label asp-for="DailyCapacityHours" class="form-label"></label>
                             <div class="input-group">
@@ -66,19 +72,6 @@
                             <span asp-validation-for="DailyCapacityHours" class="text-danger"></span>
                             <div class="form-text">Standard working capacity per day.</div>
                         </div>
-
-                        @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
-                        {
-                            <div class="col-md-6">
-                                <label asp-for="HourlyRate" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input asp-for="HourlyRate" class="form-control" type="number" step="0.01" />
-                                </div>
-                                <span asp-validation-for="HourlyRate" class="text-danger"></span>
-                                <div class="form-text text-warning"><i class="bi bi-lock-fill"></i> Manager view only.</div>
-                            </div>
-                        }
                     </div>
 
                     <div class="mb-3">
@@ -88,6 +81,45 @@
 
                     @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
                     {
+                        <!-- Salary Display (Manager/Admin only) -->
+                        <div class="mb-3 border-top pt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label text-muted mb-0">Compensation Overview</label>
+                                <div class="d-flex gap-1">
+                                    @if (Model.RecentSalaryHistory.Any())
+                                    {
+                                        <a asp-action="SalaryHistory" asp-route-id="@Model.RecentSalaryHistory.First().ResourceProfileId"
+                                           class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-clock-history me-1"></i>History
+                                        </a>
+                                    }
+                                </div>
+                            </div>
+                            <div class="p-2 bg-light rounded border">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col">
+                                        <div class="text-muted small">@Model.CurrentSalaryType</div>
+                                        <div class="fw-bold">
+                                            @Model.Currency @Model.CurrentSalaryAmount.ToString("N2")
+                                        </div>
+                                    </div>
+                                    <div class="col-auto text-end">
+                                        <div class="text-muted small">Effective Hourly</div>
+                                        <div class="fw-bold text-primary">@Model.Currency @Model.HourlyRate.ToString("N4")/hr</div>
+                                    </div>
+                                </div>
+                            </div>
+                            @if (Model.ResourceProfileId > 0)
+                            {
+                                <div class="mt-2">
+                                    <a asp-action="AddSalary" asp-route-id="@Model.ResourceProfileId"
+                                       class="btn btn-sm btn-primary w-100">
+                                        <i class="bi bi-cash-stack me-1"></i> @(Model.RecentSalaryHistory.Any() ? "Update Salary / Rate" : "Add Initial Salary")
+                                    </a>
+                                </div>
+                            }
+                        </div>
+
                         <!-- IsResource toggle -->
                         <div class="mb-4 p-3 rounded border @(Model.IsResource ? "border-success bg-success bg-opacity-10" : "border-warning bg-warning bg-opacity-10")">
                             <div class="form-check form-switch">
@@ -141,12 +173,53 @@
                     {
                         <span class="badge bg-secondary rounded-pill px-3 py-2"><i class="bi bi-eye-slash-fill"></i> Stakeholder</span>
                     }
+                    <span class="badge bg-info text-dark rounded-pill px-3 py-2" title="Resource engagement type">
+                        <i class="bi bi-person-badge me-1"></i>@Model.ResourceType
+                    </span>
                 </div>
                 <div class="progress" style="height: 10px;">
                     <div class="progress-bar @utilClass" role="progressbar" style="width: @Math.Min(100, Model.UtilizationPercent)%;"></div>
                 </div>
             </div>
         </div>
+
+        @if ((User.IsInRole("Manager") || User.IsInRole("Admin")) && Model.RecentSalaryHistory.Any())
+        {
+            <!-- Salary History mini-card -->
+            <div class="card shadow-sm mb-4 border-primary border-opacity-50">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-cash-stack text-primary me-2"></i>Compensation</h6>
+                    <a asp-action="SalaryHistory" asp-route-id="@Model.RecentSalaryHistory.First().ResourceProfileId"
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-clock-history me-1"></i>Full History
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var sh in Model.RecentSalaryHistory)
+                        {
+                            <li class="list-group-item @(sh.IsCurrent ? "bg-success bg-opacity-10" : "")">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        @if (sh.IsCurrent)
+                                        {
+                                            <span class="badge bg-success me-1" style="font-size:.7em;">Active</span>
+                                        }
+                                        <span class="fw-semibold small">@sh.SalaryTypeLabel</span>
+                                        <div class="text-muted" style="font-size:.78rem;">@sh.Currency @sh.Amount.ToString("N2")</div>
+                                        <div class="text-muted" style="font-size:.75rem;">@sh.PeriodLabel</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold text-primary">@sh.Currency @sh.EffectiveHourlyRate.ToString("N4")</div>
+                                        <div class="text-muted" style="font-size:.75rem;">per hour</div>
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
 
         <div class="card shadow-sm mb-4 border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -257,7 +330,7 @@
                     <p class="text-muted small mb-3">No availability blocks recorded.</p>
                 }
 
-                @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
+                @if (User.IsInRole("Manager") || User.IsInRole("Admin") || User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value == Model.UserId)
                 {
                     <hr class="my-2" />
                     <h6 class="text-muted small text-uppercase mb-2">Add New Block</h6>

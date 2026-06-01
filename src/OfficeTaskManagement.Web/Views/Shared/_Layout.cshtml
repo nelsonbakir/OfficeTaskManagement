@@ -232,6 +232,11 @@
                                         <i class="fas fa-user-circle"></i> Profile
                                     </a>
                                 </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-controller="Resource" asp-action="MyAvailability">
+                                        <i class="fas fa-calendar-alt"></i> My Availability
+                                    </a>
+                                </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
                                     <form id="logoutForm" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" method="post" style="display: inline;">

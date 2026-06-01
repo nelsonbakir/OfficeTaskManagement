@@ -1,0 +1,237 @@
+@model OfficeTaskManagement.ViewModels.ResourceManagement.AddSalaryViewModel
+@using OfficeTaskManagement.Models.Enums
+
+@{
+    ViewData["Title"] = $"Update Salary — {Model.ResourceFullName}";
+    bool isContractExternal = Model.ResourceType is ResourceType.Contractual
+                                                  or ResourceType.Freelance
+                                                  or ResourceType.Consultant;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-cash-stack text-primary me-2"></i>Update Salary / Rate</h2>
+        <p class="text-muted mb-0">@Model.ResourceFullName
+            <span class="badge bg-light text-dark border ms-2">@Model.ResourceType</span>
+        </p>
+    </div>
+    <a asp-action="SalaryHistory" asp-route-id="@Model.ResourceProfileId" class="btn btn-outline-secondary">
+        <i class="bi bi-clock-history me-1"></i> View Full History
+    </a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">New Compensation Record</h5>
+                <p class="text-muted small mb-0">
+                    A new ledger entry will be created. The previous active record will be closed automatically.
+                </p>
+            </div>
+            <div class="card-body">
+                <form asp-action="AddSalary" asp-route-id="@Model.ResourceProfileId" method="post" id="salaryForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="ResourceProfileId" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="SalaryType" class="form-label fw-semibold"></label>
+                            <select asp-for="SalaryType"
+                                    asp-items="Html.GetEnumSelectList<SalaryType>()"
+                                    class="form-select" id="salaryTypeSelect">
+                            </select>
+                            <span asp-validation-for="SalaryType" class="text-danger"></span>
+                            <div class="form-text" id="salaryTypeHint"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Currency" class="form-label fw-semibold"></label>
+                            <select asp-for="Currency" class="form-select">
+                                <option value="BDT">BDT — Taka</option>
+                                <option value="USD">USD — Dollar</option>
+                                <option value="EUR">EUR — Euro</option>
+                                <option value="GBP">GBP — Pound</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-semibold">Daily Hours</label>
+                            <input type="text" class="form-control bg-light" value="@Model.DailyCapacityHours hrs" readonly />
+                            <div class="form-text">Used in derivation</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Amount" class="form-label fw-semibold"></label>
+                        <div class="input-group">
+                            <span class="input-group-text" id="currencySymbol">@Model.Currency</span>
+                            <input asp-for="Amount" class="form-control" type="number"
+                                   step="0.01" min="0" id="amountInput"
+                                   placeholder="e.g. 50000" />
+                        </div>
+                        <span asp-validation-for="Amount" class="text-danger"></span>
+                    </div>
+
+                    @if (isContractExternal)
+                    {
+                        <div class="mb-3">
+                            <label asp-for="BillRate" class="form-label fw-semibold"></label>
+                            <div class="input-group">
+                                <span class="input-group-text">@Model.Currency</span>
+                                <input asp-for="BillRate" class="form-control" type="number" step="0.01" min="0"
+                                       placeholder="Client bill rate per hour (optional)" />
+                            </div>
+                            <span asp-validation-for="BillRate" class="text-danger"></span>
+                            <div class="form-text">What the client is billed — separate from cost rate.</div>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label asp-for="EffectiveFrom" class="form-label fw-semibold"></label>
+                        <input asp-for="EffectiveFrom" class="form-control" type="date" id="effectiveFromInput" />
+                        <span asp-validation-for="EffectiveFrom" class="text-danger"></span>
+                        <div class="form-text text-warning d-none" id="retroactiveWarning">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            <strong>Retroactive change:</strong> This date is in the past. Historical analytics
+                            for the overlapping period will be recalculated using the new rate.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Reason" class="form-label fw-semibold"></label>
+                        <input asp-for="Reason" class="form-control"
+                               placeholder="e.g. Annual increment, Promotion to Senior, Contract renewal" />
+                        <span asp-validation-for="Reason" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-save me-1"></i> Save Record
+                        </button>
+                        <a asp-action="Profile" asp-route-id="@ViewBag.UserId" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right panel: live preview + context -->
+    <div class="col-md-5">
+        <!-- Live Hourly Rate Preview -->
+        <div class="card shadow-sm mb-3 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="bi bi-calculator me-2"></i>Derived Hourly Rate Preview</h6>
+            </div>
+            <div class="card-body text-center py-4">
+                <div class="text-muted small mb-1">Effective cost per hour</div>
+                <div class="display-5 fw-bold text-primary" id="previewRate">
+                    @Model.Currency @Model.PreviewHourlyRate.ToString("N4")
+                </div>
+                <div class="text-muted small mt-2" id="formulaHint"></div>
+            </div>
+        </div>
+
+        <!-- Current rate card -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <div class="text-muted small text-uppercase fw-semibold mb-2">Current Active Rate</div>
+                <div class="fs-4 fw-bold">
+                    @Model.Currency @Model.CurrentHourlyRate.ToString("N4") / hr
+                </div>
+                <div class="text-muted small">
+                    @(Model.CurrentSalaryAmount > 0
+                        ? $"{Model.CurrentSalaryType} — {Model.Currency} {Model.CurrentSalaryAmount:N2}"
+                        : "No salary record on file")
+                </div>
+            </div>
+        </div>
+
+        <!-- Derivation formula reference -->
+        <div class="card shadow-sm border-0 bg-light">
+            <div class="card-body small text-muted">
+                <strong class="d-block mb-2 text-dark">Derivation Formulas</strong>
+                <ul class="mb-0 ps-3">
+                    <li><strong>Monthly / Stipend:</strong> Amount ÷ (22 days × daily hrs)</li>
+                    <li><strong>Annual:</strong> Amount ÷ (22 × 12 months × daily hrs)</li>
+                    <li><strong>Daily:</strong> Amount ÷ daily hrs</li>
+                    <li><strong>Hourly:</strong> Amount (no conversion)</li>
+                </ul>
+                <div class="mt-2">Daily hours: <strong>@Model.DailyCapacityHours hrs</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        const dailyHours = @Model.DailyCapacityHours;
+        const workDaysPerMonth = 22;
+        const currencySymbol = document.getElementById('currencySymbol');
+        const previewRate = document.getElementById('previewRate');
+        const formulaHint = document.getElementById('formulaHint');
+        const retroWarn = document.getElementById('retroactiveWarning');
+
+        const salaryHints = {
+            'MonthlySalary': 'Amount ÷ (22 days × daily hrs)',
+            'Stipend':       'Amount ÷ (22 days × daily hrs)',
+            'AnnualSalary':  'Amount ÷ (22 × 12 months × daily hrs)',
+            'DailyRate':     'Amount ÷ daily hrs',
+            'HourlyRate':    'Amount (identity — no conversion)'
+        };
+
+        function computeRate(salaryType, amount) {
+            const h = dailyHours;
+            const d = workDaysPerMonth;
+            if (!amount || amount <= 0) return 0;
+            switch(salaryType) {
+                case 'MonthlySalary': case 'Stipend':
+                    return amount / (d * h);
+                case 'AnnualSalary':
+                    return amount / (d * 12 * h);
+                case 'DailyRate':
+                    return amount / h;
+                case 'HourlyRate':
+                    return amount;
+                default: return 0;
+            }
+        }
+
+        function updatePreview() {
+            const type   = document.getElementById('salaryTypeSelect').value;
+            const amount = parseFloat(document.getElementById('amountInput').value) || 0;
+            const cur    = document.querySelector('[name="Currency"]').value;
+            const rate   = computeRate(type, amount);
+
+            previewRate.textContent = cur + ' ' + rate.toFixed(4);
+            formulaHint.textContent = salaryHints[type] || '';
+            currencySymbol.textContent = cur;
+        }
+
+        function checkRetroactive() {
+            const val = document.getElementById('effectiveFromInput').value;
+            if (!val) return;
+            const today = new Date(); today.setHours(0,0,0,0);
+            const chosen = new Date(val);
+            retroWarn.classList.toggle('d-none', chosen >= today);
+        }
+
+        document.getElementById('salaryTypeSelect').addEventListener('change', updatePreview);
+        document.getElementById('amountInput').addEventListener('input', updatePreview);
+        document.querySelector('[name="Currency"]').addEventListener('change', updatePreview);
+        document.getElementById('effectiveFromInput').addEventListener('change', checkRetroactive);
+
+        // Init
+        updatePreview();
+        checkRetroactive();
+    </script>
+}

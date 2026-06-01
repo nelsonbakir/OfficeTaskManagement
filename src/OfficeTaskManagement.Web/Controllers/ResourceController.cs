@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -72,7 +73,10 @@ namespace OfficeTaskManagement.Controllers
 
             var user = await _context.Users
                 .Include(u => u.ResourceProfile)
-                .ThenInclude(rp => rp!.Skills)
+                    .ThenInclude(rp => rp!.Skills)
+                .Include(u => u.ResourceProfile)
+                    .ThenInclude(rp => rp!.SalaryHistories)
+                        .ThenInclude(sh => sh.RecordedBy)
                 .Include(u => u.AvailabilityBlocks)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -82,18 +86,51 @@ namespace OfficeTaskManagement.Controllers
             var currentMonth = DateTime.UtcNow;
             var utilPercent = await _resourceService.GetUserUtilizationPercentAsync(id, currentMonth.Year, currentMonth.Month);
 
+            // Build recent salary history (Manager/Admin only — last 5 entries)
+            var recentSalary = new List<SalaryHistoryViewModel>();
+            if ((User.IsInRole("Manager") || User.IsInRole("Admin")) && user.ResourceProfile != null)
+            {
+                recentSalary = user.ResourceProfile.SalaryHistories
+                    .OrderByDescending(sh => sh.EffectiveFrom)
+                    .Take(5)
+                    .Select(sh => new SalaryHistoryViewModel
+                    {
+                        Id                  = sh.Id,
+                        ResourceProfileId   = sh.ResourceProfileId,
+                        ResourceFullName    = user.FullName ?? user.Email ?? id,
+                        SalaryType          = sh.SalaryType,
+                        Amount              = sh.Amount,
+                        EffectiveHourlyRate = sh.EffectiveHourlyRate,
+                        BillRate            = sh.BillRate,
+                        Currency            = sh.Currency,
+                        EffectiveFrom       = sh.EffectiveFrom,
+                        EffectiveTo         = sh.EffectiveTo,
+                        Reason              = sh.Reason,
+                        RecordedByName      = sh.RecordedBy?.FullName ?? sh.RecordedBy?.Email,
+                        CreatedAt           = sh.CreatedAt
+                    }).ToList();
+            }
+
             var vm = new ResourceProfileViewModel
             {
-                UserId = user.Id,
-                FullName = user.FullName ?? string.Empty,
-                Email = user.Email ?? string.Empty,
-                Department = user.ResourceProfile?.Department,
-                SeniorityLevel = user.ResourceProfile?.SeniorityLevel ?? Models.Enums.SeniorityLevel.Mid,
-                DailyCapacityHours = user.ResourceProfile?.DailyCapacityHours ?? 8,
-                HourlyRate = User.IsInRole("Manager") ? (user.ResourceProfile?.HourlyRate ?? 0) : 0,
-                Notes = user.ResourceProfile?.Notes,
-                UtilizationPercent = utilPercent,
-                IsOverAllocated = utilPercent > 100,
+                ResourceProfileId   = user.ResourceProfile?.Id ?? 0,
+                UserId              = user.Id,
+                FullName            = user.FullName ?? string.Empty,
+                Email               = user.Email ?? string.Empty,
+                Department          = user.ResourceProfile?.Department,
+                SeniorityLevel      = user.ResourceProfile?.SeniorityLevel ?? SeniorityLevel.Mid,
+                DailyCapacityHours  = user.ResourceProfile?.DailyCapacityHours ?? 8,
+                ResourceType        = user.ResourceProfile?.ResourceType ?? ResourceType.FullTime,
+                CurrentSalaryType   = user.ResourceProfile?.CurrentSalaryType ?? SalaryType.MonthlySalary,
+                CurrentSalaryAmount = user.ResourceProfile?.CurrentSalaryAmount ?? 0,
+                Currency            = user.ResourceProfile?.Currency ?? "BDT",
+                HourlyRate          = (User.IsInRole("Manager") || User.IsInRole("Admin"))
+                                        ? (user.ResourceProfile?.HourlyRate ?? 0) : 0,
+                Notes               = user.ResourceProfile?.Notes,
+                IsResource          = user.ResourceProfile?.IsResource ?? true,
+                UtilizationPercent  = utilPercent,
+                IsOverAllocated     = utilPercent > 100,
+                RecentSalaryHistory = recentSalary,
                 Skills = user.ResourceProfile?.Skills.Select(s => new ResourceSkillViewModel
                 {
                     Id = s.Id,
@@ -102,22 +139,22 @@ namespace OfficeTaskManagement.Controllers
                 }).ToList() ?? new List<ResourceSkillViewModel>(),
                 ActiveAllocations = allocations.Select(a => new ProjectAllocationSummaryViewModel
                 {
-                    Id = a.AllocationId,
-                    ProjectId = a.ProjectId,
-                    ProjectName = a.ProjectName,
-                    AllocationPercentage = a.AllocationPercentage,
-                    ProjectRole = a.ProjectRole,
-                    StartDate = a.StartDate,
-                    EndDate = a.EndDate
+                    Id                  = a.AllocationId,
+                    ProjectId           = a.ProjectId,
+                    ProjectName         = a.ProjectName,
+                    AllocationPercentage= a.AllocationPercentage,
+                    ProjectRole         = a.ProjectRole,
+                    StartDate           = a.StartDate,
+                    EndDate             = a.EndDate
                 }).ToList(),
                 AvailabilityBlocks = user.AvailabilityBlocks.Select(b => new AvailabilityBlockViewModel
                 {
-                    Id = b.Id,
-                    StartDate = b.StartDate,
-                    EndDate = b.EndDate,
-                    Reason = b.Reason,
+                    Id             = b.Id,
+                    StartDate      = b.StartDate,
+                    EndDate        = b.EndDate,
+                    Reason         = b.Reason,
                     ApprovalStatus = b.ApprovalStatus,
-                    Notes = b.Notes
+                    Notes          = b.Notes
                 }).ToList()
             };
 
@@ -138,21 +175,20 @@ namespace OfficeTaskManagement.Controllers
                 if (user == null) return NotFound();
 
                 var profile = await _resourceService.GetOrCreateProfileAsync(id);
-                
-                profile.Department = model.Department;
-                profile.SeniorityLevel = model.SeniorityLevel;
-                profile.DailyCapacityHours = model.DailyCapacityHours;
-                profile.Notes = model.Notes;
-                profile.IsResource = model.IsResource;
 
-                if (User.IsInRole("Manager"))
-                {
-                    profile.HourlyRate = model.HourlyRate;
-                }
+                profile.Department         = model.Department;
+                profile.SeniorityLevel     = model.SeniorityLevel;
+                profile.DailyCapacityHours = model.DailyCapacityHours;
+                profile.ResourceType       = model.ResourceType;
+                profile.Notes              = model.Notes;
+                profile.IsResource         = model.IsResource;
+                profile.UpdatedAt          = DateTime.UtcNow;
+
+                // HourlyRate is NOT updated here — use AddSalary to record a rate change.
 
                 _context.Update(profile);
                 await _context.SaveChangesAsync();
-                
+
                 TempData["SuccessMessage"] = "Resource profile updated successfully.";
                 return RedirectToAction(nameof(Profile), new { id });
             }
@@ -325,21 +361,46 @@ namespace OfficeTaskManagement.Controllers
             return RedirectToAction("Details", "Projects", new { id = projectId });
         }
 
+        // GET: Resource/MyAvailability
+        [Authorize]
+        public async Task<IActionResult> MyAvailability()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Unauthorized();
+
+            var blocks = await _context.ResourceAvailabilityBlocks
+                .Where(b => b.UserId == user.Id)
+                .OrderByDescending(b => b.StartDate)
+                .ToListAsync();
+
+            ViewBag.UserId = user.Id;
+            return View(blocks);
+        }
+
         // POST: Resource/Block — Record a leave / availability block
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize]
         public async Task<IActionResult> Block(string userId, DateTime startDate, DateTime endDate,
             AvailabilityBlockReason reason, string? notes)
         {
             if (string.IsNullOrEmpty(userId)) return BadRequest();
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null) return Unauthorized();
+
+            if (userId != currentUser.Id && !User.IsInRole("Manager") && !User.IsInRole("Admin"))
+            {
+                TempData["ErrorMessage"] = "You can only register availability blocks for yourself.";
+                return RedirectToAction(nameof(Profile), new { id = userId });
+            }
+
             if (endDate < startDate)
             {
                 TempData["ErrorMessage"] = "End date must be on or after the start date.";
                 return RedirectToAction(nameof(Profile), new { id = userId });
             }
 
-            var currentUser = await _userManager.GetUserAsync(User);
             var block = new ResourceAvailabilityBlock
             {
                 UserId      = userId,
@@ -353,6 +414,12 @@ namespace OfficeTaskManagement.Controllers
             _context.ResourceAvailabilityBlocks.Add(block);
             await _context.SaveChangesAsync();
             TempData["SuccessMessage"] = $"Availability block recorded: {reason} from {startDate:MMM d} to {endDate:MMM d}. Waiting for manager approval.";
+            
+            var referer = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrEmpty(referer) && referer.Contains("MyAvailability", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction(nameof(MyAvailability));
+            }
             return RedirectToAction(nameof(Profile), new { id = userId });
         }
 
@@ -397,18 +464,146 @@ namespace OfficeTaskManagement.Controllers
         // DELETE: Resource/Block/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [Authorize]
         [ActionName("DeleteBlock")]
         public async Task<IActionResult> DeleteBlock(int id, string userId)
         {
             var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
             if (block != null)
             {
-                _context.ResourceAvailabilityBlocks.Remove(block);
-                await _context.SaveChangesAsync();
-                TempData["SuccessMessage"] = "Availability block removed.";
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null) return Unauthorized();
+
+                if (block.UserId != currentUser.Id && !User.IsInRole("Manager") && !User.IsInRole("Admin"))
+                {
+                    TempData["ErrorMessage"] = "You can only delete your own availability blocks.";
+                }
+                else
+                {
+                    _context.ResourceAvailabilityBlocks.Remove(block);
+                    await _context.SaveChangesAsync();
+                    TempData["SuccessMessage"] = "Availability block removed.";
+                }
+            }
+            
+            var referer = Request.Headers["Referer"].ToString();
+            if (!string.IsNullOrEmpty(referer) && referer.Contains("MyAvailability", StringComparison.OrdinalIgnoreCase))
+            {
+                return RedirectToAction(nameof(MyAvailability));
             }
             return RedirectToAction(nameof(Profile), new { id = userId });
+        }
+
+        // ── Salary / Compensation ───────────────────────────────────────────────
+
+        // GET: Resource/SalaryHistory/5  (resourceProfileId)
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> SalaryHistory(int id)
+        {
+            var profile = await _context.ResourceProfiles
+                .Include(rp => rp.User)
+                .FirstOrDefaultAsync(rp => rp.Id == id);
+
+            if (profile == null) return NotFound();
+
+            var history = await _resourceService.GetSalaryHistoryAsync(id);
+
+            var vms = history.Select(sh => new SalaryHistoryViewModel
+            {
+                Id                  = sh.Id,
+                ResourceProfileId   = sh.ResourceProfileId,
+                ResourceFullName    = profile.User?.FullName ?? profile.User?.Email ?? id.ToString(),
+                SalaryType          = sh.SalaryType,
+                Amount              = sh.Amount,
+                EffectiveHourlyRate = sh.EffectiveHourlyRate,
+                BillRate            = sh.BillRate,
+                Currency            = sh.Currency,
+                EffectiveFrom       = sh.EffectiveFrom,
+                EffectiveTo         = sh.EffectiveTo,
+                Reason              = sh.Reason,
+                RecordedByName      = sh.RecordedBy?.FullName ?? sh.RecordedBy?.Email,
+                CreatedAt           = sh.CreatedAt
+            }).ToList();
+
+            ViewBag.UserId = profile.UserId;
+            return View(vms);
+        }
+
+        // GET: Resource/AddSalary/5  (resourceProfileId)
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> AddSalary(int id)
+        {
+            var profile = await _context.ResourceProfiles
+                .Include(rp => rp.User)
+                .FirstOrDefaultAsync(rp => rp.Id == id);
+
+            if (profile == null) return NotFound();
+
+            var vm = new AddSalaryViewModel
+            {
+                ResourceProfileId   = profile.Id,
+                ResourceFullName    = profile.User?.FullName ?? profile.User?.Email ?? id.ToString(),
+                ResourceType        = profile.ResourceType,
+                SalaryType          = profile.CurrentSalaryType,
+                Amount              = profile.CurrentSalaryAmount,
+                Currency            = profile.Currency,
+                DailyCapacityHours  = profile.DailyCapacityHours,
+                CurrentHourlyRate   = profile.HourlyRate,
+                CurrentSalaryAmount = profile.CurrentSalaryAmount,
+                CurrentSalaryType   = profile.CurrentSalaryType,
+                EffectiveFrom       = DateTime.Today,
+                PreviewHourlyRate   = _resourceService.ComputeHourlyRate(
+                                          profile.CurrentSalaryType,
+                                          profile.CurrentSalaryAmount,
+                                          profile.DailyCapacityHours)
+            };
+            ViewBag.UserId = profile.UserId;
+            return View(vm);
+        }
+
+        // POST: Resource/AddSalary/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Manager,Admin")]
+        public async Task<IActionResult> AddSalary(int id, AddSalaryViewModel model)
+        {
+            if (id != model.ResourceProfileId) return NotFound();
+
+            // Recompute preview so the form can redisplay it on validation failure
+            var profile = await _context.ResourceProfiles
+                .Include(rp => rp.User)
+                .FirstOrDefaultAsync(rp => rp.Id == id);
+
+            if (profile == null) return NotFound();
+
+            model.PreviewHourlyRate  = _resourceService.ComputeHourlyRate(
+                model.SalaryType, model.Amount, profile.DailyCapacityHours);
+            model.ResourceFullName   = profile.User?.FullName ?? profile.User?.Email ?? id.ToString();
+            model.ResourceType       = profile.ResourceType;
+            model.DailyCapacityHours = profile.DailyCapacityHours;
+            model.CurrentHourlyRate  = profile.HourlyRate;
+            model.CurrentSalaryAmount= profile.CurrentSalaryAmount;
+            model.CurrentSalaryType  = profile.CurrentSalaryType;
+
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var currentUser = await _userManager.GetUserAsync(User);
+
+            await _resourceService.RecordSalaryChangeAsync(
+                resourceProfileId : model.ResourceProfileId,
+                salaryType        : model.SalaryType,
+                amount            : model.Amount,
+                effectiveFrom     : model.EffectiveFrom,
+                reason            : model.Reason,
+                recordedById      : currentUser?.Id,
+                billRate          : model.BillRate,
+                currency          : model.Currency);
+
+            TempData["SuccessMessage"] =
+                $"Salary updated. New effective hourly rate: {model.Currency} {model.PreviewHourlyRate:N4}/hr, effective {model.EffectiveFrom:dd MMM yyyy}.";
+
+            return RedirectToAction(nameof(Profile), new { id = profile.UserId });
         }
     }
 }

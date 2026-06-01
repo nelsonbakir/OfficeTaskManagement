@@ -1,0 +1,141 @@
+@model IEnumerable<OfficeTaskManagement.ViewModels.ResourceManagement.SalaryHistoryViewModel>
+@using OfficeTaskManagement.ViewModels.ResourceManagement
+
+@{
+    ViewData["Title"] = "Salary History";
+    var fullName = Model.FirstOrDefault()?.ResourceFullName ?? "Resource";
+    var profileId = Model.FirstOrDefault()?.ResourceProfileId ?? 0;
+    var userId = ViewBag.UserId as string ?? string.Empty;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Salary History</h2>
+        <p class="text-muted mb-0">@fullName — Temporal compensation ledger</p>
+    </div>
+    <div class="d-flex gap-2">
+        @if (profileId > 0)
+        {
+            <a asp-action="AddSalary" asp-route-id="@profileId" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> Record New Rate
+            </a>
+        }
+        <a asp-action="Profile" asp-route-id="@userId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Profile
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (!Model.Any())
+{
+    <div class="card shadow-sm">
+        <div class="card-body text-center py-5 text-muted">
+            <i class="bi bi-cash-stack fs-1 d-block mb-3 opacity-25"></i>
+            <p class="fs-5">No salary records found for this resource.</p>
+            @if (profileId > 0)
+            {
+                <a asp-action="AddSalary" asp-route-id="@profileId" class="btn btn-primary mt-2">
+                    <i class="bi bi-plus-circle me-1"></i> Record First Salary
+                </a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <!-- Timeline -->
+    <div class="position-relative ps-4" style="border-left: 2px solid #dee2e6;">
+        @foreach (var entry in Model)
+        {
+            var dotColor = entry.IsCurrent ? "bg-success" : "bg-secondary";
+            var cardBorder = entry.IsCurrent ? "border-success border-2" : "";
+            <div class="position-relative mb-4">
+                <!-- Timeline dot -->
+                <span class="position-absolute rounded-circle @dotColor border border-white border-2 shadow-sm"
+                      style="width:14px; height:14px; left:-23px; top:10px;"></span>
+
+                <div class="card shadow-sm @cardBorder">
+                    <div class="card-header d-flex justify-content-between align-items-center
+                                @(entry.IsCurrent ? "bg-success bg-opacity-10" : "bg-light")">
+                        <div class="d-flex align-items-center gap-2">
+                            @if (entry.IsCurrent)
+                            {
+                                <span class="badge bg-success rounded-pill">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary rounded-pill">Closed</span>
+                            }
+                            <strong>@entry.SalaryTypeLabel</strong>
+                            <span class="text-muted small">@entry.PeriodLabel</span>
+                        </div>
+                        <span class="text-muted small">
+                            Recorded @entry.CreatedAt.ToString("dd MMM yyyy")
+                            @if (!string.IsNullOrEmpty(entry.RecordedByName))
+                            { <span>by <strong>@entry.RecordedByName</strong></span> }
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="text-muted small text-uppercase fw-semibold mb-1">Raw Amount</div>
+                                <div class="fs-5 fw-bold">
+                                    @entry.Currency @entry.Amount.ToString("N2")
+                                </div>
+                                <div class="text-muted small">@entry.SalaryTypeLabel</div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted small text-uppercase fw-semibold mb-1">Effective Hourly Rate</div>
+                                <div class="fs-5 fw-bold text-primary">
+                                    @entry.Currency @entry.EffectiveHourlyRate.ToString("N4") / hr
+                                </div>
+                                <div class="text-muted small">Computed at record time</div>
+                            </div>
+                            @if (entry.BillRate.HasValue)
+                            {
+                                <div class="col-md-3">
+                                    <div class="text-muted small text-uppercase fw-semibold mb-1">Bill Rate</div>
+                                    <div class="fs-5 fw-bold text-info">
+                                        @entry.Currency @entry.BillRate.Value.ToString("N4") / hr
+                                    </div>
+                                    <div class="text-muted small">Client-facing rate</div>
+                                </div>
+                            }
+                            <div class="col-md-3">
+                                <div class="text-muted small text-uppercase fw-semibold mb-1">Effective Period</div>
+                                <div class="fw-semibold">@entry.EffectiveFrom.ToString("dd MMM yyyy")</div>
+                                <div class="text-muted small">
+                                    → @(entry.EffectiveTo.HasValue
+                                        ? entry.EffectiveTo.Value.ToString("dd MMM yyyy")
+                                        : "Present")
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(entry.Reason))
+                        {
+                            <hr class="my-2" />
+                            <div class="text-muted small">
+                                <i class="bi bi-chat-left-text me-1"></i>
+                                <em>@entry.Reason</em>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="text-muted small mt-3">
+        <i class="bi bi-info-circle me-1"></i>
+        This ledger is <strong>append-only</strong>. Records are never edited or deleted to preserve analytics integrity.
+        Cost reports for past periods always use the rate that was active at the time of work.
+    </div>
+}

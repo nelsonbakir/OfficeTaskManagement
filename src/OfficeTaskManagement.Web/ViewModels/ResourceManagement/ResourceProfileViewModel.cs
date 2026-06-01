@@ -7,6 +7,7 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
 {
     public class ResourceProfileViewModel
     {
+        public int ResourceProfileId { get; set; }
         public string UserId { get; set; } = string.Empty;
         
         [Display(Name = "Name")]
@@ -25,7 +26,19 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
         [Range(0.5, 24)]
         public decimal DailyCapacityHours { get; set; }
 
-        [Display(Name = "Hourly Cost Rate")]
+        [Display(Name = "Resource Type")]
+        public ResourceType ResourceType { get; set; } = ResourceType.FullTime;
+
+        [Display(Name = "Salary / Rate Type")]
+        public SalaryType CurrentSalaryType { get; set; } = SalaryType.MonthlySalary;
+
+        [Display(Name = "Current Amount")]
+        public decimal CurrentSalaryAmount { get; set; }
+
+        [Display(Name = "Currency")]
+        public string Currency { get; set; } = "BDT";
+
+        [Display(Name = "Effective Hourly Cost Rate")]
         public decimal HourlyRate { get; set; }
 
         public string? Notes { get; set; }
@@ -33,6 +46,9 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
         public List<ResourceSkillViewModel> Skills { get; set; } = new();
         public List<ProjectAllocationSummaryViewModel> ActiveAllocations { get; set; } = new();
         public List<AvailabilityBlockViewModel> AvailabilityBlocks { get; set; } = new();
+
+        /// <summary>Last 5 salary records, newest first (Manager/Admin only).</summary>
+        public List<SalaryHistoryViewModel> RecentSalaryHistory { get; set; } = new();
 
         // Used to show the manager status on the UI
         public decimal UtilizationPercent { get; set; }

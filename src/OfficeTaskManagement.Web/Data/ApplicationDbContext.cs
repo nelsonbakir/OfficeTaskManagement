@@ -36,6 +36,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<ProjectResourceAllocation> ProjectResourceAllocations { get; set; }
         public DbSet<ResourceAvailabilityBlock> ResourceAvailabilityBlocks { get; set; }
         public DbSet<PublicHoliday> PublicHolidays { get; set; }
+        public DbSet<SalaryHistory> SalaryHistories { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -321,6 +322,34 @@ namespace OfficeTaskManagement.Data
                 .WithMany(rp => rp.AvailabilityBlocks)
                 .HasForeignKey(rab => rab.ResourceProfileId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ────────────────────────────────────────────────────────────────
+
+            // ── SalaryHistory Relationships ──────────────────────────────────
+
+            // SalaryHistory → ResourceProfile (Restrict: history must not be
+            // cascade-deleted; deactivate/archive profile first)
+            builder.Entity<SalaryHistory>()
+                .HasOne(sh => sh.ResourceProfile)
+                .WithMany(rp => rp.SalaryHistories)
+                .HasForeignKey(sh => sh.ResourceProfileId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // SalaryHistory → RecordedBy User (SetNull so deleting a manager
+            // does not delete the salary audit trail)
+            builder.Entity<SalaryHistory>()
+                .HasOne(sh => sh.RecordedBy)
+                .WithMany()
+                .HasForeignKey(sh => sh.RecordedById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Enforce uniqueness: only one active record (EffectiveTo IS NULL)
+            // per ResourceProfile at the DB level via a filtered unique index.
+            builder.Entity<SalaryHistory>()
+                .HasIndex(sh => new { sh.ResourceProfileId, sh.EffectiveTo })
+                .HasFilter("\"EffectiveTo\" IS NULL")
+                .IsUnique()
+                .HasDatabaseName("UIX_SalaryHistory_OneActivePerProfile");
 
             // ────────────────────────────────────────────────────────────────
         }

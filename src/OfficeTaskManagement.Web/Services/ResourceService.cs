@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Models.Enums;
 
 namespace OfficeTaskManagement.Services
 {
@@ -379,13 +380,17 @@ namespace OfficeTaskManagement.Services
                 // 1. Calculate PV from high-level Allocations
                 foreach (var alloc in projectAllocations)
                 {
-                    var endDate = alloc.EndDate ?? DateTime.UtcNow;
-                    if (endDate < alloc.StartDate) continue;
+                    var allocEnd = alloc.EndDate ?? DateTime.UtcNow;
+                    if (allocEnd < alloc.StartDate) continue;
 
-                    var days = await CountWorkingDaysAsync(alloc.StartDate, endDate);
+                    var days = await CountWorkingDaysAsync(alloc.StartDate, allocEnd);
                     var dailyHours = alloc.ResourceProfile?.DailyCapacityHours ?? 8m;
                     var hours = days * dailyHours * (alloc.AllocationPercentage / 100m);
-                    var rate = alloc.ResourceProfile?.HourlyRate ?? 0m;
+
+                    // Use the rate effective at the START of the allocation for PV.
+                    decimal rate = 0m;
+                    if (alloc.ResourceProfile != null)
+                        rate = await GetEffectiveHourlyRateAsync(alloc.ResourceProfile.Id, alloc.StartDate);
 
                     totalAllocatedHours += hours;
                     plannedValuePV += hours * rate;
@@ -398,7 +403,13 @@ namespace OfficeTaskManagement.Services
 
                 foreach (var task in projectTasks)
                 {
-                    var rate = task.Assignee?.ResourceProfile?.HourlyRate ?? 0m;
+                    // Use rate at task completion time for done tasks; today for active ones.
+                    // This preserves historical cost integrity across promotions.
+                    var rateDate = task.CompletedAt ?? DateTime.UtcNow;
+                    decimal rate = 0m;
+                    if (task.Assignee?.ResourceProfile != null)
+                        rate = await GetEffectiveHourlyRateAsync(task.Assignee.ResourceProfile.Id, rateDate);
+
                     var taskH = (decimal)task.EstimatedHours;
                     totalTaskHours += taskH;
                     bottomUpEstimateEAC += taskH * rate;
@@ -418,6 +429,113 @@ namespace OfficeTaskManagement.Services
             }
 
             return result.OrderByDescending(r => Math.Max(r.PlannedValuePV, r.BottomUpEstimateEAC));
+        }
+
+        // ── Salary / Compensation Methods ───────────────────────────────────────
+
+        /// <inheritdoc/>
+        public decimal ComputeHourlyRate(
+            SalaryType salaryType,
+            decimal amount,
+            decimal dailyHours,
+            decimal workingDaysPerMonth = 22m)
+        {
+            if (amount <= 0 || dailyHours <= 0) return 0m;
+
+            return salaryType switch
+            {
+                SalaryType.MonthlySalary => Math.Round(amount / (workingDaysPerMonth * dailyHours), 4),
+                SalaryType.Stipend       => Math.Round(amount / (workingDaysPerMonth * dailyHours), 4),
+                SalaryType.AnnualSalary  => Math.Round(amount / (workingDaysPerMonth * 12m * dailyHours), 4),
+                SalaryType.DailyRate     => Math.Round(amount / dailyHours, 4),
+                SalaryType.HourlyRate    => Math.Round(amount, 4),
+                _                        => 0m
+            };
+        }
+
+        /// <inheritdoc/>
+        public async Task<decimal> GetEffectiveHourlyRateAsync(int resourceProfileId, DateTime atDate)
+        {
+            // Find the SalaryHistory record whose window contains atDate.
+            var record = await _context.SalaryHistories
+                .Where(sh => sh.ResourceProfileId == resourceProfileId
+                          && sh.EffectiveFrom.Date <= atDate.Date
+                          && (sh.EffectiveTo == null || sh.EffectiveTo.Value.Date >= atDate.Date))
+                .OrderByDescending(sh => sh.EffectiveFrom)
+                .FirstOrDefaultAsync();
+
+            if (record != null)
+                return record.EffectiveHourlyRate;
+
+            // Fallback: use the cached snapshot on the profile itself.
+            var profile = await _context.ResourceProfiles.FindAsync(resourceProfileId);
+            return profile?.HourlyRate ?? 0m;
+        }
+
+        /// <inheritdoc/>
+        public async Task<SalaryHistory> RecordSalaryChangeAsync(
+            int resourceProfileId,
+            SalaryType salaryType,
+            decimal amount,
+            DateTime effectiveFrom,
+            string? reason,
+            string? recordedById,
+            decimal? billRate = null,
+            string currency = "BDT")
+        {
+            var profile = await _context.ResourceProfiles.FindAsync(resourceProfileId)
+                ?? throw new InvalidOperationException($"ResourceProfile {resourceProfileId} not found.");
+
+            var effectiveHourlyRate = ComputeHourlyRate(salaryType, amount, profile.DailyCapacityHours);
+
+            // 1. Close the currently-active record (EffectiveTo = effectiveFrom - 1 day).
+            var currentActive = await _context.SalaryHistories
+                .Where(sh => sh.ResourceProfileId == resourceProfileId && sh.EffectiveTo == null)
+                .FirstOrDefaultAsync();
+
+            if (currentActive != null)
+            {
+                currentActive.EffectiveTo = effectiveFrom.Date.AddDays(-1);
+                _context.Update(currentActive);
+            }
+
+            // 2. Insert the new record.
+            var newRecord = new SalaryHistory
+            {
+                ResourceProfileId   = resourceProfileId,
+                SalaryType          = salaryType,
+                Amount              = amount,
+                Currency            = currency,
+                EffectiveHourlyRate = effectiveHourlyRate,
+                BillRate            = billRate,
+                EffectiveFrom       = effectiveFrom.Date,
+                EffectiveTo         = null,
+                Reason              = reason,
+                RecordedById        = recordedById,
+                CreatedAt           = DateTime.UtcNow
+            };
+            _context.SalaryHistories.Add(newRecord);
+
+            // 3. Sync snapshot on the profile.
+            profile.HourlyRate          = effectiveHourlyRate;
+            profile.CurrentSalaryType   = salaryType;
+            profile.CurrentSalaryAmount = amount;
+            profile.Currency            = currency;
+            profile.UpdatedAt           = DateTime.UtcNow;
+            _context.Update(profile);
+
+            await _context.SaveChangesAsync();
+            return newRecord;
+        }
+
+        /// <inheritdoc/>
+        public async Task<IEnumerable<SalaryHistory>> GetSalaryHistoryAsync(int resourceProfileId)
+        {
+            return await _context.SalaryHistories
+                .Where(sh => sh.ResourceProfileId == resourceProfileId)
+                .Include(sh => sh.RecordedBy)
+                .OrderByDescending(sh => sh.EffectiveFrom)
+                .ToListAsync();
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────

@@ -186,11 +186,51 @@ namespace OfficeTaskManagement.Controllers
             // ============================================
             // 5. Search Users (Teammates)
             // ============================================
-            var matchedUsers = await _context.Users
+            var usersQuery = _context.Users.AsQueryable();
+
+            if (!isManager)
+            {
+                var userProjectIds = _context.Tasks
+                    .Where(t => t.AssigneeId == userId || t.CreatedById == userId)
+                    .Select(t => t.ProjectId);
+
+                if (isLead)
+                {
+                    var leadProjectIds = _context.Projects
+                        .Where(p => p.CreatedById == userId)
+                        .Select(p => (int?)p.Id);
+                        
+                    userProjectIds = userProjectIds.Union(leadProjectIds);
+                }
+
+                userProjectIds = userProjectIds.Distinct();
+
+                var userTaskIds = _context.Tasks
+                    .Where(t => t.AssigneeId == userId || t.CreatedById == userId)
+                    .Select(t => t.Id);
+
+                usersQuery = usersQuery.Where(u => 
+                    _context.Tasks.Any(t => 
+                        (t.AssigneeId == u.Id || t.CreatedById == u.Id) && 
+                        (userProjectIds.Contains(t.ProjectId) || userTaskIds.Contains(t.Id))
+                    ) || u.Id == userId
+                );
+            }
+
+            var matchedUsers = await usersQuery
                 .Where(u => (!string.IsNullOrEmpty(u.FullName) && u.FullName.ToLower().Contains(q)) || 
-                             (u.Email != null && u.Email.ToLower().Contains(q)))
+                             (u.Email != null && u.Email.ToLower().Contains(q)) ||
+                             (u.UserName != null && u.UserName.ToLower().Contains(q)))
                 .Take(10)
                 .ToListAsync();
+
+            results.Users = matchedUsers.Select(u => new SearchHit
+            {
+                Title = u.FullName ?? u.UserName ?? string.Empty,
+                Description = u.Email ?? string.Empty,
+                Url = Url.Action("Profile", "Resource", new { id = u.Id }) ?? string.Empty,
+                ContextHint = "Team Member"
+            }).ToList();
 
             var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 

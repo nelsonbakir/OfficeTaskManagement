@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Models.Enums;
 
 namespace OfficeTaskManagement.Services
 {
@@ -62,9 +63,57 @@ namespace OfficeTaskManagement.Services
 
         /// <summary>
         /// Returns estimated labour cost per project (Manager-only).
-        /// Cost = AllocationHours × HourlyRate per resource.
+        /// Cost = AllocationHours × HourlyRate per resource, resolved at point-in-time.
         /// </summary>
         Task<IEnumerable<ProjectCostReport>> GetProjectCostReportAsync();
+
+        // ── Salary / Compensation ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves the effective hourly cost rate for a resource at a specific
+        /// point in time by querying the SalaryHistory ledger.
+        /// Falls back to <see cref="ResourceProfile.HourlyRate"/> when no history exists.
+        /// </summary>
+        Task<decimal> GetEffectiveHourlyRateAsync(int resourceProfileId, DateTime atDate);
+
+        /// <summary>
+        /// Derives a cost-per-hour value from a raw salary amount and its type.
+        /// The calculation is frozen at call time using the supplied capacity parameters
+        /// so that future config changes do not retroactively alter historical costs.
+        /// </summary>
+        /// <param name="salaryType">How <paramref name="amount"/> is expressed.</param>
+        /// <param name="amount">Raw compensation value.</param>
+        /// <param name="dailyHours">Resource's DailyCapacityHours.</param>
+        /// <param name="workingDaysPerMonth">
+        ///   Average working days per month used as the divisor.
+        ///   Defaults to 22 (5-day week, Bangladesh calendar).
+        /// </param>
+        decimal ComputeHourlyRate(
+            SalaryType salaryType,
+            decimal amount,
+            decimal dailyHours,
+            decimal workingDaysPerMonth = 22m);
+
+        /// <summary>
+        /// Appends a new <see cref="SalaryHistory"/> record, closes the previous
+        /// active record, and syncs <see cref="ResourceProfile.HourlyRate"/> and
+        /// the snapshot fields.  This is the <strong>only</strong> correct way to
+        /// update a resource's compensation.
+        /// </summary>
+        Task<SalaryHistory> RecordSalaryChangeAsync(
+            int resourceProfileId,
+            SalaryType salaryType,
+            decimal amount,
+            DateTime effectiveFrom,
+            string? reason,
+            string? recordedById,
+            decimal? billRate = null,
+            string currency = "BDT");
+
+        /// <summary>
+        /// Returns all salary history records for a resource, newest first.
+        /// </summary>
+        Task<IEnumerable<SalaryHistory>> GetSalaryHistoryAsync(int resourceProfileId);
     }
 
     public class AllocationSummaryItem

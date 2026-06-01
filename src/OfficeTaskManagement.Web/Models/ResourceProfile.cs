@@ -26,12 +26,46 @@ namespace OfficeTaskManagement.Models
         /// <summary>Seniority level of the resource.</summary>
         public SeniorityLevel SeniorityLevel { get; set; } = SeniorityLevel.Mid;
 
+        // ── Resource Classification ──────────────────────────────────────────
+
+        /// <summary>
+        /// How the resource is engaged (Full-Time, Part-Time, Contractual, etc.).
+        /// Drives salary-type defaults and UI presentation.
+        /// </summary>
+        public ResourceType ResourceType { get; set; } = ResourceType.FullTime;
+
+        // ── Salary Snapshot (denormalised from SalaryHistory for fast reads) ─
+
+        /// <summary>
+        /// How the current compensation amount is expressed.
+        /// Source of truth is the active SalaryHistory record; this field is
+        /// kept in sync by ResourceService.RecordSalaryChangeAsync.
+        /// </summary>
+        public SalaryType CurrentSalaryType { get; set; } = SalaryType.MonthlySalary;
+
+        /// <summary>
+        /// The raw compensation amount in <see cref="Currency"/> units,
+        /// per the period defined by <see cref="CurrentSalaryType"/>.
+        /// </summary>
+        [Column(TypeName = "decimal(14,2)")]
+        public decimal CurrentSalaryAmount { get; set; } = 0;
+
+        /// <summary>ISO 4217 currency code (default: BDT).</summary>
+        [StringLength(3)]
+        public string Currency { get; set; } = "BDT";
+
+        // ────────────────────────────────────────────────────────────────────
+
         /// <summary>Working hours available per day (default 8). Used as base capacity.</summary>
         [Range(0.5, 24)]
         public decimal DailyCapacityHours { get; set; } = 8;
 
-        /// <summary>Billing / internal cost rate per hour. Visible to Manager role only.</summary>
-        [Column(TypeName = "decimal(10,2)")]
+        /// <summary>
+        /// Cached effective hourly cost rate. Visible to Manager/Admin roles only.
+        /// Always kept in sync with the active SalaryHistory.EffectiveHourlyRate.
+        /// Do NOT update this directly — use ResourceService.RecordSalaryChangeAsync.
+        /// </summary>
+        [Column(TypeName = "decimal(10,4)")]
         public decimal HourlyRate { get; set; } = 0;
 
         /// <summary>
@@ -52,5 +86,8 @@ namespace OfficeTaskManagement.Models
         public ICollection<ResourceSkill> Skills { get; set; } = new List<ResourceSkill>();
         public ICollection<ProjectResourceAllocation> ProjectAllocations { get; set; } = new List<ProjectResourceAllocation>();
         public ICollection<ResourceAvailabilityBlock> AvailabilityBlocks { get; set; } = new List<ResourceAvailabilityBlock>();
+
+        /// <summary>Full temporal salary ledger — ordered by EffectiveFrom desc in queries.</summary>
+        public ICollection<SalaryHistory> SalaryHistories { get; set; } = new List<SalaryHistory>();
     }
 }
