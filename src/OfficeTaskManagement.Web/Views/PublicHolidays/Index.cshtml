@@ -3,11 +3,32 @@
     ViewData["Title"] = "Public Holidays";
 }
 
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-calendar-check"></i> Public Holidays</h2>
-    <a asp-action="Create" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Add Holiday
-    </a>
+    <div>
+        <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#bulkUploadModal">
+            <i class="bi bi-file-earmark-excel"></i> Bulk Upload
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createHolidayModal">
+            <i class="bi bi-plus-lg"></i> Add Holiday
+        </button>
+    </div>
 </div>
 
 <div class="card shadow-sm">
@@ -58,3 +79,288 @@
         </div>
     </div>
 </div>
+
+<!-- Create Holiday Modal -->
+<div class="modal fade" id="createHolidayModal" tabindex="-1" aria-labelledby="createHolidayModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Create" method="post">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="createHolidayModalLabel">Add Public Holiday</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="Name" class="form-label">Holiday Name</label>
+                        <input name="Name" id="Name" class="form-control" placeholder="e.g. Independence Day" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="Date" class="form-label">Date</label>
+                        <input name="Date" id="Date" type="date" class="form-control" required />
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input name="IsFixedDate" id="IsFixedDate" type="checkbox" value="true" class="form-check-input" />
+                        <label class="form-check-label" for="IsFixedDate">
+                            Fixed date (same day every year)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Holiday</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal fade" id="bulkUploadModal" tabindex="-1" aria-labelledby="bulkUploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="bulkUploadModalLabel"><i class="bi bi-file-earmark-excel"></i> Bulk Upload Public Holidays</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6>Instructions</h6>
+                        <p class="small text-muted mb-2">
+                            1. Download the sample Excel file.<br/>
+                            2. Fill in the data without changing the header format.<br/>
+                            3. Select the file below to preview the data.<br/>
+                            4. Verify the data, edit if necessary, and submit.
+                        </p>
+                        <a asp-action="DownloadSampleExcel" class="btn btn-sm btn-info text-white mb-3">
+                            <i class="bi bi-download"></i> Download Sample Excel
+                        </a>
+                    </div>
+                    <div class="col-md-6 border-start">
+                        <h6>Upload Excel</h6>
+                        <div class="mb-3">
+                            <label for="excelFile" class="form-label small">Select Excel File (.xlsx)</label>
+                            <input class="form-control form-control-sm" type="file" id="excelFile" accept=".xlsx, .xls">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="previewSection" style="display: none;">
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">Data Preview</h6>
+                    </div>
+                    <div id="alertPlaceholder"></div>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover table-sm" id="previewTable">
+                            <thead class="table-light" style="position: sticky; top: 0;">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Date (YYYY-MM-DD)</th>
+                                    <th>IsFixedDate</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows will be added here by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button id="btnSubmitData" type="button" class="btn btn-success" style="display: none;">
+                    <i class="bi bi-cloud-arrow-up"></i> Submit Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Include SheetJS from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const fileInput = document.getElementById('excelFile');
+            const previewSection = document.getElementById('previewSection');
+            const tbody = document.querySelector('#previewTable tbody');
+            const btnSubmitData = document.getElementById('btnSubmitData');
+            const alertPlaceholder = document.getElementById('alertPlaceholder');
+            const modalElement = document.getElementById('bulkUploadModal');
+
+            let parsedData = [];
+
+            // Reset modal on close
+            modalElement.addEventListener('hidden.bs.modal', function () {
+                fileInput.value = '';
+                previewSection.style.display = 'none';
+                btnSubmitData.style.display = 'none';
+                tbody.innerHTML = '';
+                parsedData = [];
+                alertPlaceholder.innerHTML = '';
+            });
+
+            fileInput.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (jsonData.length <= 1) {
+                            showAlert('No data found in the Excel file.', 'warning');
+                            return;
+                        }
+
+                        parsedData = [];
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length === 0 || (!row[0] && !row[1])) continue;
+
+                            let dateStr = '';
+                            if (row[1] instanceof Date) {
+                                const d = new Date(row[1]);
+                                dateStr = d.toISOString().split('T')[0];
+                            } else {
+                                dateStr = row[1] ? row[1].toString() : '';
+                            }
+
+                            parsedData.push({
+                                id: Date.now() + i,
+                                name: row[0] ? row[0].toString() : '',
+                                date: dateStr,
+                                isFixedDate: row[2] ? row[2].toString().toLowerCase() === 'true' : false
+                            });
+                        }
+
+                        renderTable();
+                        previewSection.style.display = 'block';
+                        btnSubmitData.style.display = 'inline-block';
+                        showAlert('File parsed successfully. Please review the data before submitting.', 'success');
+                    } catch (err) {
+                        console.error(err);
+                        showAlert('Error parsing Excel file.', 'danger');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            function renderTable() {
+                tbody.innerHTML = '';
+                parsedData.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    
+                    tr.innerHTML = `
+                        <td>
+                            <input type="text" class="form-control form-control-sm" value="${item.name}" data-field="name" data-id="${item.id}">
+                        </td>
+                        <td>
+                            <input type="date" class="form-control form-control-sm" value="${item.date}" data-field="date" data-id="${item.id}">
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" data-field="isFixedDate" data-id="${item.id}">
+                                <option value="true" ${item.isFixedDate ? 'selected' : ''}>True</option>
+                                <option value="false" ${!item.isFixedDate ? 'selected' : ''}>False</option>
+                            </select>
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-remove" data-id="${item.id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                tbody.querySelectorAll('input, select').forEach(input => {
+                    input.addEventListener('change', function(e) {
+                        const id = parseInt(e.target.getAttribute('data-id'));
+                        const field = e.target.getAttribute('data-field');
+                        const item = parsedData.find(x => x.id === id);
+                        if (item) {
+                            if (field === 'isFixedDate') {
+                                item[field] = e.target.value === 'true';
+                            } else {
+                                item[field] = e.target.value;
+                            }
+                        }
+                    });
+                });
+
+                tbody.querySelectorAll('.btn-remove').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const id = parseInt(e.currentTarget.getAttribute('data-id'));
+                        parsedData = parsedData.filter(x => x.id !== id);
+                        renderTable();
+                    });
+                });
+            }
+
+            function showAlert(message, type) {
+                alertPlaceholder.innerHTML = `
+                    <div class="alert alert-${type} alert-dismissible" role="alert">
+                       ${message}
+                       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+            }
+
+            btnSubmitData.addEventListener('click', function() {
+                if (parsedData.length === 0) {
+                    showAlert('No data to submit.', 'warning');
+                    return;
+                }
+
+                const invalidRows = parsedData.filter(x => !x.name || !x.date);
+                if (invalidRows.length > 0) {
+                    showAlert('Some rows have missing Name or Date. Please fix them before submitting.', 'danger');
+                    return;
+                }
+
+                const payload = parsedData.map(x => ({
+                    Name: x.name,
+                    Date: x.date,
+                    IsFixedDate: x.isFixedDate
+                }));
+
+                const originalText = btnSubmitData.innerHTML;
+                btnSubmitData.disabled = true;
+                btnSubmitData.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Submitting...';
+
+                // We need to pass the anti forgery token. We can grab it from any form on the page
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+                fetch('/PublicHolidays/BulkCreate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.reload();
+                    } else {
+                        return response.text().then(text => { throw new Error(text) });
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    showAlert('Failed to submit data. Ensure your session is active.', 'danger');
+                    btnSubmitData.disabled = false;
+                    btnSubmitData.innerHTML = originalText;
+                });
+            });
+        });
+    </script>
+}
