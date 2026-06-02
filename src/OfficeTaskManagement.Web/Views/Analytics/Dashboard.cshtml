@@ -225,19 +225,19 @@
     </h1>
 </div>
 
-@if (User.IsInRole("Manager") && Model.ManagerMetrics != null)
+@if (Model.ManagerMetrics != null)
 {
     <partial name="_ManagerDashboard" model="Model.ManagerMetrics" />
 }
-else if (User.IsInRole("Project Lead") && Model.ProjectLeadMetrics != null)
+else if (Model.ProjectLeadMetrics != null)
 {
     <partial name="_ProjectLeadDashboard" model="Model.ProjectLeadMetrics" />
 }
-else if (User.IsInRole("Project Coordinator") && Model.CoordinatorMetrics != null)
+else if (Model.CoordinatorMetrics != null)
 {
     <partial name="_CoordinatorDashboard" model="Model.CoordinatorMetrics" />
 }
-else if (User.IsInRole("Employee") && Model.EmployeeMetrics != null)
+else if (Model.EmployeeMetrics != null)
 {
     <partial name="_EmployeeDashboard" model="Model.EmployeeMetrics" />
 }

@@ -32,7 +32,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Resource (Resource Pool)
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index([FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var users = await _context.Users
                 .Include(u => u.ResourceProfile)
@@ -43,6 +43,7 @@ namespace OfficeTaskManagement.Controllers
             var currentMonth = DateTime.UtcNow;
             var utilizations = await _resourceService.GetTeamUtilizationAsync(currentMonth.Year, currentMonth.Month);
             var utilDict = utilizations.ToDictionary(u => u.UserId);
+            var canManageSalary = await permSvc.HasPermissionAsync(User, Permissions.SalaryManage);
 
             var viewModels = users.Select(u => new ResourceProfileViewModel
             {
@@ -52,7 +53,7 @@ namespace OfficeTaskManagement.Controllers
                 Department = u.ResourceProfile?.Department,
                 SeniorityLevel = u.ResourceProfile?.SeniorityLevel ?? Models.Enums.SeniorityLevel.Mid,
                 DailyCapacityHours = u.ResourceProfile?.DailyCapacityHours ?? 8,
-                HourlyRate = User.IsInRole("Manager") ? (u.ResourceProfile?.HourlyRate ?? 0) : 0,
+                HourlyRate = canManageSalary ? (u.ResourceProfile?.HourlyRate ?? 0) : 0,
                 Skills = u.ResourceProfile?.Skills.Select(s => new ResourceSkillViewModel
                 {
                     Id = s.Id,
@@ -67,7 +68,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Resource/Profile/5
-        public async Task<IActionResult> Profile(string id)
+        public async Task<IActionResult> Profile(string id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
 
@@ -85,10 +86,11 @@ namespace OfficeTaskManagement.Controllers
             var allocations = await _resourceService.GetUserAllocationSummaryAsync(id);
             var currentMonth = DateTime.UtcNow;
             var utilPercent = await _resourceService.GetUserUtilizationPercentAsync(id, currentMonth.Year, currentMonth.Month);
+            var canManageSalary = await permSvc.HasPermissionAsync(User, Permissions.SalaryManage);
 
             // Build recent salary history (Manager/Admin only — last 5 entries)
             var recentSalary = new List<SalaryHistoryViewModel>();
-            if ((User.IsInRole("Manager") || User.IsInRole("Admin")) && user.ResourceProfile != null)
+            if (canManageSalary && user.ResourceProfile != null)
             {
                 recentSalary = user.ResourceProfile.SalaryHistories
                     .OrderByDescending(sh => sh.EffectiveFrom)
@@ -124,7 +126,7 @@ namespace OfficeTaskManagement.Controllers
                 CurrentSalaryType   = user.ResourceProfile?.CurrentSalaryType ?? SalaryType.MonthlySalary,
                 CurrentSalaryAmount = user.ResourceProfile?.CurrentSalaryAmount ?? 0,
                 Currency            = user.ResourceProfile?.Currency ?? "BDT",
-                HourlyRate          = (User.IsInRole("Manager") || User.IsInRole("Admin"))
+                HourlyRate          = canManageSalary
                                         ? (user.ResourceProfile?.HourlyRate ?? 0) : 0,
                 Notes               = user.ResourceProfile?.Notes,
                 IsResource          = user.ResourceProfile?.IsResource ?? true,
@@ -382,14 +384,15 @@ namespace OfficeTaskManagement.Controllers
         [ValidateAntiForgeryToken]
         [Authorize]
         public async Task<IActionResult> Block(string userId, DateTime startDate, DateTime endDate,
-            AvailabilityBlockReason reason, string? notes)
+            AvailabilityBlockReason reason, string? notes, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (string.IsNullOrEmpty(userId)) return BadRequest();
 
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return Unauthorized();
 
-            if (userId != currentUser.Id && !User.IsInRole("Manager") && !User.IsInRole("Admin"))
+            var canManageResources = await permSvc.HasPermissionAsync(User, Permissions.ResourcesManage);
+            if (userId != currentUser.Id && !canManageResources)
             {
                 TempData["ErrorMessage"] = "You can only register availability blocks for yourself.";
                 return RedirectToAction(nameof(Profile), new { id = userId });
@@ -466,7 +469,7 @@ namespace OfficeTaskManagement.Controllers
         [ValidateAntiForgeryToken]
         [Authorize]
         [ActionName("DeleteBlock")]
-        public async Task<IActionResult> DeleteBlock(int id, string userId)
+        public async Task<IActionResult> DeleteBlock(int id, string userId, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
             if (block != null)
@@ -474,7 +477,8 @@ namespace OfficeTaskManagement.Controllers
                 var currentUser = await _userManager.GetUserAsync(User);
                 if (currentUser == null) return Unauthorized();
 
-                if (block.UserId != currentUser.Id && !User.IsInRole("Manager") && !User.IsInRole("Admin"))
+                var canManageResources = await permSvc.HasPermissionAsync(User, Permissions.ResourcesManage);
+                if (block.UserId != currentUser.Id && !canManageResources)
                 {
                     TempData["ErrorMessage"] = "You can only delete your own availability blocks.";
                 }

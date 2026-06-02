@@ -48,7 +48,7 @@ namespace OfficeTaskManagement.Controllers
         // GET: TaskItems
         // showStages=true: reveal stage Activity sub-tasks ("My Stages" view)
         // projectId: optional filter to scope the board to a single project (drives Kanban columns)
-        public async Task<IActionResult> Index(bool showBacklog = false, bool showStages = false, int? projectId = null)
+        public async Task<IActionResult> Index(bool showBacklog = false, bool showStages = false, int? projectId = null, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc = null)
         {
             ViewBag.ShowBacklog = showBacklog;
             ViewBag.ShowStages = showStages;
@@ -66,9 +66,11 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.SubTasks)
                 .AsQueryable();
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(t => t.AssigneeId == userId ||
                                              t.CreatedById == userId ||
@@ -109,7 +111,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: TaskItems/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int? id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (id == null)
             {
@@ -132,9 +134,11 @@ namespace OfficeTaskManagement.Controllers
                 .Include(t => t.WorkflowStage)  // Required for DoD panel
                 .AsQueryable();
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(t => t.AssigneeId == userId || 
                                              t.CreatedById == userId ||
@@ -414,7 +418,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: TaskItems/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, TaskItemViewModel vm)
+        public async Task<IActionResult> Edit(int id, TaskItemViewModel vm, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (id != vm.TaskItem.Id)
             {
@@ -437,7 +441,7 @@ namespace OfficeTaskManagement.Controllers
                     vm.TaskItem.DueDate = EnsureUtc(vm.TaskItem.DueDate);
 
                     var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                    var userRole = User.IsInRole("Project Lead") || User.IsInRole("Manager");
+                    var userRole = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
 
                     // Validation: only approved item can be assigned to someone for 'todo'
                     if (vm.TaskItem.Status == TaskStatus.ToDo)
@@ -936,7 +940,7 @@ namespace OfficeTaskManagement.Controllers
 
         // POST: TaskItems/DeleteAttachment/5
         [HttpPost]
-        public async Task<IActionResult> DeleteAttachment(int id)
+        public async Task<IActionResult> DeleteAttachment(int id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var attachment = await _context.Attachments.FindAsync(id);
@@ -946,7 +950,8 @@ namespace OfficeTaskManagement.Controllers
             if (taskId == null) return BadRequest("Attachment is not linked to a task.");
             
             // Access check: only the uploader, or Manager/ProjectLead can delete it
-            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (attachment.UploadedById != userId && !isLeadOrAdmin)
             {
                 return Forbid();
             }

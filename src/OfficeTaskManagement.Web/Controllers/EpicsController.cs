@@ -29,7 +29,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics
-        public async Task<IActionResult> Index(int? projectId)
+        public async Task<IActionResult> Index(int? projectId, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             ViewBag.ProjectId = new SelectList(_context.Projects, "Id", "Name", projectId);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -43,9 +43,11 @@ namespace OfficeTaskManagement.Controllers
                 query = query.Where(e => e.ProjectId == projectId.Value);
             }
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(e => e.Project.CreatedById == userId ||
                                              e.Project.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||
@@ -61,7 +63,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int? id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (id == null)
             {
@@ -76,9 +78,11 @@ namespace OfficeTaskManagement.Controllers
                     .ThenInclude(a => a.UploadedBy)
                 .AsQueryable();
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(e => e.Project.CreatedById == userId ||
                                              e.Project.Sprints.Any(s => s.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||
@@ -241,7 +245,7 @@ namespace OfficeTaskManagement.Controllers
 
         [HttpPost]
         [HasPermission(Permissions.EpicsManage)]
-        public async Task<IActionResult> DeleteAttachment(int id)
+        public async Task<IActionResult> DeleteAttachment(int id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var attachment = await _context.Attachments.FindAsync(id);
@@ -251,7 +255,8 @@ namespace OfficeTaskManagement.Controllers
             if (epicId == null) return BadRequest();
 
             // Access check
-            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (attachment.UploadedById != userId && !isLeadOrAdmin)
             {
                 return Forbid();
             }

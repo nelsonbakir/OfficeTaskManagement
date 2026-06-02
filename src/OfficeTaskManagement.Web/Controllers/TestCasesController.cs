@@ -209,7 +209,7 @@ namespace OfficeTaskManagement.Controllers
 
         // POST: TestCases/DeleteAttachment/5
         [HttpPost]
-        public async Task<IActionResult> DeleteAttachment(int id)
+        public async Task<IActionResult> DeleteAttachment(int id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var attachment = await _context.Attachments.FindAsync(id);
@@ -219,7 +219,8 @@ namespace OfficeTaskManagement.Controllers
             if (testCaseId == null) return BadRequest("Attachment is not linked to a test case.");
             
             // Access check
-            if (attachment.UploadedById != userId && !User.IsInRole("Manager") && !User.IsInRole("Project Lead"))
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (attachment.UploadedById != userId && !isLeadOrAdmin)
             {
                 return Forbid();
             }

@@ -29,7 +29,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Sprints
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index([FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = _context.Sprints
@@ -37,9 +37,11 @@ namespace OfficeTaskManagement.Controllers
                 .Include(s => s.Tasks)
                 .AsQueryable();
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(s => s.Project.CreatedById == userId ||
                                              s.Project.Sprints.Any(sp => sp.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||
@@ -55,7 +57,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Sprints/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int? id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (id == null)
             {
@@ -69,9 +71,11 @@ namespace OfficeTaskManagement.Controllers
                     .ThenInclude(t => t.Assignee)
                 .AsQueryable();
 
-            if (!User.IsInRole("Manager") && !User.IsInRole("Project Coordinator"))
+            var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            if (!canSeeAll)
             {
-                if (User.IsInRole("Project Lead"))
+                var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+                if (isLead)
                 {
                     query = query.Where(s => s.Project.CreatedById == userId ||
                                              s.Project.Sprints.Any(sp => sp.Tasks.Any(t => t.AssigneeId == userId || t.CreatedById == userId)) ||

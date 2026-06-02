@@ -477,14 +477,14 @@ namespace OfficeTaskManagement.Controllers
         }
 
 
-        public async Task<IActionResult> Index(string? assigneeId, int? projectId)
+        public async Task<IActionResult> Index(string? assigneeId, int? projectId, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
-            var isManager = userRoles.Contains("Manager");
-            var isProjectLead = userRoles.Contains("Project Lead");
-            var isCoordinator = userRoles.Contains("Project Coordinator");
-            var isEmployee = userRoles.Contains("Employee");
+            var isManager = await permSvc.HasPermissionAsync(User, Permissions.StrategicView);
+            var isProjectLead = !isManager && await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            var isCoordinator = !isManager && !isProjectLead && await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            var isEmployee = !isManager && !isProjectLead && !isCoordinator;
 
             var vm = new DashboardViewModel
             {
@@ -542,7 +542,7 @@ namespace OfficeTaskManagement.Controllers
             if (isManager || isProjectLead || isCoordinator)
             {
                 vm.IncludeUnifiedAnalytics = true;
-                await PopulateUnifiedAnalyticsAsync(vm, userId!, userRoles);
+                await PopulateUnifiedAnalyticsAsync(vm, userId!, isManager, isProjectLead);
             }
 
             return View("Dashboard", vm);
@@ -554,10 +554,8 @@ namespace OfficeTaskManagement.Controllers
             return RedirectToAction(nameof(Index), new { assigneeId, projectId });
         }
 
-        private async Task PopulateUnifiedAnalyticsAsync(DashboardViewModel vm, string currentUserId, List<string> roles)
+        private async Task PopulateUnifiedAnalyticsAsync(DashboardViewModel vm, string currentUserId, bool isManager, bool isProjectLead)
         {
-            var isManager = roles.Contains("Manager");
-            var isProjectLead = roles.Contains("Project Lead");
 
             var tasksQuery = _context.Tasks.Include(t => t.Assignee).Include(t => t.Sprint).AsQueryable();
             if (!string.IsNullOrEmpty(vm.SelectedAssigneeId))

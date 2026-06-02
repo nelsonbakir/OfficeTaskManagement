@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Data;
+using OfficeTaskManagement.Services.Authorization;
 using OfficeTaskManagement.ViewModels;
 using System.Linq;
 using System.Security.Claims;
@@ -20,7 +22,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string q)
+        public async Task<IActionResult> Index(string q, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             if (string.IsNullOrWhiteSpace(q))
             {
@@ -29,8 +31,8 @@ namespace OfficeTaskManagement.Controllers
 
             q = q.Trim().ToLower();
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isManager = User.IsInRole("Manager") || User.IsInRole("Project Coordinator");
-            var isLead = User.IsInRole("Project Lead");
+            var isManager = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
 
             var results = new SearchResultViewModel { Query = q };
 

@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services.Authorization;
 using OfficeTaskManagement.Data;
 using System.Security.Claims;
 using System.Linq;
@@ -22,13 +24,13 @@ namespace OfficeTaskManagement.Controllers.Api
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProjects()
+        public async Task<IActionResult> GetProjects([FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var isManager = User.IsInRole("Manager") || User.IsInRole("Project Coordinator");
-            var isLead = User.IsInRole("Project Lead");
+            var isManager = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            var isLead = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
 
             var query = _context.Projects.AsQueryable();
 

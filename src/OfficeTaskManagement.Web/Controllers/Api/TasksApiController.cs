@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeTaskManagement.Services.Authorization;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using System.Security.Claims;
@@ -61,7 +62,7 @@ namespace OfficeTaskManagement.Controllers.Api
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetTaskDetails(int id)
+        public async Task<IActionResult> GetTaskDetails(int id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var task = await _context.Tasks
@@ -72,7 +73,8 @@ namespace OfficeTaskManagement.Controllers.Api
 
             if (task == null) return NotFound();
             
-            if (task.AssigneeId != userId && task.CreatedById != userId && !User.IsInRole("Manager"))
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (task.AssigneeId != userId && task.CreatedById != userId && !isLeadOrAdmin)
                 return Forbid();
 
             return Ok(new
@@ -93,12 +95,14 @@ namespace OfficeTaskManagement.Controllers.Api
         }
 
         [HttpGet("{id}/comments")]
-        public async Task<IActionResult> GetComments(int id)
+        public async Task<IActionResult> GetComments(int id, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
-            if (task.AssigneeId != userId && task.CreatedById != userId && !User.IsInRole("Manager")) return Forbid();
+
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (task.AssigneeId != userId && task.CreatedById != userId && !isLeadOrAdmin) return Forbid();
 
             var comments = await _context.TaskComments
                 .Include(c => c.User)
@@ -121,12 +125,14 @@ namespace OfficeTaskManagement.Controllers.Api
         }
 
         [HttpPost("{id}/comments")]
-        public async Task<IActionResult> PostComment(int id, [FromBody] NewCommentModel model)
+        public async Task<IActionResult> PostComment(int id, [FromBody] NewCommentModel model, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
             if (task == null) return NotFound();
-            if (task.AssigneeId != userId && task.CreatedById != userId && !User.IsInRole("Manager")) return Forbid();
+
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (task.AssigneeId != userId && task.CreatedById != userId && !isLeadOrAdmin) return Forbid();
 
             if (string.IsNullOrWhiteSpace(model.Text)) return BadRequest();
 
@@ -150,7 +156,7 @@ namespace OfficeTaskManagement.Controllers.Api
         }
 
         [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusModel model)
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusModel model, [FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var task = await _context.Tasks
@@ -159,7 +165,8 @@ namespace OfficeTaskManagement.Controllers.Api
 
             if (task == null) return NotFound();
             
-            if (task.AssigneeId != userId && task.CreatedById != userId && !User.IsInRole("Manager"))
+            var isLeadOrAdmin = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+            if (task.AssigneeId != userId && task.CreatedById != userId && !isLeadOrAdmin)
                 return Forbid();
 
             var newStatus = (OfficeTaskManagement.Models.Enums.TaskStatus)model.StatusId;

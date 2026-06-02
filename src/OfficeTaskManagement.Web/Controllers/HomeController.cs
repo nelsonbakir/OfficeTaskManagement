@@ -1,16 +1,22 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using OfficeTaskManagement.Models;
+using System.Threading.Tasks;
+using OfficeTaskManagement.Services.Authorization;
 
 namespace OfficeTaskManagement.Controllers;
 
 public class HomeController : Controller
 {
-    public IActionResult Index()
+    public async Task<IActionResult> Index([FromServices] OfficeTaskManagement.Services.Authorization.IPermissionService permSvc)
     {
         if (User.Identity is { IsAuthenticated: true })
         {
-            if (User.IsInRole("Employee") && !User.IsInRole("Manager") && !User.IsInRole("Project Lead") && !User.IsInRole("Project Coordinator"))
+            var isManagerOrLead = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) ||
+                                  await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage) ||
+                                  await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
+
+            if (!isManagerOrLead)
             {
                 return RedirectToAction("Index", "TaskItems");
             }
