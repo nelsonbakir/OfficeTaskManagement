@@ -1,0 +1,150 @@
+@model OfficeTaskManagement.ViewModels.RoleManagement.RoleIndexViewModel
+@using OfficeTaskManagement.ViewModels.RoleManagement
+
+@{
+    ViewData["Title"] = "Role Management";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1"><i class="fas fa-shield-alt me-2 text-primary"></i>Role Management</h1>
+        <p class="text-muted mb-0">Define organisational roles and their permission group assignments.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="PermissionGroups" class="btn btn-outline-secondary">
+            <i class="fas fa-key me-2"></i>Permission Groups
+        </a>
+        <a asp-action="CreateRole" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>New Role
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Hierarchy Legend -->
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #0d6efd11, #6610f211);">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center flex-wrap gap-3">
+            <small class="text-muted fw-semibold text-uppercase" style="letter-spacing:1px; font-size:0.7rem;">Organisational Hierarchy</small>
+            @foreach (var role in Model.Roles.OrderBy(r => r.HierarchyLevel))
+            {
+                <div class="d-flex align-items-center gap-1">
+                    <span class="badge rounded-pill" style="background-color: @role.Color; font-size:0.7rem;">
+                        <i class="@role.Icon me-1"></i>@role.Name
+                    </span>
+                    @if (role != Model.Roles.OrderBy(r => r.HierarchyLevel).Last())
+                    {
+                        <i class="fas fa-arrow-right text-muted" style="font-size:0.6rem;"></i>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Role Cards -->
+<div class="row g-4">
+    @foreach (var role in Model.Roles)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100 border-0 shadow-sm role-card" style="border-left: 4px solid @role.Color !important; transition: transform 0.2s, box-shadow 0.2s;">
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                 style="width:44px; height:44px; background: @(role.Color)22;">
+                                <i class="@role.Icon" style="color: @role.Color; font-size:1.2rem;"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">@role.Name</h6>
+                                <small class="text-muted">Level @role.HierarchyLevel</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            @if (role.IsSystemRole)
+                            {
+                                <span class="badge bg-secondary" style="font-size:0.65rem;" title="System roles cannot be deleted">
+                                    <i class="fas fa-lock me-1"></i>System
+                                </span>
+                            }
+                            <span class="badge rounded-pill" style="background-color:@role.Color; font-size:0.65rem;">
+                                <i class="fas fa-users me-1"></i>@role.UserCount
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    @if (!string.IsNullOrEmpty(role.Description))
+                    {
+                        <p class="text-muted small mb-3" style="line-height:1.4;">@role.Description</p>
+                    }
+
+                    <!-- Permission Groups -->
+                    <div class="mb-3">
+                        <small class="text-uppercase text-muted fw-semibold d-block mb-2" style="font-size:0.65rem; letter-spacing:0.5px;">Permission Groups</small>
+                        <div class="d-flex flex-wrap gap-1">
+                            @if (!role.PermissionGroupNames.Any())
+                            {
+                                <span class="badge bg-warning text-dark" style="font-size:0.65rem;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>No Groups Assigned
+                                </span>
+                            }
+                            else
+                            {
+                                @foreach (var group in role.PermissionGroupNames)
+                                {
+                                    <span class="badge bg-light text-dark border" style="font-size:0.65rem;">@group</span>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex gap-2 mt-auto pt-2 border-top">
+                        <a asp-action="EditRole" asp-route-id="@role.Id" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        @if (!role.IsSystemRole)
+                        {
+                            <form asp-action="DeleteRole" asp-route-id="@role.Id" method="post"
+                                  onsubmit="return confirm('Delete role \'@role.Name\'? This cannot be undone.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-secondary" disabled title="System roles cannot be deleted">
+                                <i class="fas fa-lock"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .role-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12) !important;
+    }
+</style>

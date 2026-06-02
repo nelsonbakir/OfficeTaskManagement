@@ -155,7 +155,7 @@
 
 <div class="page-title-section">
     <h1><i class="fas fa-folder-open"></i> Projects</h1>
-    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+    @if(await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
         <a asp-action="Create" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Project
         </a>
@@ -167,7 +167,7 @@
         @foreach (var item in Model) {
             <div class="project-card">
                 <div class="project-actions">
-                    @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+                    @if(await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
                         <a asp-action="Edit" asp-route-id="@item.Id" class="action-btn" title="Edit">
                             <i class="fas fa-pen-to-square"></i>
                         </a>
@@ -196,7 +196,7 @@
         <i class="fas fa-inbox"></i>
         <h3>No projects yet</h3>
         <p>Create your first project to get started</p>
-        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+        @if(await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
             <a asp-action="Create" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Create Project
             </a>

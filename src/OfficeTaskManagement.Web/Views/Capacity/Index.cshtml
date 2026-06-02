@@ -149,7 +149,7 @@
     </div>
 
     <!-- Labour Cost Report Card (Manager only) -->
-    @if (User.IsInRole("Manager") || User.IsInRole("Admin"))
+    @if (await PermSvc.HasPermissionAsync(User, Permissions.ResourcesManage))
     {
         <div class="col-md-4 mb-3">
             <div class="card shadow-sm h-100 border-primary">

@@ -16,7 +16,7 @@ using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager,Project Lead,Project Coordinator,Employee")]
+    [Authorize]
     public class FeaturesController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -111,7 +111,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Features/Create
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public IActionResult Create()
         {
             ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id");
@@ -122,7 +122,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Features/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> Create(FeatureViewModel vm)
         {
             if (ModelState.IsValid)
@@ -162,7 +162,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Features/Edit/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -185,7 +185,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Features/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> Edit(int id, FeatureViewModel vm)
         {
             if (id != vm.Feature.Id)
@@ -250,7 +250,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> DeleteAttachment(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -274,7 +274,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Features/Delete/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -297,7 +297,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Features/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.FeaturesManage)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var feature = await _context.Features.FindAsync(id);

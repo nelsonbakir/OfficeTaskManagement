@@ -18,7 +18,8 @@ namespace OfficeTaskManagement.Controllers
     /// Admin controller for managing Workflow Templates (Fragnets).
     /// Restricted to Manager and Project Coordinator roles only.
     /// </summary>
-    [Authorize(Roles = "Manager,Project Coordinator,Project Lead")]
+    [Authorize]
+    [HasPermission(Permissions.WorkflowManage)]
     public class WorkflowTemplatesController : Controller
     {
         private readonly ApplicationDbContext _db;
@@ -175,7 +176,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: WorkflowTemplates/EditStage
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Coordinator")]
+        [HasPermission(Permissions.WorkflowManage)]
         public async Task<IActionResult> EditStage(
             int stageId,
             int templateId,
@@ -224,7 +225,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: WorkflowTemplates/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Coordinator")]
+        [HasPermission(Permissions.WorkflowManage)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var template = await _db.WorkflowTemplates

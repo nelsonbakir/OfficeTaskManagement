@@ -247,7 +247,7 @@
     </div>
 
     <div class="action-buttons">
-        @if(User.IsInRole("Manager") || User.IsInRole("Project Lead")) {
+        @if(await PermSvc.HasPermissionAsync(User, Permissions.SprintsManage)) {
             <a asp-action="Edit" asp-route-id="@Model?.Id" class="btn-primary">
                 <i class="fas fa-edit"></i> Edit Sprint
             </a>

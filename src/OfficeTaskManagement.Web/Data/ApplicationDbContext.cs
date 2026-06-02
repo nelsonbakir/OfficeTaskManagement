@@ -4,7 +4,7 @@ using OfficeTaskManagement.Models;
 
 namespace OfficeTaskManagement.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<User>
+    public class ApplicationDbContext : IdentityDbContext<User, AppRole, string>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -28,6 +28,12 @@ namespace OfficeTaskManagement.Data
         // ── Workflow Engine (RACI) ───────────────────────────────────────────
         public DbSet<WorkflowTemplate> WorkflowTemplates { get; set; }
         public DbSet<WorkflowStage> WorkflowStages { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
+        // ── Dynamic Role & Permission System ─────────────────────────────────
+        public DbSet<PermissionGroup> PermissionGroups { get; set; }
+        public DbSet<PermissionGroupKey> PermissionGroupKeys { get; set; }
+        public DbSet<AppRolePermissionGroup> AppRolePermissionGroups { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
         // ── Resource Management ──────────────────────────────────────────────
@@ -350,6 +356,36 @@ namespace OfficeTaskManagement.Data
                 .HasFilter("\"EffectiveTo\" IS NULL")
                 .IsUnique()
                 .HasDatabaseName("UIX_SalaryHistory_OneActivePerProfile");
+
+            // ────────────────────────────────────────────────────────────────
+
+            // ── Permission System Relationships ──────────────────────────────
+
+            builder.Entity<AppRolePermissionGroup>()
+                .HasKey(rg => new { rg.RoleId, rg.PermissionGroupId });
+
+            builder.Entity<AppRolePermissionGroup>()
+                .HasOne(rg => rg.Role)
+                .WithMany(r => r.PermissionGroups)
+                .HasForeignKey(rg => rg.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<AppRolePermissionGroup>()
+                .HasOne(rg => rg.PermissionGroup)
+                .WithMany(pg => pg.Roles)
+                .HasForeignKey(rg => rg.PermissionGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PermissionGroupKey>()
+                .HasOne(pgk => pgk.PermissionGroup)
+                .WithMany(pg => pg.Permissions)
+                .HasForeignKey(pgk => pgk.PermissionGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PermissionGroupKey>()
+                .HasIndex(pgk => new { pgk.PermissionGroupId, pgk.Key })
+                .IsUnique()
+                .HasDatabaseName("UIX_PermissionGroupKey_Unique");
 
             // ────────────────────────────────────────────────────────────────
         }

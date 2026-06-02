@@ -7,7 +7,7 @@ namespace OfficeTaskManagement.Controllers.Api
 {
     [Route("api/analytics")]
     [ApiController]
-    [Authorize(Roles = "Manager,Admin,Project Lead,Project Coordinator")]
+    [Authorize]
     public class AnalyticsApiController : ControllerBase
     {
         private readonly IGeminiAnalyticsService _geminiService;

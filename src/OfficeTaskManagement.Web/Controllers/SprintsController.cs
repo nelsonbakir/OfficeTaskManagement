@@ -12,7 +12,7 @@ using System.Security.Claims;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager,Project Lead,Project Coordinator,Employee")]
+    [Authorize]
     public class SprintsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -93,7 +93,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Sprints/Create
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public IActionResult Create()
         {
             ViewData["ProjectId"] = new SelectList(_context.Projects, "Id", "Name");
@@ -103,7 +103,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Sprints/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public async Task<IActionResult> Create([Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive,PlannedCapacityHours,TeamNotes")] Sprint sprint)
         {
             if (ModelState.IsValid)
@@ -127,7 +127,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Sprints/Edit/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -147,7 +147,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Sprints/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public async Task<IActionResult> Edit(int id, [Bind("Id,ProjectId,Name,StartDate,EndDate,IsActive,PlannedCapacityHours,TeamNotes")] Sprint sprint)
         {
             if (id != sprint.Id)
@@ -184,7 +184,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Sprints/Delete/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -206,7 +206,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Sprints/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.SprintsManage)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var sprint = await _context.Sprints.FindAsync(id);

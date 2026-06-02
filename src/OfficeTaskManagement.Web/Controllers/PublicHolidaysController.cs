@@ -9,7 +9,8 @@ using System.IO;
 using ClosedXML.Excel;
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize]
+    [HasPermission(Permissions.HolidaysManage)]
     public class PublicHolidaysController : Controller
     {
         private readonly ApplicationDbContext _context;

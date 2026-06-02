@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Services;
 
 namespace OfficeTaskManagement.Controllers.Api
@@ -98,7 +99,7 @@ namespace OfficeTaskManagement.Controllers.Api
         /// GET /api/ResourceData/cost-report
         /// </summary>
         [HttpGet("cost-report")]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.SalaryView)]
         public async Task<IActionResult> GetCostReport()
         {
             var report = await _resourceService.GetProjectCostReportAsync();

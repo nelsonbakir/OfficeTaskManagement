@@ -164,7 +164,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/Profile/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> Profile(string id, ResourceProfileViewModel model)
         {
             if (id != model.UserId) return NotFound();
@@ -197,7 +197,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Resource/Allocate
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> Allocate(int? projectId, string? userId)
         {
             var vm = new EditProjectAllocationViewModel();
@@ -227,7 +227,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/Allocate
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> Allocate([Bind("ProjectId,UserId,AllocationPercentage,ProjectRole,StartDate,EndDate")] EditProjectAllocationViewModel model)
         {
             if (ModelState.IsValid)
@@ -285,7 +285,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Resource/EditAllocation/5
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> EditAllocation(int id)
         {
             var allocation = await _context.ProjectResourceAllocations
@@ -316,7 +316,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/EditAllocation/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> EditAllocation(int id, EditProjectAllocationViewModel model)
         {
             if (id != model.Id) return NotFound();
@@ -347,7 +347,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/DeleteAllocation/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> DeleteAllocation(int id)
         {
             var allocation = await _context.ProjectResourceAllocations.FindAsync(id);
@@ -426,7 +426,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/ApproveBlock
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> ApproveBlock(int id, string userId)
         {
             var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
@@ -445,7 +445,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/RejectBlock
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.ResourcesManage)]
         public async Task<IActionResult> RejectBlock(int id, string userId)
         {
             var block = await _context.ResourceAvailabilityBlocks.FindAsync(id);
@@ -497,7 +497,7 @@ namespace OfficeTaskManagement.Controllers
         // ── Salary / Compensation ───────────────────────────────────────────────
 
         // GET: Resource/SalaryHistory/5  (resourceProfileId)
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.SalaryManage)]
         public async Task<IActionResult> SalaryHistory(int id)
         {
             var profile = await _context.ResourceProfiles
@@ -530,7 +530,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Resource/AddSalary/5  (resourceProfileId)
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.SalaryManage)]
         public async Task<IActionResult> AddSalary(int id)
         {
             var profile = await _context.ResourceProfiles
@@ -564,7 +564,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Resource/AddSalary/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Admin")]
+        [HasPermission(Permissions.SalaryManage)]
         public async Task<IActionResult> AddSalary(int id, AddSalaryViewModel model)
         {
             if (id != model.ResourceProfileId) return NotFound();

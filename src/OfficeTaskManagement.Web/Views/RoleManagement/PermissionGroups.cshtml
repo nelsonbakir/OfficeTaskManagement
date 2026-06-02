@@ -1,0 +1,149 @@
+@model OfficeTaskManagement.ViewModels.RoleManagement.PermissionGroupIndexViewModel
+@using OfficeTaskManagement.Models
+@{
+    ViewData["Title"] = "Permission Groups";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1"><i class="fas fa-key me-2 text-primary"></i>Permission Groups</h1>
+        <p class="text-muted mb-0">Named collections of permission keys that are assigned to roles.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-shield-alt me-2"></i>Roles
+        </a>
+        <a asp-action="CreateGroup" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>New Group
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-circle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- All known keys legend -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent py-3 d-flex align-items-center justify-content-between" 
+         data-bs-toggle="collapse" data-bs-target="#keysLegend" style="cursor:pointer;">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-list me-2 text-muted"></i>All Known Permission Keys (@Model.AllKnownKeys.Count)</h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+    </div>
+    <div class="collapse" id="keysLegend">
+        <div class="card-body pt-0 pb-3 px-4">
+            <div class="d-flex flex-wrap gap-2 pt-3">
+                @foreach (var key in Model.AllKnownKeys)
+                {
+                    <span class="badge bg-light text-dark border" style="font-size:0.72rem; font-family:monospace;">@key</span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Groups Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead style="background:#f8f9fa; border-bottom:2px solid #dee2e6;">
+                    <tr>
+                        <th class="ps-4 py-3">Group Name</th>
+                        <th class="py-3">Permission Keys</th>
+                        <th class="py-3">Assigned to Roles</th>
+                        <th class="py-3 text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in Model.Groups)
+                    {
+                        <tr id="group-@group.Id">
+                            <td class="ps-4 py-3">
+                                <div class="fw-semibold">
+                                    @group.Name
+                                    @if (group.IsSystemGroup)
+                                    {
+                                        <span class="badge bg-secondary ms-2" style="font-size:0.6rem;">System</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(group.Description))
+                                {
+                                    <small class="text-muted">@group.Description</small>
+                                }
+                            </td>
+                            <td class="py-3" style="max-width:320px;">
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var key in group.Keys.Take(8))
+                                    {
+                                        <span class="badge bg-light text-secondary border" style="font-size:0.62rem; font-family:monospace;">@key</span>
+                                    }
+                                    @if (group.Keys.Count > 8)
+                                    {
+                                        <span class="badge bg-primary" style="font-size:0.62rem;">+@(group.Keys.Count-8)</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="py-3">
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (!group.AssignedRoleNames.Any())
+                                    {
+                                        <span class="text-muted small">Not assigned</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var roleName in group.AssignedRoleNames)
+                                        {
+                                            <span class="badge bg-light text-dark border" style="font-size:0.65rem;">@roleName</span>
+                                        }
+                                    }
+                                </div>
+                            </td>
+                            <td class="py-3 pe-4 text-end">
+                                <a asp-action="EditGroup" asp-route-id="@group.Id" class="btn btn-sm btn-outline-primary me-1">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </a>
+                                @if (!group.IsSystemGroup)
+                                {
+                                    <form asp-action="DeleteGroup" asp-route-id="@group.Id" method="post" class="d-inline"
+                                          onsubmit="return confirm('Delete group \'@group.Name\'?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" disabled title="System groups cannot be deleted">
+                                        <i class="fas fa-lock"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Groups.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-key fa-3x mb-3 opacity-25 d-block"></i>
+                                No permission groups yet. <a asp-action="CreateGroup">Create one</a>.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

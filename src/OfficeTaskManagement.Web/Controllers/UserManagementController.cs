@@ -13,15 +13,16 @@ using OfficeTaskManagement.Services;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager")]
+    [Authorize]
+    [HasPermission(Permissions.UsersManage)]
     public class UserManagementController : Controller
     {
         private readonly UserManager<User> _userManager;
-        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly RoleManager<AppRole> _roleManager;
         private readonly ApplicationDbContext _context;
         private readonly IMediaService _mediaService;
 
-        public UserManagementController(UserManager<User> userManager, RoleManager<IdentityRole> roleManager, ApplicationDbContext context, IMediaService mediaService)
+        public UserManagementController(UserManager<User> userManager, RoleManager<AppRole> roleManager, ApplicationDbContext context, IMediaService mediaService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -95,9 +96,11 @@ namespace OfficeTaskManagement.Controllers
 
             var user = new User
             {
-                UserName = vm.Email,
-                Email = vm.Email,
-                FullName = vm.FullName,
+                UserName       = vm.Email,
+                Email          = vm.Email,
+                FullName       = vm.FullName,
+                Department     = vm.Department,
+                JobTitle       = vm.JobTitle,
                 EmailConfirmed = true
             };
 
@@ -156,13 +159,15 @@ namespace OfficeTaskManagement.Controllers
 
             var vm = new EditUserViewModel
             {
-                Id = user.Id,
-                Email = user.Email,
-                FullName = user.FullName,
+                Id           = user.Id,
+                Email        = user.Email,
+                FullName     = user.FullName,
+                Department   = user.Department,
+                JobTitle     = user.JobTitle,
                 SelectedRoles = roles.ToList(),
                 AvailableRoles = availableRoles,
-                IsActive = !user.LockoutEnd.HasValue || user.LockoutEnd < DateTime.UtcNow,
-                AvatarPath = user.AvatarPath
+                IsActive     = !user.LockoutEnd.HasValue || user.LockoutEnd < DateTime.UtcNow,
+                AvatarPath   = user.AvatarPath
             };
 
             return View(vm);
@@ -196,7 +201,9 @@ namespace OfficeTaskManagement.Controllers
             }
 
             // Update user details
-            user.FullName = vm.FullName;
+            user.FullName   = vm.FullName;
+            user.Department = vm.Department;
+            user.JobTitle   = vm.JobTitle;
 
             // Handle Avatar
             if (vm.Avatar != null)

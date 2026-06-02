@@ -10,6 +10,7 @@ using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Settings;
 using OfficeTaskManagement.Services;
 using OfficeTaskManagement.Services.WorkflowEngine;
+using OfficeTaskManagement.Services.Authorization;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
@@ -23,7 +24,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentity<User, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = false)
+builder.Services.AddIdentity<User, AppRole>(options => options.SignIn.RequireConfirmedAccount = false)
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders()
     .AddDefaultUI();
@@ -72,6 +73,20 @@ builder.Services.AddHostedService<LagSchedulingService>();
 
 // In-process caching for heatmap and utilization data (15-min sliding window)
 builder.Services.AddMemoryCache();
+
+// Permission-based authorization
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthorization(options =>
+{
+    foreach (var key in Permissions.All)
+    {
+        options.AddPolicy($"permission:{key}",
+            policy => policy.Requirements.Add(new PermissionRequirement(key)));
+    }
+});
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    PermissionAuthorizationHandler>();
 
 builder.Services.AddControllersWithViews();
 

@@ -19,7 +19,7 @@ using TaskStatus = OfficeTaskManagement.Models.Enums.TaskStatus;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager,Project Lead,Project Coordinator,Employee")]
+    [Authorize]
     public class AnalyticsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -38,7 +38,7 @@ namespace OfficeTaskManagement.Controllers
         // ─────────────────────────────────────────────────────────────────────
         // STRATEGIC HUB — Manager/C-Suite Command Centre
         // ─────────────────────────────────────────────────────────────────────
-        [Authorize(Roles = "Manager")]
+        [HasPermission(Permissions.StrategicView)]
         public async Task<IActionResult> StrategicHub()
         {
             var vm = await GetPortfolioIntelligence();
@@ -69,7 +69,7 @@ namespace OfficeTaskManagement.Controllers
             return View(vm);
         }
 
-        [Authorize(Roles = "Manager")]
+        [HasPermission(Permissions.StrategicView)]
         [HttpGet]
         public async Task<IActionResult> ExportStrategicReport()
         {

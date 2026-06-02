@@ -32,20 +32,17 @@
                     <span>Dashboard</span>
                 </a>
             </li>
-            @if (!User.IsInRole("Employee") || User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
+            @if (User.Identity?.IsAuthenticated ?? false)
             {
-                <!-- <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="Analytics" asp-action="Index" asp-fragment="unified-analytics">
-                        <i class="fas fa-chart-pie"></i>
-                        <span>Analytics</span>
-                    </a>
-                </li> -->
-                <li class="nav-item">
-                    <a class="nav-link text-info fw-bold" asp-area="" asp-controller="Analytics" asp-action="AIInsights">
-                        <i class="fas fa-robot"></i>
-                        <span>AI Insights</span>
-                    </a>
-                </li>
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.AnalyticsAI))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link text-info fw-bold" asp-area="" asp-controller="Analytics" asp-action="AIInsights">
+                            <i class="fas fa-robot"></i>
+                            <span>AI Insights</span>
+                        </a>
+                    </li>
+                }
             }
 
             <!-- WORK -->
@@ -110,7 +107,7 @@
                 </a>
             </li>
 
-            @if (User.IsInRole("Manager") || User.IsInRole("Project Lead") || User.IsInRole("Project Coordinator"))
+            @if (await PermSvc.HasPermissionAsync(User, Permissions.ResourcesView))
             {
                 <!-- RESOURCES -->
                 <li class="nav-section-title">Resources</li>
@@ -120,46 +117,74 @@
                         <span>Resource Pool</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="Capacity" asp-action="Index">
-                        <i class="fas fa-chart-gantt"></i>
-                        <span>Capacity Planning</span>
-                    </a>
-                </li>
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.CapacityView))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="Capacity" asp-action="Index">
+                            <i class="fas fa-chart-gantt"></i>
+                            <span>Capacity Planning</span>
+                        </a>
+                    </li>
+                }
             }
 
             <!-- SYSTEM -->
-            @if (User.IsInRole("Manager"))
+            @if (User.Identity?.IsAuthenticated ?? false)
             {
-                <li class="nav-section-title">System</li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="UserManagement" asp-action="Index">
-                        <i class="fas fa-users"></i>
-                        <span>User Management</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="PublicHolidays" asp-action="Index">
-                        <i class="fas fa-calendar-check"></i>
-                        <span>Public Holidays</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link fw-bold" asp-area="" asp-controller="Analytics" asp-action="StrategicHub"
-                       style="background: linear-gradient(135deg, rgba(102,16,242,0.08), rgba(220,53,69,0.06)); border-left: 3px solid #6610f2;">
-                        <i class="fas fa-chess-king" style="color: #6610f2;"></i>
-                        <span style="color: #6610f2;">Strategic Hub</span>
-                    </a>
-                </li>
-            }
-            @if (User.IsInRole("Manager") || User.IsInRole("Project Coordinator") || User.IsInRole("Project Lead"))
-            {
-                <li class="nav-item">
-                    <a class="nav-link" asp-area="" asp-controller="WorkflowTemplates" asp-action="Index">
-                        <i class="fas fa-project-diagram"></i>
-                        <span>Workflow Templates</span>
-                    </a>
-                </li>
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.UsersManage) ||
+                     await PermSvc.HasPermissionAsync(User, Permissions.RolesManage) ||
+                     await PermSvc.HasPermissionAsync(User, Permissions.HolidaysManage) ||
+                     await PermSvc.HasPermissionAsync(User, Permissions.StrategicView) ||
+                     await PermSvc.HasPermissionAsync(User, Permissions.WorkflowManage))
+                {
+                    <li class="nav-section-title">System</li>
+                }
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.UsersManage))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="UserManagement" asp-action="Index">
+                            <i class="fas fa-users"></i>
+                            <span>User Management</span>
+                        </a>
+                    </li>
+                }
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.RolesManage))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="RoleManagement" asp-action="Index">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Role Management</span>
+                        </a>
+                    </li>
+                }
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.HolidaysManage))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="PublicHolidays" asp-action="Index">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Public Holidays</span>
+                        </a>
+                    </li>
+                }
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.StrategicView))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link fw-bold" asp-area="" asp-controller="Analytics" asp-action="StrategicHub"
+                           style="background: linear-gradient(135deg, rgba(102,16,242,0.08), rgba(220,53,69,0.06)); border-left: 3px solid #6610f2;">
+                            <i class="fas fa-chess-king" style="color: #6610f2;"></i>
+                            <span style="color: #6610f2;">Strategic Hub</span>
+                        </a>
+                    </li>
+                }
+                @if (await PermSvc.HasPermissionAsync(User, Permissions.WorkflowManage))
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="WorkflowTemplates" asp-action="Index">
+                            <i class="fas fa-project-diagram"></i>
+                            <span>Workflow Templates</span>
+                        </a>
+                    </li>
+                }
             }
         </ul>
     </nav>

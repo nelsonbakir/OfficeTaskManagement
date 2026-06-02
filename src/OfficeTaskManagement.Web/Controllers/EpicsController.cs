@@ -16,7 +16,7 @@ using System.IO;
 
 namespace OfficeTaskManagement.Controllers
 {
-    [Authorize(Roles = "Manager,Project Lead,Project Coordinator,Employee")]
+    [Authorize]
     public class EpicsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -100,7 +100,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics/Create
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public IActionResult Create()
         {
             ViewData["CreatedById"] = new SelectList(_context.Users, "Id", "Id");
@@ -111,7 +111,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Epics/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> Create(EpicViewModel vm)
         {
             if (ModelState.IsValid)
@@ -151,7 +151,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics/Edit/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -175,7 +175,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Epics/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> Edit(int id, EpicViewModel vm)
         {
             if (id != vm.Epic.Id)
@@ -240,7 +240,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> DeleteAttachment(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -264,7 +264,7 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: Epics/Delete/5
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -287,7 +287,7 @@ namespace OfficeTaskManagement.Controllers
         // POST: Epics/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Manager,Project Lead")]
+        [HasPermission(Permissions.EpicsManage)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var epic = await _context.Epics.FindAsync(id);

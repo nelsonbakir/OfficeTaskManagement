@@ -15,7 +15,8 @@ namespace OfficeTaskManagement.Controllers.Api
 {
     [Route("api/strategic")]
     [ApiController]
-    [Authorize(Roles = "Manager")]
+    [Authorize]
+    [HasPermission(Permissions.StrategicManage)]
     public class StrategicDecisionApiController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

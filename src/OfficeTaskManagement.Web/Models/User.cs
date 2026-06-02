@@ -8,6 +8,11 @@ namespace OfficeTaskManagement.Models
         public string? FullName { get; set; }
         public string? AvatarPath { get; set; }
 
+        // ── Organisational Info ───────────────────────────────────────────────
+        public string? Department { get; set; }
+        public string? JobTitle { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
         // ── Resource Management ──────────────────────────────────────────────
         public ResourceProfile? ResourceProfile { get; set; }
         public ICollection<ProjectResourceAllocation> ProjectAllocations { get; set; } = new List<ProjectResourceAllocation>();
