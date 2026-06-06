@@ -79,7 +79,7 @@ namespace OfficeTaskManagement.Controllers
         public async Task<IActionResult> Edit(int id)
         {
             var template = await _db.WorkflowTemplates
-                .Include(wt => wt.Stages.OrderBy(s => s.Order))
+                .Include(wt => wt.Stages.OrderBy(s => s.Order)).ThenInclude(s => s.Role)
                 .FirstOrDefaultAsync(wt => wt.Id == id);
 
             if (template == null) return NotFound();
@@ -94,6 +94,7 @@ namespace OfficeTaskManagement.Controllers
             ViewBag.DependencyTypes = Enum.GetValues<StageDependency>()
                 .Select(d => new { Value = (int)d, Text = d.ToString() })
                 .ToList();
+            ViewBag.AppRoles = await _db.Roles.OrderBy(r => r.Name).ToListAsync();
 
             return View(template);
         }
@@ -128,7 +129,7 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddStage(int templateId, string name, string defaultRoleTitle,
-            int order, StageDependency dependencyType, decimal lagHours, string? definitionOfDone)
+            int order, StageDependency dependencyType, decimal lagHours, string? definitionOfDone, string? roleId)
         {
             var template = await _db.WorkflowTemplates.FindAsync(templateId);
             if (template == null) return NotFound();
@@ -150,7 +151,8 @@ namespace OfficeTaskManagement.Controllers
                 DependencyType     = dependencyType,
                 LagHours           = lagHours,
                 DefinitionOfDone   = definitionOfDone,
-                GateType           = inferredGateType
+                GateType           = inferredGateType,
+                RoleId             = string.IsNullOrEmpty(roleId) ? null : roleId
             });
 
             await _db.SaveChangesAsync();
@@ -184,7 +186,8 @@ namespace OfficeTaskManagement.Controllers
             OfficeTaskManagement.Models.Enums.StageGateType gateType,
             string? definitionOfDone,
             int lagHours,
-            string? defaultRoleTitle)
+            string? defaultRoleTitle,
+            string? roleId)
         {
             var stage = await _db.WorkflowStages.FindAsync(stageId);
             if (stage == null) return NotFound();
@@ -205,6 +208,7 @@ namespace OfficeTaskManagement.Controllers
             stage.DefinitionOfDone = definitionOfDone?.Trim();
             stage.LagHours = lagHours;
             stage.DefaultRoleTitle = defaultRoleTitle?.Trim();
+            stage.RoleId = string.IsNullOrEmpty(roleId) ? null : roleId;
 
             await _db.SaveChangesAsync();
             TempData["Success"] = $"Stage '{stage.Name}' updated.";

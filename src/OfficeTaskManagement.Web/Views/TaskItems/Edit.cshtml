@@ -437,7 +437,15 @@
             <!-- Compact Header Fields -->
             <div class="compact-field-grid">
                 <div class="compact-field">
-                    <label>Assigned To</label>
+                    <label>
+                        Assigned To
+                        @if (Model.TaskItem.WorkflowStage?.Role != null)
+                        {
+                            <span class="badge bg-info text-dark ms-1" style="font-size: 0.7rem;" title="Dynamic Role required for this stage activity">
+                                <i class="fas fa-user-tag me-1"></i>Requires @Model.TaskItem.WorkflowStage.Role.Name
+                            </span>
+                        }
+                    </label>
                     <select asp-for="TaskItem.AssigneeId" class="form-select" asp-items="Model.UsersList" id="AssigneeId">
                         <option value="">-- Unassigned --</option>
                     </select>

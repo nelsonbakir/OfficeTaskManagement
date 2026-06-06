@@ -78,22 +78,45 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
             // ────────────────────────────────────────────────────────────────────
 
             // ── RACI Enforcement ────────────────────────────────────────────────
-            // 1. Verify if Accountable sign-off is required and provided by an Accountable user
+            // Fetch actor's roles to check hierarchy
+            var actorRoleIds = await _db.UserRoles.Where(ur => ur.UserId == actorUserId).Select(ur => ur.RoleId).ToListAsync();
+            var actorRoles = await _db.Roles.Where(r => actorRoleIds.Contains(r.Id)).ToListAsync();
+            var minActorLevel = actorRoles.Any() ? actorRoles.Min(r => r.HierarchyLevel) : int.MaxValue;
+
+            // Higher authority roles (Super Admin = 0, Admin = 1, PM = 2, Project Lead = 3)
+            bool isHigherAuthority = minActorLevel <= 3;
+
+            // 1. Verify if Accountable sign-off is required and provided by an Accountable user (or higher authority)
             if (stage.RequiresAccountableSignoff)
             {
-                if (actorUserId != subTask.AccountableUserId)
+                if (actorUserId != subTask.AccountableUserId && !isHigherAuthority)
                 {
                     throw new InvalidOperationException(
                         $"Governance Gate: Stage '{stage.Name}' requires sign-off from the Accountable party. " +
                         "Only the project Lead or PM can transition this gate.");
                 }
             }
-            // 2. Otherwise, ensure the actor is the assigned Responsible party
-            else if (actorUserId != subTask.AssigneeId)
+            // 2. Otherwise, ensure the actor is the assigned Responsible party OR holds a higher authority role
+            else if (actorUserId != subTask.AssigneeId && !isHigherAuthority)
             {
                 throw new InvalidOperationException(
                     "RACI Violation: You must be the assigned 'Responsible' user to transition this stage. " +
                     "Assign the task to yourself or contact the owner.");
+            }
+
+            // 3. Enforce the required dynamic role restriction if configured
+            if (stage.RoleId != null)
+            {
+                var stageRole = await _db.Roles.FindAsync(stage.RoleId);
+                if (stageRole != null)
+                {
+                    bool hasAuthorizedRole = minActorLevel <= stageRole.HierarchyLevel;
+                    if (!hasAuthorizedRole)
+                    {
+                        throw new InvalidOperationException(
+                            $"RACI Role Restriction: You must hold the '{stageRole.Name}' role (or a higher authority role) to transition this stage.");
+                    }
+                }
             }
 
             // ── Gate Enforcement by Type ────────────────────────────────────────

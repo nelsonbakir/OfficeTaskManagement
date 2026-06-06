@@ -242,6 +242,13 @@ namespace OfficeTaskManagement.Data
                 .HasForeignKey(ws => ws.WorkflowTemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // WorkflowStage → AppRole (Dynamic Role)
+            builder.Entity<WorkflowStage>()
+                .HasOne(ws => ws.Role)
+                .WithMany()
+                .HasForeignKey(ws => ws.RoleId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // ────────────────────────────────────────────────────────────────
 
             // Configure Project StrategicStatusChangedBy relationship

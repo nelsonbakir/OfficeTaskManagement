@@ -36,25 +36,60 @@
 }
 
 <!-- Hierarchy Legend -->
-<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #0d6efd11, #6610f211);">
-    <div class="card-body py-3">
-        <div class="d-flex align-items-center flex-wrap gap-3">
-            <small class="text-muted fw-semibold text-uppercase" style="letter-spacing:1px; font-size:0.7rem;">Organisational Hierarchy</small>
-            @foreach (var role in Model.Roles.OrderBy(r => r.HierarchyLevel))
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.01), rgba(102, 16, 242, 0.01)); border: 1px solid rgba(0, 0, 0, 0.04) !important; border-radius: 24px;">
+    <div class="card-body py-4 px-4">
+        <div class="d-flex align-items-center mb-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary-subtle me-2" style="width: 24px; height: 24px;">
+                <i class="fas fa-sitemap text-primary" style="font-size: 0.75rem;"></i>
+            </div>
+            <small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px; font-size: 0.7rem;">Organisational Hierarchy Levels</small>
+        </div>
+        
+        <div class="d-flex align-items-stretch flex-nowrap overflow-x-auto gap-3 py-2 tree-legend-container">
+            @{
+                var groupedRoles = Model.Roles
+                    .GroupBy(r => r.HierarchyLevel)
+                    .OrderBy(g => g.Key)
+                    .ToList();
+            }
+            @for (int idx = 0; idx < groupedRoles.Count; idx++)
             {
-                <div class="d-flex align-items-center gap-1">
-                    <span class="badge rounded-pill" style="background-color: @role.Color; font-size:0.7rem;">
-                        <i class="@role.Icon me-1"></i>@role.Name
-                    </span>
-                    @if (role != Model.Roles.OrderBy(r => r.HierarchyLevel).Last())
-                    {
-                        <i class="fas fa-arrow-right text-muted" style="font-size:0.6rem;"></i>
-                    }
+                var group = groupedRoles[idx];
+                
+                <!-- Level Card (Horizontal Stack Item) -->
+                <div class="card border-0 shadow-sm tree-level-card flex-shrink-0" style="width: 170px; border-radius: 16px; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(10px); border: 1px solid rgba(0, 0, 0, 0.05) !important;">
+                    <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
+                        <div class="mb-2">
+                            <span class="badge bg-light text-secondary border border-secondary-subtle text-uppercase fw-bold" style="font-size: 0.55rem; letter-spacing: 0.8px; padding: 4px 8px; border-radius: 6px;">
+                                Level @group.Key
+                            </span>
+                        </div>
+                        <div class="d-flex flex-column align-items-center gap-1.5 flex-grow-1 justify-content-center">
+                            @foreach (var role in group)
+                            {
+                                <span class="badge rounded-pill shadow-sm tree-legend-role-badge w-100 text-truncate" 
+                                      style="background-color: @role.Color; font-size: 0.7rem; padding: 6px 10px; color: #fff; transition: transform 0.2s, box-shadow 0.2s; cursor: default;"
+                                      title="@role.Name">
+                                    <i class="@role.Icon me-1"></i>@role.Name
+                                </span>
+                            }
+                        </div>
+                    </div>
                 </div>
+
+                @if (idx < groupedRoles.Count - 1)
+                {
+                    <!-- Horizontal Axis Connector -->
+                    <div class="d-flex align-items-center justify-content-center flex-shrink-0 tree-axis-connector" style="z-index: 1; min-height: 80px;">
+                        <div style="width: 20px; height: 2px; background: linear-gradient(90deg, var(--bs-primary), #6f42c1); opacity: 0.5;"></div>
+                        <i class="fas fa-chevron-right text-primary" style="font-size: 0.65rem; margin-left: -3px; opacity: 0.7;"></i>
+                    </div>
+                }
             }
         </div>
     </div>
 </div>
+
 
 <!-- Role Cards -->
 <div class="row g-4">
@@ -143,8 +178,47 @@
 </div>
 
 <style>
+    .role-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
     .role-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 25px rgba(0,0,0,0.12) !important;
+    }
+
+    .tree-level-card {
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    
+    .tree-level-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06) !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+    }
+
+    .tree-legend-role-badge:hover {
+        transform: scale(1.03);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Custom premium scrollbar for horizontal legend track */
+    .tree-legend-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .tree-legend-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 10px;
+    }
+    
+    .tree-legend-container::-webkit-scrollbar-thumb {
+        background: rgba(13, 110, 253, 0.15);
+        border-radius: 10px;
+        transition: background 0.2s;
+    }
+    
+    .tree-legend-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(13, 110, 253, 0.3);
     }
 </style>

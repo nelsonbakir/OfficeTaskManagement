@@ -234,4 +234,54 @@ public class StageGateServiceTests : IDisposable
         // No WorkflowStageId set — should pass without any checks
         await _sut.EnforceGateAsync(standaloneTask, UnrelatedUserId);
     }
+
+    [Fact]
+    public async Task EnforceGate_StageRoleRestricted_ActorHasRole_Passes()
+    {
+        var role = new AppRole { Id = "dev-role", Name = "Developer", HierarchyLevel = 5 };
+        _db.Roles.Add(role);
+        _db.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<string> { UserId = ResponsibleUserId, RoleId = role.Id });
+        await _db.SaveChangesAsync();
+
+        var stage = MakeStage(StageGateType.None);
+        stage.RoleId = role.Id;
+        var subTask = MakeSubTask(stage, TaskStatus.ToDo);
+
+        // Act & Assert (should NOT throw)
+        await _sut.EnforceGateAsync(subTask, ResponsibleUserId);
+    }
+
+    [Fact]
+    public async Task EnforceGate_StageRoleRestricted_ActorDoesNotHaveRole_Throws()
+    {
+        var role = new AppRole { Id = "dev-role", Name = "Developer", HierarchyLevel = 5 };
+        _db.Roles.Add(role);
+        await _db.SaveChangesAsync();
+
+        var stage = MakeStage(StageGateType.None);
+        stage.RoleId = role.Id;
+        var subTask = MakeSubTask(stage, TaskStatus.ToDo);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.EnforceGateAsync(subTask, ResponsibleUserId));
+        Assert.Contains("Role Restriction", ex.Message);
+    }
+
+    [Fact]
+    public async Task EnforceGate_StageRoleRestricted_ActorHasHigherPrivilegeRole_Passes()
+    {
+        var stageRole = new AppRole { Id = "dev-role", Name = "Developer", HierarchyLevel = 5 };
+        var higherRole = new AppRole { Id = "pm-role", Name = "Project Manager", HierarchyLevel = 2 };
+        _db.Roles.AddRange(stageRole, higherRole);
+        _db.UserRoles.Add(new Microsoft.AspNetCore.Identity.IdentityUserRole<string> { UserId = ResponsibleUserId, RoleId = higherRole.Id });
+        await _db.SaveChangesAsync();
+
+        var stage = MakeStage(StageGateType.None);
+        stage.RoleId = stageRole.Id;
+        var subTask = MakeSubTask(stage, TaskStatus.ToDo);
+
+        // Act & Assert (should NOT throw because PM hierarchy level 2 <= Dev hierarchy level 5)
+        await _sut.EnforceGateAsync(subTask, ResponsibleUserId);
+    }
 }

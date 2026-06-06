@@ -55,6 +55,14 @@ namespace OfficeTaskManagement.Models
         public string DefaultRoleTitle { get; set; } = string.Empty;
 
         /// <summary>
+        /// Optional link to a dynamic role requirement in the database.
+        /// If specified, only users with this role (or a higher hierarchical role)
+        /// are permitted to perform tasks assigned to this stage.
+        /// </summary>
+        public string? RoleId { get; set; }
+        public AppRole? Role { get; set; }
+
+        /// <summary>
         /// Dependency relationship to the predecessor stage (PMP PDM logic).
         /// Default is FinishToStart (hard logic — predecessor must finish before this starts).
         /// </summary>

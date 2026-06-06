@@ -36,6 +36,7 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
         public int StageOrder { get; set; }
         public string StageName { get; set; } = string.Empty;
         public string DefaultRoleTitle { get; set; } = string.Empty;
+        public string? RoleName { get; set; }
         public string? AssigneeName { get; set; }
 
         public decimal? OptimisticHours { get; set; }

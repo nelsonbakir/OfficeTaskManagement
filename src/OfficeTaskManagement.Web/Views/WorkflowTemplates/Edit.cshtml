@@ -157,6 +157,12 @@
                                         <div class="fw-semibold" style="font-size:0.95rem;">@s.Name</div>
                                         <div class="d-flex flex-wrap gap-2 mt-1">
                                             <span class="dep-tag">@s.DefaultRoleTitle</span>
+                                            @if (s.Role != null)
+                                            {
+                                                <span class="dep-tag" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;">
+                                                    <i class="fas fa-user-shield me-1"></i>Role: @s.Role.Name
+                                                </span>
+                                            }
                                             <span class="dep-tag"><i class="fas fa-link me-1"></i>@s.DependencyType</span>
                                             <span class="dep-tag" style="background:#E1DFDD; color:#323130;">@s.GateType</span>
                                             @if (s.LagHours != 0)
@@ -174,7 +180,7 @@
                                     <!-- Edit Stage Button -->
                                     <button type="button" class="btn btn-sm btn-outline-primary"
                                             data-bs-toggle="offcanvas" data-bs-target="#editStagePanel"
-                                            onclick="fillEditStage(@s.Id,'@Html.Raw(s.Name.Replace("'","\\'"  ))','@((int)s.GateType)','@Html.Raw((s.DefinitionOfDone ?? "").Replace("'","\\'"))','@s.LagHours','@Html.Raw((s.DefaultRoleTitle ?? "").Replace("'","\\'"  ))')">
+                                            onclick="fillEditStage(@s.Id,'@Html.Raw(s.Name.Replace("'","\\'"  ))','@((int)s.GateType)','@Html.Raw((s.DefinitionOfDone ?? "").Replace("'","\\'"))','@s.LagHours','@Html.Raw((s.DefaultRoleTitle ?? "").Replace("'","\\'"  ))','@s.RoleId')">
                                         <i class="fas fa-pencil-alt"></i>
                                     </button>
                                     <form asp-action="DeleteStage" method="post" onsubmit="return confirm('Remove stage \'@s.Name\'?');">
@@ -230,6 +236,17 @@
                                     <input name="defaultRoleTitle" id="editStageRole" class="form-control" placeholder="e.g. Tech Lead" />
                                 </div>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Required Dynamic Role</label>
+                                <select name="roleId" id="editStageRoleId" class="form-select">
+                                    <option value="">— No Dynamic Role Restriction —</option>
+                                    @foreach (var role in ViewBag.AppRoles as IEnumerable<OfficeTaskManagement.Models.AppRole> ?? new List<OfficeTaskManagement.Models.AppRole>())
+                                    {
+                                        <option value="@role.Id">@role.Name</option>
+                                    }
+                                </select>
+                                <div class="form-text text-muted" style="font-size:0.75rem;">Optional. Restrict assignees to users holding this Identity role.</div>
+                            </div>
                             <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save me-1"></i>Save Stage</button>
                         </form>
                     </div>
@@ -254,15 +271,15 @@
                                     <label class="form-label fw-semibold">Role Title <span class="text-danger">*</span></label>
                                     <input name="defaultRoleTitle" class="form-control" placeholder="e.g. Tech Lead" required />
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label fw-semibold">Order</label>
                                     <input name="order" type="number" class="form-control" value="@(stages.Count + 1)" min="1" required />
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label fw-semibold">Lag (hours)</label>
                                     <input name="lagHours" type="number" step="0.5" class="form-control" value="0" />
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label fw-semibold">RACI Role</label>
                                     <select name="raciRole" class="form-select">
                                         @foreach (var r in ViewBag.RaciRoles as IEnumerable<dynamic> ?? new List<dynamic>())
@@ -277,6 +294,16 @@
                                         @foreach (var d in ViewBag.DependencyTypes as IEnumerable<dynamic> ?? new List<dynamic>())
                                         {
                                             <option value="@d.Value">@d.Text</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Required Role</label>
+                                    <select name="roleId" class="form-select">
+                                        <option value="">— No Restriction —</option>
+                                        @foreach (var role in ViewBag.AppRoles as IEnumerable<OfficeTaskManagement.Models.AppRole> ?? new List<OfficeTaskManagement.Models.AppRole>())
+                                        {
+                                            <option value="@role.Id">@role.Name</option>
                                         }
                                     </select>
                                 </div>
@@ -308,13 +335,14 @@
 
 @section Scripts {
 <script>
-function fillEditStage(id, name, gateType, dod, lag, role) {
+function fillEditStage(id, name, gateType, dod, lag, role, roleId) {
     document.getElementById('editStageId').value = id;
     document.getElementById('editStageName').value = name;
     document.getElementById('editStageGate').value = gateType;
     document.getElementById('editStageDod').value = dod;
     document.getElementById('editStageLag').value = lag;
     document.getElementById('editStageRole').value = role;
+    document.getElementById('editStageRoleId').value = roleId || '';
 }
 </script>
 }

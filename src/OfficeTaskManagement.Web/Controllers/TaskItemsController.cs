@@ -363,11 +363,32 @@ namespace OfficeTaskManagement.Controllers
 
             var taskItem = await _context.Tasks
                 .Include(t => t.Areas)
+                .Include(t => t.WorkflowStage).ThenInclude(s => s!.Role)
                 .Include(t => t.SubTasks).ThenInclude(s => s.WorkflowStage)
                 .FirstOrDefaultAsync(t => t.Id == id);
             if (taskItem == null)
             {
                 return NotFound();
+            }
+
+            // Load WorkflowStage for gate-aware status rendering in the view
+            if (taskItem.WorkflowStageId.HasValue)
+            {
+                await _context.Entry(taskItem).Reference(t => t.WorkflowStage).LoadAsync();
+                if (taskItem.WorkflowStage != null && taskItem.WorkflowStage.RoleId != null)
+                {
+                    await _context.Entry(taskItem.WorkflowStage).Reference(s => s.Role).LoadAsync();
+                }
+            }
+
+            IEnumerable<User> usersList = await _context.Users.ToListAsync();
+            if (taskItem.WorkflowStage != null && !string.IsNullOrEmpty(taskItem.WorkflowStage.RoleId))
+            {
+                var roleId = taskItem.WorkflowStage.RoleId;
+                usersList = await (from u in _context.Users
+                                   join ur in _context.UserRoles on u.Id equals ur.UserId
+                                   where ur.RoleId == roleId
+                                   select u).ToListAsync();
             }
             
             int? currentTemplateId = taskItem.SubTasks?
@@ -378,7 +399,7 @@ namespace OfficeTaskManagement.Controllers
             {
                 TaskItem = taskItem,
                 SelectedWorkflowTemplateId = currentTemplateId,
-                UsersList = new SelectList(_context.Users, "Id", "Email", taskItem.AssigneeId),
+                UsersList = new SelectList(usersList, "Id", "Email", taskItem.AssigneeId),
                 ProjectsList = new SelectList(_context.Projects, "Id", "Name", taskItem.ProjectId),
                 EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == taskItem.ProjectId), "Id", "Name", taskItem.EpicId),
                 SprintsList = new SelectList(_context.Sprints, "Id", "Name", taskItem.SprintId),
@@ -398,13 +419,12 @@ namespace OfficeTaskManagement.Controllers
             {
                 await _context.Entry(attachment).Reference(a => a.UploadedBy).LoadAsync();
             }
-
+ 
             await _context.Entry(taskItem).Collection(t => t.Comments).LoadAsync();
             foreach (var comment in taskItem.Comments)
             {
                 await _context.Entry(comment).Reference(c => c.User).LoadAsync();
             }
-
             // Load WorkflowStage for gate-aware status rendering in the view
             if (taskItem.WorkflowStageId.HasValue)
                 await _context.Entry(taskItem).Reference(t => t.WorkflowStage).LoadAsync();
@@ -425,16 +445,27 @@ namespace OfficeTaskManagement.Controllers
                 return NotFound();
             }
 
+            var existingTask = await _context.Tasks
+                .Include(t => t.Areas)
+                .Include(t => t.WorkflowStage).ThenInclude(s => s!.Role)
+                .Include(t => t.SubTasks).ThenInclude(s => s.WorkflowStage)
+                .FirstOrDefaultAsync(t => t.Id == id);
+            if (existingTask == null) return NotFound();
+
+            IEnumerable<User> usersList = await _context.Users.ToListAsync();
+            if (existingTask.WorkflowStage != null && !string.IsNullOrEmpty(existingTask.WorkflowStage.RoleId))
+            {
+                var roleId = existingTask.WorkflowStage.RoleId;
+                usersList = await (from u in _context.Users
+                                   join ur in _context.UserRoles on u.Id equals ur.UserId
+                                   where ur.RoleId == roleId
+                                   select u).ToListAsync();
+            }
+
             if (ModelState.IsValid)
             {
                 try
                 {
-                    var existingTask = await _context.Tasks
-                        .Include(t => t.Areas)
-                        .Include(t => t.SubTasks).ThenInclude(s => s.WorkflowStage)
-                        .FirstOrDefaultAsync(t => t.Id == id);
-                    if (existingTask == null) return NotFound();
-
                     // Ensure existing and incoming DateTimes are normalized to UTC
                     existingTask.CreatedAt = EnsureUtc(existingTask.CreatedAt);
                     vm.TaskItem.StartDate = EnsureUtc(vm.TaskItem.StartDate);
@@ -457,9 +488,32 @@ namespace OfficeTaskManagement.Controllers
                         }
                     }
 
+                    // Validation: if stage has required dynamic role, assignee must be in that role (or higher)
+                    if (existingTask.WorkflowStage != null && !string.IsNullOrEmpty(existingTask.WorkflowStage.RoleId))
+                    {
+                        if (!string.IsNullOrEmpty(vm.TaskItem.AssigneeId))
+                        {
+                            var inRole = await _context.UserRoles.AnyAsync(ur => ur.UserId == vm.TaskItem.AssigneeId && ur.RoleId == existingTask.WorkflowStage.RoleId);
+                            if (!inRole)
+                            {
+                                // Also allow higher organizational roles (Super Admin, Admin, PM, Project Lead)
+                                var assigneeRoleIds = await _context.UserRoles.Where(ur => ur.UserId == vm.TaskItem.AssigneeId).Select(ur => ur.RoleId).ToListAsync();
+                                var assigneeRoles = await _context.Roles.Where(r => assigneeRoleIds.Contains(r.Id)).ToListAsync();
+                                var minAssigneeLevel = assigneeRoles.Any() ? assigneeRoles.Min(r => r.HierarchyLevel) : int.MaxValue;
+                                
+                                var stageRole = existingTask.WorkflowStage.Role ?? await _context.Roles.FindAsync(existingTask.WorkflowStage.RoleId);
+                                bool hasAuthorizedRole = stageRole != null && minAssigneeLevel <= stageRole.HierarchyLevel;
+                                if (!hasAuthorizedRole)
+                                {
+                                    ModelState.AddModelError("TaskItem.AssigneeId", $"The selected user is not in the required dynamic role '{stageRole?.Name ?? "Required Role"}' (or a higher authority role) for this stage.");
+                                }
+                            }
+                        }
+                    }
+
                     if (!ModelState.IsValid)
                     {
-                        vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                        vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                         vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
@@ -501,7 +555,7 @@ namespace OfficeTaskManagement.Controllers
 
                         if (!ModelState.IsValid)
                         {
-                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
@@ -522,7 +576,7 @@ namespace OfficeTaskManagement.Controllers
                     if (existingTask.IsWorkPackage && vm.TaskItem.Status != existingTask.Status)
                     {
                         ModelState.AddModelError("", "The status of a Work Package is managed automatically by its stage gates. Use the Work Package pipeline view to advance stages.");
-                        vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                        vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                         vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                         vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                         vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
@@ -541,7 +595,7 @@ namespace OfficeTaskManagement.Controllers
                         if (!userRole && existingTask.CreatedById != userId)
                         {
                             ModelState.AddModelError("", "Only Project Lead, Manager, or Task Owner can mark as done.");
-                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
@@ -556,7 +610,7 @@ namespace OfficeTaskManagement.Controllers
                         if (hasOpenSubTasks)
                         {
                             ModelState.AddModelError("", "Cannot mark this task as Done because it has open Sub-tasks. Please complete all Sub-tasks first.");
-                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
                             vm.FeaturesList = new SelectList(_context.Features, "Id", "Name", vm.TaskItem.FeatureId);
@@ -579,7 +633,7 @@ namespace OfficeTaskManagement.Controllers
                         if (hasStarted)
                         {
                             ModelState.AddModelError("", "Cannot change or remove the pipeline because some stages have already been worked on.");
-                            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+                            vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
                             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
                             vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
                             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);
@@ -874,7 +928,7 @@ namespace OfficeTaskManagement.Controllers
             }
 
             // Re-populate all lists for error re-render
-            vm.UsersList = new SelectList(_context.Users, "Id", "Email", vm.TaskItem.AssigneeId);
+            vm.UsersList = new SelectList(usersList, "Id", "Email", vm.TaskItem.AssigneeId);
             vm.ProjectsList = new SelectList(_context.Projects, "Id", "Name", vm.TaskItem.ProjectId);
             vm.EpicsList = new SelectList(_context.Epics.Where(e => e.ProjectId == vm.TaskItem.ProjectId), "Id", "Name", vm.TaskItem.EpicId);
             vm.SprintsList = new SelectList(_context.Sprints, "Id", "Name", vm.TaskItem.SprintId);

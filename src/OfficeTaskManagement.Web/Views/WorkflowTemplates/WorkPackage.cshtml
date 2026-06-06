@@ -272,7 +272,7 @@
                                     <span class="fw-bold" style="font-size:0.95rem;">
                                         @stage.StageOrder. @stage.StageName
                                     </span>
-                                    <span class="raci-badge raci-r">R: @stage.DefaultRoleTitle</span>
+                                    <span class="raci-badge raci-r">R: @(string.IsNullOrEmpty(stage.RoleName) ? stage.DefaultRoleTitle : stage.RoleName)</span>
                                     <span class="badge bg-light text-secondary border" style="font-size:0.68rem;">@stage.Status</span>
                                 </div>
                                 <div style="font-size:0.8rem; color:#6c757d;">
@@ -353,7 +353,7 @@
                             @foreach (var s in Model.Stages.OrderBy(x => x.StageOrder))
                             {
                                 <tr>
-                                    <td><span class="fw-semibold">@s.StageName</span><br/><small class="text-muted">@s.DefaultRoleTitle</small></td>
+                                    <td><span class="fw-semibold">@s.StageName</span><br/><small class="text-muted">@(string.IsNullOrEmpty(s.RoleName) ? s.DefaultRoleTitle : s.RoleName)</small></td>
                                     <td class="text-center text-muted">@(s.OptimisticHours?.ToString("F0") ?? "—")</td>
                                     <td class="text-center text-muted">@(s.MostLikelyHours?.ToString("F0") ?? "—")</td>
                                     <td class="text-center text-muted">@(s.PessimisticHours?.ToString("F0") ?? "—")</td>

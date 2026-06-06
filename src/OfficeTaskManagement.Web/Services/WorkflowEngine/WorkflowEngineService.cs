@@ -303,7 +303,7 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                 ?? throw new InvalidOperationException($"Parent task {parentTaskId} not found.");
 
             var subTasks = await _db.Tasks
-                .Include(t => t.WorkflowStage)
+                .Include(t => t.WorkflowStage).ThenInclude(ws => ws!.Role)
                 .Include(t => t.Assignee)
                 .Include(t => t.History)
                 .Where(t => t.ParentTaskId == parentTaskId && t.WorkflowStageId != null)
@@ -326,6 +326,7 @@ namespace OfficeTaskManagement.Services.WorkflowEngine
                     StageOrder        = st.WorkflowStage?.Order ?? 0,
                     StageName         = st.WorkflowStage?.Name ?? string.Empty,
                     DefaultRoleTitle  = st.WorkflowStage?.DefaultRoleTitle ?? string.Empty,
+                    RoleName          = st.WorkflowStage?.Role?.Name,
                     AssigneeName      = st.Assignee?.FullName ?? st.Assignee?.UserName,
                     OptimisticHours   = st.EstimatedOptimisticHours,
                     MostLikelyHours   = st.EstimatedMostLikelyHours,
