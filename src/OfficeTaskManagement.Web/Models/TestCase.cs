@@ -2,8 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OfficeTaskManagement.Models
 {
-    public class TestCase
+    public class TestCase : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

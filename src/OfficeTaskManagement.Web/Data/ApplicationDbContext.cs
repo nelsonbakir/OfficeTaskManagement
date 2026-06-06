@@ -1,15 +1,32 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
 
 namespace OfficeTaskManagement.Data
 {
     public class ApplicationDbContext : IdentityDbContext<User, AppRole, string>
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        private readonly ITenantProvider _tenantProvider;
+
+        public string CurrentTenantId => _tenantProvider.TenantId;
+
+        public ApplicationDbContext(
+            DbContextOptions<ApplicationDbContext> options,
+            ITenantProvider? tenantProvider = null)
             : base(options)
         {
+            _tenantProvider = tenantProvider ?? new TestTenantProvider();
         }
+
+        private class TestTenantProvider : ITenantProvider
+        {
+            private string _tenantId = "test-tenant";
+            public string TenantId => _tenantId;
+            public void SetTenant(string tenantId) => _tenantId = tenantId;
+        }
+
+        public DbSet<Tenant> Tenants { get; set; }
 
         public DbSet<Project> Projects { get; set; }
         public DbSet<Epic> Epics { get; set; }
@@ -394,7 +411,95 @@ namespace OfficeTaskManagement.Data
                 .IsUnique()
                 .HasDatabaseName("UIX_PermissionGroupKey_Unique");
 
+            // ── Multi-Tenancy Configuration ──────────────────────────────────
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                if (typeof(IMustHaveTenant).IsAssignableFrom(entityType.ClrType))
+                {
+                    var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+                    var property = System.Linq.Expressions.Expression.Property(parameter, nameof(IMustHaveTenant.TenantId));
+                    var dbContextMember = System.Linq.Expressions.Expression.Property(System.Linq.Expressions.Expression.Constant(this), nameof(CurrentTenantId));
+                    var body = System.Linq.Expressions.Expression.Equal(property, dbContextMember);
+                    var lambda = System.Linq.Expressions.Expression.Lambda(body, parameter);
+
+                    builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+
+                    builder.Entity(entityType.ClrType)
+                        .Property(nameof(IMustHaveTenant.TenantId))
+                        .HasDefaultValue("default-tenant-id");
+                }
+            }
+
+            // Remove the default non-tenant-aware unique indexes configured by base Identity
+            var userNameProp = builder.Entity<User>().Metadata.FindProperty(nameof(User.NormalizedUserName));
+            if (userNameProp != null)
+            {
+                var index = builder.Entity<User>().Metadata.FindIndex(userNameProp);
+                if (index != null) builder.Entity<User>().Metadata.RemoveIndex(index);
+            }
+
+            var emailProp = builder.Entity<User>().Metadata.FindProperty(nameof(User.NormalizedEmail));
+            if (emailProp != null)
+            {
+                var index = builder.Entity<User>().Metadata.FindIndex(emailProp);
+                if (index != null) builder.Entity<User>().Metadata.RemoveIndex(index);
+            }
+
+            var roleNameProp = builder.Entity<AppRole>().Metadata.FindProperty(nameof(AppRole.NormalizedName));
+            if (roleNameProp != null)
+            {
+                var index = builder.Entity<AppRole>().Metadata.FindIndex(roleNameProp);
+                if (index != null) builder.Entity<AppRole>().Metadata.RemoveIndex(index);
+            }
+
+            // Create new tenant-aware unique indexes
+            builder.Entity<User>()
+                .HasIndex(u => new { u.NormalizedUserName, u.TenantId })
+                .IsUnique()
+                .HasDatabaseName("UserNameIndex");
+
+            builder.Entity<User>()
+                .HasIndex(u => new { u.NormalizedEmail, u.TenantId })
+                .IsUnique()
+                .HasDatabaseName("EmailIndex");
+
+            builder.Entity<AppRole>()
+                .HasIndex(r => new { r.NormalizedName, r.TenantId })
+                .IsUnique()
+                .HasDatabaseName("RoleNameIndex");
             // ────────────────────────────────────────────────────────────────
+        }
+
+        public override int SaveChanges()
+        {
+            var tenantId = _tenantProvider.TenantId;
+            foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (string.IsNullOrEmpty(entry.Entity.TenantId))
+                    {
+                        entry.Entity.TenantId = tenantId;
+                    }
+                }
+            }
+            return base.SaveChanges();
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var tenantId = _tenantProvider.TenantId;
+            foreach (var entry in ChangeTracker.Entries<IMustHaveTenant>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    if (string.IsNullOrEmpty(entry.Entity.TenantId))
+                    {
+                        entry.Entity.TenantId = tenantId;
+                    }
+                }
+            }
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }

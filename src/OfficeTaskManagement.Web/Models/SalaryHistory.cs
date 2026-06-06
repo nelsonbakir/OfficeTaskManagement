@@ -14,8 +14,10 @@ namespace OfficeTaskManagement.Models
     /// (the currently-active record).  When a new record is added, the previous
     /// active record's EffectiveTo is set to (newRecord.EffectiveFrom - 1 day).
     /// </summary>
-    public class SalaryHistory
+    public class SalaryHistory : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

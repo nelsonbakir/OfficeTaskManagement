@@ -4,8 +4,9 @@ namespace OfficeTaskManagement.Models
     /// A single granular permission key belonging to a PermissionGroup.
     /// Keys are strings like "projects.manage" or "salary.view".
     /// </summary>
-    public class PermissionGroupKey
+    public class PermissionGroupKey : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
         public int Id { get; set; }
 
         public int PermissionGroupId { get; set; }

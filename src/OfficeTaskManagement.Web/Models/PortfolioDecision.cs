@@ -7,8 +7,10 @@ namespace OfficeTaskManagement.Models
     /// Audit log of every strategic management decision made from the Strategic Hub.
     /// Provides a chronological record of who decided what, when, and why.
     /// </summary>
-    public class PortfolioDecision
+    public class PortfolioDecision : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

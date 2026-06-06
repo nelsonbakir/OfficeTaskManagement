@@ -6,8 +6,9 @@ namespace OfficeTaskManagement.Models
     /// for a user are the union of all keys across all groups assigned to all of the
     /// user's roles.
     /// </summary>
-    public class AppRolePermissionGroup
+    public class AppRolePermissionGroup : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
         public string RoleId { get; set; } = string.Empty;
         public int PermissionGroupId { get; set; }
 

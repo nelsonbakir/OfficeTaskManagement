@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +20,33 @@ namespace OfficeTaskManagement.Data
             var roleManager = serviceProvider.GetRequiredService<RoleManager<AppRole>>();
             var userManager = serviceProvider.GetRequiredService<UserManager<User>>();
             var context     = serviceProvider.GetRequiredService<ApplicationDbContext>();
+            var tenantProvider = serviceProvider.GetRequiredService<ITenantProvider>();
+
+            // ── 0. Default Tenants ───────────────────────────────────────────
+            var defaultTenant = await context.Set<Tenant>().FirstOrDefaultAsync(t => t.Identifier == "taskflow");
+            if (defaultTenant == null)
+            {
+                defaultTenant = new Tenant
+                {
+                    Id = "default-tenant-id",
+                    Name = "TaskFlow Corp",
+                    Identifier = "taskflow"
+                };
+                context.Set<Tenant>().Add(defaultTenant);
+
+                var acmeTenant = new Tenant
+                {
+                    Id = "acme-tenant-id",
+                    Name = "Acme Inc",
+                    Identifier = "acme"
+                };
+                context.Set<Tenant>().Add(acmeTenant);
+
+                await context.SaveChangesAsync();
+            }
+
+            // Set the active tenant context for the rest of the seeding process
+            tenantProvider.SetTenant(defaultTenant.Id);
 
             // ── 1. Permission Groups ─────────────────────────────────────────
             await SeedPermissionGroupsAsync(context);
@@ -107,7 +135,7 @@ namespace OfficeTaskManagement.Data
 
             foreach (var g in groups)
             {
-                var existing = await context.PermissionGroups
+                var existing = await context.PermissionGroups.IgnoreQueryFilters()
                     .Include(p => p.Permissions)
                     .FirstOrDefaultAsync(p => p.Name == g.Name);
 
@@ -118,9 +146,21 @@ namespace OfficeTaskManagement.Data
                         Name        = g.Name,
                         Description = g.Description,
                         IsSystemGroup = g.IsSystem,
-                        Permissions = g.Keys.Select(k => new PermissionGroupKey { Key = k }).ToList()
+                        Permissions = g.Keys.Select(k => new PermissionGroupKey { Key = k, TenantId = "default-tenant-id" }).ToList(),
+                        TenantId = "default-tenant-id"
                     };
                     context.PermissionGroups.Add(group);
+                }
+                else
+                {
+                    if (existing.TenantId != "default-tenant-id")
+                    {
+                        existing.TenantId = "default-tenant-id";
+                        foreach (var perm in existing.Permissions)
+                        {
+                            perm.TenantId = "default-tenant-id";
+                        }
+                    }
                 }
             }
 
@@ -133,7 +173,7 @@ namespace OfficeTaskManagement.Data
         {
             // Helper: get PermissionGroup by name (already persisted above)
             async Task<PermissionGroup?> Group(string name) =>
-                await context.PermissionGroups.FirstOrDefaultAsync(g => g.Name == name);
+                await context.PermissionGroups.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Name == name);
 
             var roleDefs = new[]
             {
@@ -213,7 +253,8 @@ namespace OfficeTaskManagement.Data
 
             foreach (var rd in roleDefs)
             {
-                var existing = await roleManager.FindByNameAsync(rd.Name);
+                var existing = await roleManager.Roles.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.Name == rd.Name);
 
                 if (existing == null)
                 {
@@ -224,7 +265,8 @@ namespace OfficeTaskManagement.Data
                         Color          = rd.Color,
                         Icon           = rd.Icon,
                         HierarchyLevel = rd.Level,
-                        IsSystemRole   = true
+                        IsSystemRole   = true,
+                        TenantId       = "default-tenant-id"
                     };
                     await roleManager.CreateAsync(existing);
                 }
@@ -236,23 +278,22 @@ namespace OfficeTaskManagement.Data
                     existing.Icon           = rd.Icon;
                     existing.HierarchyLevel = rd.Level;
                     existing.IsSystemRole   = true;
+                    if (existing.TenantId != "default-tenant-id")
+                    {
+                        existing.TenantId = "default-tenant-id";
+                    }
                     await roleManager.UpdateAsync(existing);
                 }
 
                 // Sync permission groups
-                var roleEntity = await context.Roles
+                var roleEntity = await context.Roles.IgnoreQueryFilters()
                     .Include(r => r.PermissionGroups)
                     .FirstOrDefaultAsync(r => r.Id == existing.Id);
 
                 if (roleEntity == null) continue;
 
-                // Remove any groups not in the definition
-                var toRemove = roleEntity.PermissionGroups
-                    .Where(rpg => !rd.Groups.Contains(rpg.PermissionGroup?.Name ?? ""))
-                    .ToList();
-
                 // Load groups for removal — need full nav
-                var existingGroups = await context.AppRolePermissionGroups
+                var existingGroups = await context.AppRolePermissionGroups.IgnoreQueryFilters()
                     .Include(x => x.PermissionGroup)
                     .Where(x => x.RoleId == roleEntity.Id)
                     .ToListAsync();
@@ -278,7 +319,8 @@ namespace OfficeTaskManagement.Data
                     context.AppRolePermissionGroups.Add(new AppRolePermissionGroup
                     {
                         RoleId           = roleEntity.Id,
-                        PermissionGroupId = pg.Id
+                        PermissionGroupId = pg.Id,
+                        TenantId         = "default-tenant-id"
                     });
                 }
             }
@@ -290,7 +332,8 @@ namespace OfficeTaskManagement.Data
             var legacyRoles = new[] { "Manager", "Employee" };
             foreach (var legacyName in legacyRoles)
             {
-                var legacy = await roleManager.FindByNameAsync(legacyName);
+                var legacy = await roleManager.Roles.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(r => r.Name == legacyName);
                 if (legacy != null && !legacy.IsSystemRole)
                     await roleManager.DeleteAsync(legacy);
             }
@@ -301,7 +344,8 @@ namespace OfficeTaskManagement.Data
         private static async Task SeedSuperAdminAsync(UserManager<User> userManager)
         {
             const string superAdminEmail = "superadmin@taskflow.com";
-            var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
+            var superAdmin = await userManager.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Email == superAdminEmail);
 
             if (superAdmin == null)
             {
@@ -312,7 +356,8 @@ namespace OfficeTaskManagement.Data
                     FullName       = "Super Administrator",
                     JobTitle       = "Executive Director",
                     Department     = "Management",
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    TenantId       = "default-tenant-id"
                 };
 
                 var result = await userManager.CreateAsync(superAdmin, "SuperAdmin@TaskFlow!2026");
@@ -321,10 +366,19 @@ namespace OfficeTaskManagement.Data
                     await userManager.AddToRoleAsync(superAdmin, "Super Admin");
                 }
             }
+            else
+            {
+                if (superAdmin.TenantId != "default-tenant-id")
+                {
+                    superAdmin.TenantId = "default-tenant-id";
+                    await userManager.UpdateAsync(superAdmin);
+                }
+            }
 
             // Also keep the legacy admin@example.com as Admin role for backward compat
             const string legacyAdminEmail = "admin@example.com";
-            var legacyAdmin = await userManager.FindByEmailAsync(legacyAdminEmail);
+            var legacyAdmin = await userManager.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Email == legacyAdminEmail);
             if (legacyAdmin == null)
             {
                 legacyAdmin = new User
@@ -334,7 +388,8 @@ namespace OfficeTaskManagement.Data
                     FullName       = "Admin User",
                     JobTitle       = "System Administrator",
                     Department     = "IT",
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
+                    TenantId       = "default-tenant-id"
                 };
                 var result = await userManager.CreateAsync(legacyAdmin, "YourDefaultAdminPassword@123!");
                 if (result.Succeeded)
@@ -342,6 +397,12 @@ namespace OfficeTaskManagement.Data
             }
             else
             {
+                if (legacyAdmin.TenantId != "default-tenant-id")
+                {
+                    legacyAdmin.TenantId = "default-tenant-id";
+                    await userManager.UpdateAsync(legacyAdmin);
+                }
+
                 // Migrate legacy admin from "Manager" → "Admin" if needed
                 var roles = await userManager.GetRolesAsync(legacyAdmin);
                 if (roles.Contains("Manager") && !roles.Contains("Admin"))
@@ -356,15 +417,15 @@ namespace OfficeTaskManagement.Data
 
         private static async Task SeedAreasAsync(ApplicationDbContext context)
         {
-            if (!context.Areas.Any())
+            if (!context.Areas.IgnoreQueryFilters().Any())
             {
                 context.Areas.AddRange(new List<Area>
                 {
-                    new Area { Name = "Web API" },
-                    new Area { Name = "Frontend" },
-                    new Area { Name = "Database" },
-                    new Area { Name = "Mobile" },
-                    new Area { Name = "Full-stack" }
+                    new Area { Name = "Web API", TenantId = "default-tenant-id" },
+                    new Area { Name = "Frontend", TenantId = "default-tenant-id" },
+                    new Area { Name = "Database", TenantId = "default-tenant-id" },
+                    new Area { Name = "Mobile", TenantId = "default-tenant-id" },
+                    new Area { Name = "Full-stack", TenantId = "default-tenant-id" }
                 });
                 await context.SaveChangesAsync();
             }
@@ -372,14 +433,14 @@ namespace OfficeTaskManagement.Data
 
         private static async Task SeedPublicHolidaysAsync(ApplicationDbContext context)
         {
-            if (!context.PublicHolidays.Any())
+            if (!context.PublicHolidays.IgnoreQueryFilters().Any())
             {
                 context.PublicHolidays.AddRange(new List<PublicHoliday>
                 {
-                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
-                    new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true },
-                    new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true },
-                    new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false }
+                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = "default-tenant-id" },
+                    new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = "default-tenant-id" },
+                    new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true, TenantId = "default-tenant-id" },
+                    new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false, TenantId = "default-tenant-id" }
                 });
                 await context.SaveChangesAsync();
             }

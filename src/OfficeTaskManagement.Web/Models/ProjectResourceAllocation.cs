@@ -8,8 +8,10 @@ namespace OfficeTaskManagement.Models
     /// Represents a formal allocation of a User to a Project at a defined capacity percentage.
     /// Multiple allocations per user across different projects are possible.
     /// </summary>
-    public class ProjectResourceAllocation
+    public class ProjectResourceAllocation : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

@@ -6,8 +6,10 @@ namespace OfficeTaskManagement.Models
     /// <summary>
     /// A skill entry belonging to a ResourceProfile.
     /// </summary>
-    public class ResourceSkill
+    public class ResourceSkill : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

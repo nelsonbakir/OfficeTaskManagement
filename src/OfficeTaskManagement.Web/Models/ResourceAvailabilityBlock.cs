@@ -8,8 +8,10 @@ namespace OfficeTaskManagement.Models
     /// Records a period when a user is unavailable (leave, holidays, training, etc.).
     /// Used by capacity calculation to subtract from available hours.
     /// </summary>
-    public class ResourceAvailabilityBlock
+    public class ResourceAvailabilityBlock : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

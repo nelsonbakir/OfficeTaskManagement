@@ -4,8 +4,10 @@ using OfficeTaskManagement.Models.Enums;
 
 namespace OfficeTaskManagement.Models
 {
-    public class TaskHistory
+    public class TaskHistory : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

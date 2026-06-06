@@ -11,8 +11,10 @@ namespace OfficeTaskManagement.Models
     /// - An optional lag (delay hours) before this stage activates after its predecessor.
     /// When the WorkflowEngine spawns sub-tasks, one TaskItem is created per stage.
     /// </summary>
-    public class WorkflowStage
+    public class WorkflowStage : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

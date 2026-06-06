@@ -10,8 +10,10 @@ namespace OfficeTaskManagement.Models
     /// Extended resource profile for a system User — stores capacity, cost, and skill data.
     /// Linked 1-to-1 with the User entity.
     /// </summary>
-    public class ResourceProfile
+    public class ResourceProfile : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

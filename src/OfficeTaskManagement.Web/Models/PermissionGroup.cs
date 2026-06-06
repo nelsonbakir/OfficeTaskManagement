@@ -7,8 +7,9 @@ namespace OfficeTaskManagement.Models
     /// One or many Permission Groups are assigned to an AppRole, giving that role
     /// the cumulative set of all keys across its groups.
     /// </summary>
-    public class PermissionGroup
+    public class PermissionGroup : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
         public int Id { get; set; }
 
         /// <summary>Human-readable name, e.g. "Project Management".</summary>

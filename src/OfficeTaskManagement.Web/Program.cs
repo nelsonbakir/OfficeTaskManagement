@@ -77,6 +77,7 @@ builder.Services.AddMemoryCache();
 // Permission-based authorization
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 builder.Services.AddAuthorization(options =>
 {
     foreach (var key in Permissions.All)

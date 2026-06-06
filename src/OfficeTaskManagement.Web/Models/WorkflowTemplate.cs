@@ -10,8 +10,10 @@ namespace OfficeTaskManagement.Models
     /// spawns one child sub-task per stage, each with its own Responsible assignee and
     /// independent PERT-based effort estimate.
     /// </summary>
-    public class WorkflowTemplate
+    public class WorkflowTemplate : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

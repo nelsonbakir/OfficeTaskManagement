@@ -4,8 +4,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OfficeTaskManagement.Models
 {
-    public class Sprint
+    public class Sprint : IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
+
         [Key]
         public int Id { get; set; }
 

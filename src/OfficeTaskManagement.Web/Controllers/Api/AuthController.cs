@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using OfficeTaskManagement.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using OfficeTaskManagement.Models;
@@ -34,15 +36,19 @@ namespace OfficeTaskManagement.Controllers.Api
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModel model)
         {
-            var user = await _userManager.FindByEmailAsync(model.Email) 
-                ?? await _userManager.FindByNameAsync(model.Email);
+            var user = await _userManager.Users.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Email == model.Email || u.UserName == model.Email);
                 
             if (user != null && await _userManager.CheckPasswordAsync(user, model.Password))
             {
+                var tenantProvider = HttpContext.RequestServices.GetRequiredService<ITenantProvider>();
+                tenantProvider.SetTenant(user.TenantId);
+
                 var authClaims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.UserName ?? user.Email ?? ""),
                     new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim("TenantId", user.TenantId),
                     new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 };
 

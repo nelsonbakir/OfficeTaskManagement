@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 namespace OfficeTaskManagement.Models
 {
-    public class User : IdentityUser
+    public class User : IdentityUser, IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
         public string? FullName { get; set; }
         public string? AvatarPath { get; set; }
 

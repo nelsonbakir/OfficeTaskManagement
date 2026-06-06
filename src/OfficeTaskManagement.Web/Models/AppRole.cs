@@ -7,8 +7,9 @@ namespace OfficeTaskManagement.Models
     /// Extended Identity Role that carries hierarchy metadata, branding, and
     /// links to one or more Permission Groups.
     /// </summary>
-    public class AppRole : IdentityRole
+    public class AppRole : IdentityRole, IMustHaveTenant
     {
+        public string TenantId { get; set; } = string.Empty;
         /// <summary>Short explanation shown in the admin UI.</summary>
         public string? Description { get; set; }
 
