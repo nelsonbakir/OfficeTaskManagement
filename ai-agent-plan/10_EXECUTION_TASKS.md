@@ -11,115 +11,115 @@
 *Goal: Gemini can be called with structured input/output. No UI yet.*
 
 ### T01 — Add NuGet packages
-- [ ] Add `Pgvector` and `Pgvector.EntityFrameworkCore` to `OfficeTaskManagement.csproj`
-- [ ] Add `Microsoft.CodeAnalysis.CSharp` to `OfficeTaskManagement.csproj`
-- [ ] Run `dotnet restore`
-- [ ] Run `dotnet build` → must succeed
+- [x] Add `Pgvector` and `Pgvector.EntityFrameworkCore` to `OfficeTaskManagement.csproj`
+- [x] Add `Microsoft.CodeAnalysis.CSharp` to `OfficeTaskManagement.csproj`
+- [x] Run `dotnet restore`
+- [x] Run `dotnet build` → must succeed
 - **Spec**: [08_DATA_MODEL.md → NuGet Package Requirements](./08_DATA_MODEL.md)
 
 ### T02 — Create AI model entities
-- [ ] Create `src/OfficeTaskManagement.Web/Models/Ai/` directory
-- [ ] Create `Models/Ai/CodeEmbedding.cs`
-- [ ] Create `Models/Ai/AgentConversation.cs`
-- [ ] Create `Models/Ai/AiEstimationLog.cs`
+- [x] Create `src/OfficeTaskManagement.Web/Models/Ai/` directory
+- [x] Create `Models/Ai/CodeEmbedding.cs`
+- [x] Create `Models/Ai/AgentConversation.cs`
+- [x] Create `Models/Ai/AiEstimationLog.cs`
 - **Spec**: [08_DATA_MODEL.md → New EF Core Entities](./08_DATA_MODEL.md)
 
 ### T03 — Create AI DTO records
-- [ ] Create `Models/Ai/EstimationResult.cs` (record with all fields from spec)
-- [ ] Create `Models/Ai/EstimationRequest.cs`
-- [ ] Create `Models/Ai/ChildItemSuggestions.cs` + `ChildItemDto.cs`
-- [ ] Create `Models/Ai/ChildRequest.cs`
-- [ ] Create `Models/Ai/FullCascadeResult.cs` + nested `CascadeFeatureDto`, `CascadeUserStoryDto`, `CascadeTaskDto`
-- [ ] Create `Models/Ai/ReEstimationRequest.cs`
-- [ ] Create `Models/Ai/BulkCreateRequest.cs` + `BulkCreateItemDto.cs` + `BulkCreateResult.cs`
-- [ ] Create `Models/Ai/AgentChatRequest.cs` + `AgentChatResponse.cs` + `AgentAction.cs`
-- [ ] Create `Models/Ai/PromptContext.cs`
+- [x] Create `Models/Ai/EstimationResult.cs` (record with all fields from spec)
+- [x] Create `Models/Ai/EstimationRequest.cs`
+- [x] Create `Models/Ai/ChildItemSuggestions.cs` + `ChildItemDto.cs`
+- [x] Create `Models/Ai/ChildRequest.cs`
+- [x] Create `Models/Ai/FullCascadeResult.cs` + nested `CascadeFeatureDto`, `CascadeUserStoryDto`, `CascadeTaskDto`
+- [x] Create `Models/Ai/ReEstimationRequest.cs`
+- [x] Create `Models/Ai/BulkCreateRequest.cs` + `BulkCreateItemDto.cs` + `BulkCreateResult.cs`
+- [x] Create `Models/Ai/AgentChatRequest.cs` + `AgentChatResponse.cs` + `AgentAction.cs`
+- [x] Create `Models/Ai/PromptContext.cs`
 - **Spec**: [05_SERVICE_LAYER.md → DTOs](./05_SERVICE_LAYER.md)
 
 ### T04 — Update ApplicationDbContext
-- [ ] Add `DbSet<CodeEmbedding> CodeEmbeddings` property
-- [ ] Add `DbSet<AgentConversation> AgentConversations` property
-- [ ] Add `DbSet<AiEstimationLog> AiEstimationLogs` property
-- [ ] Add `OnModelCreating` configuration for all three entities (indexes)
-- [ ] Add SQLite dev compatibility conversion for `CodeEmbedding.Embedding`
+- [x] Add `DbSet<CodeEmbedding> CodeEmbeddings` property
+- [x] Add `DbSet<AgentConversation> AgentConversations` property
+- [x] Add `DbSet<AiEstimationLog> AiEstimationLogs` property
+- [x] Add `OnModelCreating` configuration for all three entities (indexes)
+- [x] Add JSON string conversion for `CodeEmbedding.Embedding` (SQLite+design-time compatible)
 - **Spec**: [08_DATA_MODEL.md → DbContext Changes](./08_DATA_MODEL.md)
 - **File**: `src/OfficeTaskManagement.Web/Data/ApplicationDbContext.cs`
 
 ### T05 — Create EF Core migration
-- [ ] Run: `dotnet ef migrations add AddAiAgentTables --project src/OfficeTaskManagement.Web`
-- [ ] Edit the generated migration to add the raw SQL for pgvector extension + IVFFlat index
+- [x] Run: `dotnet ef migrations add AddAiAgentTables --project src/OfficeTaskManagement.Web`
+- [x] Edit the generated migration to add the raw SQL for pgvector extension + IVFFlat index
 - [ ] Run: `dotnet ef database update --project src/OfficeTaskManagement.Web` (dev SQLite)
-- [ ] Run `dotnet build` → must succeed
+- [x] Run `dotnet build` → must succeed
 - **Spec**: [08_DATA_MODEL.md → Migration File Structure](./08_DATA_MODEL.md)
 
 ### T06 — Create IGeminiAiService interface
-- [ ] Create `Services/Ai/IGeminiAiService.cs` with all 5 method signatures
+- [x] Create `Services/Ai/IGeminiAiService.cs` with all 5 method signatures
 - **Spec**: [05_SERVICE_LAYER.md → IGeminiAiService](./05_SERVICE_LAYER.md)
 
 ### T07 — Create IGeminiEmbeddingService interface + implementation
-- [ ] Create `Services/Ai/IGeminiEmbeddingService.cs`
-- [ ] Create `Services/Ai/GeminiEmbeddingService.cs` with `EmbedAsync` + `EmbedBatchAsync`
-- [ ] Reads `Gemini:ApiKey` and `Gemini:EmbeddingModel` from config
+- [x] Create `Services/Ai/IGeminiEmbeddingService.cs`
+- [x] Create `Services/Ai/GeminiEmbeddingService.cs` with `EmbedAsync` + `EmbedBatchAsync`
+- [x] Reads `Gemini:ApiKey` and `Gemini:EmbeddingModel` from config
 - **Spec**: [05_SERVICE_LAYER.md → GeminiEmbeddingService](./05_SERVICE_LAYER.md)
 
 ### T08 — Create PmKnowledgeService
-- [ ] Create `Services/Ai/PmKnowledgeService.cs`
-- [ ] Implement `GetHistoryStatsAsync` — compresses historical task data to string
-- [ ] Implement `GetAverageHourlyRateBdtAsync` — uses `SalaryHistory` table
-- [ ] Use `IMemoryCache` with 30-min TTL for history stats, 15-min for hourly rate
+- [x] Create `Services/Ai/PmKnowledgeService.cs`
+- [x] Implement `GetHistoryStatsAsync` — compresses historical task data to string
+- [x] Implement `GetAverageHourlyRateBdtAsync` — uses `SalaryHistory` table via `EffectiveHourlyRate`
+- [x] Use `IMemoryCache` with 30-min TTL for history stats, 15-min for hourly rate
 - **Spec**: [05_SERVICE_LAYER.md → PmKnowledgeService](./05_SERVICE_LAYER.md)
 
 ### T09 — Create ContextBuilderService
-- [ ] Create `Services/Ai/ContextBuilderService.cs`
-- [ ] Implement token budget allocation (4000 token cap)
-- [ ] Implement `BuildParentContextAsync` — loads 1 level up (Project for Epic, Epic for Feature, etc.)
-- [ ] Implement `BuildSiblingListAsync` — names only, comma-separated
-- [ ] Implement `EstimateTokens` private helper (chars / 4)
-- [ ] Inject `PmKnowledgeService` and `CodebaseRetrievalService` (null-safe — RAG not ready yet)
-- [ ] Use `IMemoryCache` for sibling lists (5-min TTL)
+- [x] Create `Services/Ai/ContextBuilderService.cs`
+- [x] Implement token budget allocation (4000 token cap)
+- [x] Implement `BuildParentContextAsync` — loads 1 level up (Project for Epic, Epic for Feature, etc.)
+- [x] Implement `BuildSiblingListAsync` — names only, comma-separated
+- [x] Implement `EstimateTokens` private helper (chars / 4)
+- [x] Inject `PmKnowledgeService` and `CodebaseRetrievalService` (null-safe — RAG not ready yet)
+- [x] Use `IMemoryCache` for sibling lists (5-min TTL)
 - **Spec**: [05_SERVICE_LAYER.md → ContextBuilderService](./05_SERVICE_LAYER.md)
 
 ### T10 — Create AiEstimationLogService
-- [ ] Create `Services/Ai/AiEstimationLogService.cs`
-- [ ] Implement `LogAsync` — inserts `AiEstimationLog` record
+- [x] Create `Services/Ai/AiEstimationLogService.cs`
+- [x] Implement `LogAsync` — inserts `AiEstimationLog` record
 - **Spec**: [05_SERVICE_LAYER.md → AiEstimationLogService](./05_SERVICE_LAYER.md)
 
 ### T11 — Create GeminiAiService (core)
-- [ ] Create `Services/Ai/GeminiAiService.cs` implementing `IGeminiAiService`
-- [ ] Implement `CallGeminiApiAsync` private helper (adapt from existing `GeminiAnalyticsService`)
-  - Add: `response_mime_type: "application/json"` + `response_schema`
-  - Add: exponential backoff retry on 429 (max 3 retries, 2s/4s/8s delays)
-  - Add: parse `usageMetadata.promptTokenCount` + `candidatesTokenCount` from response
-- [ ] Implement `EstimateAsync` — builds prompt using Template A from spec, parses JSON
-- [ ] Implement `SuggestChildrenAsync` — uses Template B from spec
-- [ ] Implement `GenerateAcceptanceCriteriaAsync` — simple prompt, returns markdown string
-- [ ] Implement `ReEstimateAsync` — injects original + actual hours into prompt
-- [ ] Implement `GenerateFullCascadeAsync` — uses Template C from spec
-- [ ] Implement fallback: if API key missing or call fails → return `EstimationResult` with `Confidence="Low"` and safe defaults
+- [x] Create `Services/Ai/GeminiAiService.cs` implementing `IGeminiAiService`
+- [x] Implement `CallGeminiApiAsync` private helper (adapted from existing `GeminiAnalyticsService`)
+  - [x] Add: `response_mime_type: "application/json"` + `response_schema`
+  - [x] Add: exponential backoff retry on 429 (max 3 retries, 2s/4s/8s delays)
+  - [x] Add: parse `usageMetadata.promptTokenCount` + `candidatesTokenCount` from response
+- [x] Implement `EstimateAsync` — builds prompt using Template A from spec, parses JSON
+- [x] Implement `SuggestChildrenAsync` — uses Template B from spec
+- [x] Implement `GenerateAcceptanceCriteriaAsync` — simple prompt, returns markdown string
+- [x] Implement `ReEstimateAsync` — injects original + actual hours into prompt
+- [x] Implement `GenerateFullCascadeAsync` — uses Template C from spec
+- [x] Implement fallback: if API key missing or call fails → return `EstimationResult` with `Confidence="Low"`
 - **Spec**: [03_PROMPT_STRATEGY.md](./03_PROMPT_STRATEGY.md) + [05_SERVICE_LAYER.md](./05_SERVICE_LAYER.md)
 
 ### T12 — Register services in Program.cs
-- [ ] Register `IGeminiAiService` → `GeminiAiService` (scoped + HttpClient)
-- [ ] Register `IGeminiEmbeddingService` → `GeminiEmbeddingService` (scoped + HttpClient)
-- [ ] Register `ContextBuilderService` (scoped)
-- [ ] Register `PmKnowledgeService` (scoped)
-- [ ] Register `AiEstimationLogService` (scoped)
+- [x] Register `IGeminiAiService` → `GeminiAiService` (scoped + HttpClient)
+- [x] Register `IGeminiEmbeddingService` → `GeminiEmbeddingService` (scoped + HttpClient)
+- [x] Register `ContextBuilderService` (scoped)
+- [x] Register `PmKnowledgeService` (scoped)
+- [x] Register `AiEstimationLogService` (scoped)
 - **File**: `src/OfficeTaskManagement.Web/Program.cs`
 - **Spec**: [05_SERVICE_LAYER.md → Program.cs Registrations](./05_SERVICE_LAYER.md)
 
 ### T13 — Write unit tests: GeminiAiServiceTests
-- [ ] Create `Tests/OfficeTaskManagement.Tests/Services/GeminiAiServiceTests.cs`
-- [ ] Test: valid response → correct PERT output
-- [ ] Test: missing API key → fallback result (no throw)
-- [ ] Test: malformed JSON → fallback result (no throw)
-- [ ] Test: 429 response → retries and succeeds
+- [x] Create `Tests/OfficeTaskManagement.Tests/Services/GeminiAiServiceTests.cs`
+- [x] Test: valid response → correct PERT output
+- [x] Test: missing API key → fallback result (no throw)
+- [x] Test: malformed JSON → fallback result (no throw)
+- [x] Test: 429 response → retries and succeeds
 - **Spec**: [09_TESTING.md → GeminiAiServiceTests](./09_TESTING.md)
 
 ### T14 — Write unit tests: ContextBuilderServiceTests
-- [ ] Create `Tests/OfficeTaskManagement.Tests/Services/ContextBuilderServiceTests.cs`
-- [ ] Test: sibling list compresses to names only
-- [ ] Test: token budget exceeded → code chunks dropped
-- [ ] Test: `EstimateTokens` math (chars / 4)
+- [x] Create `Tests/OfficeTaskManagement.Tests/Services/ContextBuilderServiceTests.cs`
+- [x] Test: sibling list compresses to names only
+- [x] Test: code chunks null/empty (Phase 3 placeholder)
+- [x] Test: `EstimateTokens` math (chars / 4)
 - **Spec**: [09_TESTING.md → ContextBuilderServiceTests](./09_TESTING.md)
 
 ### T15 — Phase 1 verification

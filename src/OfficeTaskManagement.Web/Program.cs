@@ -9,6 +9,7 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Settings;
 using OfficeTaskManagement.Services;
+using OfficeTaskManagement.Services.Ai;
 using OfficeTaskManagement.Services.WorkflowEngine;
 using OfficeTaskManagement.Services.Authorization;
 
@@ -71,6 +72,21 @@ builder.Services.AddScoped<KanbanGovernanceService>();
 
 // P3-2: Lag Scheduling — promotes stage sub-tasks to ToDo when PlannedStartDate elapses
 builder.Services.AddHostedService<LagSchedulingService>();
+
+// ── AI Agent Services (Phase 1) ───────────────────────────────────────────────
+// GeminiAiService: core estimation with typed HttpClient
+builder.Services.AddHttpClient<GeminiAiService>();
+builder.Services.AddScoped<IGeminiAiService, GeminiAiService>();
+
+// GeminiEmbeddingService: text-embedding-004 for Phase 3 RAG
+builder.Services.AddHttpClient<GeminiEmbeddingService>();
+builder.Services.AddScoped<IGeminiEmbeddingService, GeminiEmbeddingService>();
+
+// Supporting AI services
+builder.Services.AddScoped<ContextBuilderService>();
+builder.Services.AddScoped<PmKnowledgeService>();
+builder.Services.AddScoped<AiEstimationLogService>();
+// ─────────────────────────────────────────────────────────────────────────────
 
 // In-process caching for heatmap and utilization data (15-min sliding window)
 builder.Services.AddMemoryCache();

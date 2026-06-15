@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services;
 
 namespace OfficeTaskManagement.Data
@@ -64,6 +65,12 @@ namespace OfficeTaskManagement.Data
         // ── Budget Management ───────────────────────────────────────
         public DbSet<ProjectOtherCost> ProjectOtherCosts { get; set; }
         // ───────────────────────────────────────────────────────────
+
+        // ── AI Agent Tables ──────────────────────────────────────────────────
+        public DbSet<CodeEmbedding>       CodeEmbeddings     { get; set; }
+        public DbSet<AgentConversation>   AgentConversations { get; set; }
+        public DbSet<AiEstimationLog>     AiEstimationLogs   { get; set; }
+        // ────────────────────────────────────────────────────────────────────
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -407,6 +414,50 @@ namespace OfficeTaskManagement.Data
                 .HasFilter("\"EffectiveTo\" IS NULL")
                 .IsUnique()
                 .HasDatabaseName("UIX_SalaryHistory_OneActivePerProfile");
+
+            // ────────────────────────────────────────────────────────────────
+
+            // ── AI Agent Entity Configurations ───────────────────────────────
+
+            // CodeEmbedding — pgvector index + SQLite dev compatibility
+            builder.Entity<CodeEmbedding>(e =>
+            {
+                e.HasIndex(x => x.FilePath);
+                e.HasIndex(x => x.FileHash);
+                e.HasIndex(x => x.TenantId);
+                // IVFFlat index defined in raw SQL migration (pgvector-only)
+            });
+
+            // CodeEmbedding.Embedding — float[] is not a primitive EF Core type.
+            // Always map via JSON string conversion. At runtime with PostgreSQL:
+            //   - The [Column(TypeName = "vector(768)")] attribute tells Npgsql to use pgvector type
+            //   - The conversion is overridden by Pgvector EF Core extension when available
+            // For design-time tools and SQLite dev: always store as TEXT (JSON float array)
+            builder.Entity<CodeEmbedding>()
+                .Property(e => e.Embedding)
+                .HasColumnType("TEXT")  // Overridden to vector(768) in migration for PostgreSQL
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<float[]>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? Array.Empty<float>()
+                );
+
+            // AgentConversation — expire index for cleanup job
+            builder.Entity<AgentConversation>(e =>
+            {
+                e.HasIndex(x => new { x.UserId, x.EntityType, x.EntityId });
+                e.HasIndex(x => x.ExpiresAt);
+                e.HasOne(c => c.User)
+                 .WithMany()
+                 .HasForeignKey(c => c.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // AiEstimationLog — query indexes for cost analytics
+            builder.Entity<AiEstimationLog>(e =>
+            {
+                e.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+                e.HasIndex(x => x.CreatedAt);
+            });
 
             // ────────────────────────────────────────────────────────────────
 
