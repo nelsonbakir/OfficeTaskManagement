@@ -1,5 +1,9 @@
 @model OfficeTaskManagement.ViewModels.ProjectViewModel
-@{ ViewData["Title"] = "Create Project"; }
+@{ 
+    ViewData["Title"] = "Create Project";
+    ViewData["AiEntityType"] = "Project";
+    ViewData["AiChildType"]  = "Epic";
+}
 
 <style>
     .item-editor-container {
@@ -110,6 +114,7 @@
 </div>
 
 <form asp-action="Create" enctype="multipart/form-data">
+    @await Html.PartialAsync("_AiEstimationPanel")
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">

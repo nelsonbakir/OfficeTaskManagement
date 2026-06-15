@@ -3,7 +3,11 @@
 @using OfficeTaskManagement.Models.Enums
 @inject OfficeTaskManagement.Services.IMediaService MediaService
 @{ 
-    ViewData["Title"] = "Edit Task"; 
+    ViewData["Title"] = "Edit Task";
+    ViewData["AiEntityType"]   = "Task";
+    ViewData["AiEntityId"]     = Model.TaskItem.Id;
+    ViewData["AiUserStoryId"]  = Model.TaskItem.UserStoryId;
+    // No AiChildType — Tasks have no AI-generated children
     var allUsers = ViewBag.AllUsers as List<OfficeTaskManagement.Models.User> ?? new List<OfficeTaskManagement.Models.User>();
     var isWorkPackage = Model.TaskItem.IsWorkPackage;
 }
@@ -423,6 +427,7 @@
 }
 
 <form asp-action="Edit" enctype="multipart/form-data">
+    @await Html.PartialAsync("_AiEstimationPanel")
     <div class="task-editor-container">
         <!-- Main Editor -->
         <div class="task-editor-main">

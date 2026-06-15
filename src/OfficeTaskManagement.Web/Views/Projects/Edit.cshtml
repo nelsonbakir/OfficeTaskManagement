@@ -2,7 +2,12 @@
 @using OfficeTaskManagement.Services
 @inject IMediaService MediaService
 
-@{ ViewData["Title"] = "Edit Project"; }
+@{ 
+    ViewData["Title"] = "Edit Project";
+    ViewData["AiEntityType"] = "Project";
+    ViewData["AiEntityId"]   = Model.Project.Id;
+    ViewData["AiChildType"]  = "Epic";
+}
 
 <style>
     .item-editor-container {
@@ -139,6 +144,7 @@
 </div>
 
 <form asp-action="Edit" enctype="multipart/form-data">
+    @await Html.PartialAsync("_AiEstimationPanel")
     <div class="item-editor-container">
         <!-- Main Editor -->
         <div class="item-editor-main">

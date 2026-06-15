@@ -86,6 +86,15 @@ builder.Services.AddScoped<IGeminiEmbeddingService, GeminiEmbeddingService>();
 builder.Services.AddScoped<ContextBuilderService>();
 builder.Services.AddScoped<PmKnowledgeService>();
 builder.Services.AddScoped<AiEstimationLogService>();
+
+// ── Phase 3: Codebase RAG Services ───────────────────────────────────────────
+// CodebaseRetrievalService: semantic search over indexed code chunks
+builder.Services.AddScoped<OfficeTaskManagement.Services.Codebase.CodebaseRetrievalService>();
+
+// CodebaseIndexingService: runs on startup, re-indexes changed files
+builder.Services.AddSingleton<OfficeTaskManagement.Services.Codebase.CodebaseIndexingService>();
+builder.Services.AddHostedService(sp =>
+    sp.GetRequiredService<OfficeTaskManagement.Services.Codebase.CodebaseIndexingService>());
 // ─────────────────────────────────────────────────────────────────────────────
 
 // In-process caching for heatmap and utilization data (15-min sliding window)

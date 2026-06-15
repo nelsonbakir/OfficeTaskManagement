@@ -4,6 +4,10 @@
 
 @{
     ViewData["Title"] = "Edit User Story";
+    ViewData["AiEntityType"] = "UserStory";
+    ViewData["AiEntityId"]   = Model.UserStory.Id;
+    ViewData["AiFeatureId"]  = Model.UserStory.FeatureId;
+    ViewData["AiChildType"]  = "Task";
 }
 
 <style>
@@ -32,6 +36,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <form asp-action="Edit" enctype="multipart/form-data">
+                    @await Html.PartialAsync("_AiEstimationPanel")
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <input type="hidden" asp-for="UserStory.Id" />
                     

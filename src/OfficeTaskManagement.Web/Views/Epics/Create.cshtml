@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Create Epic";
+    ViewData["AiEntityType"] = "Epic";
+    ViewData["AiChildType"]  = "Feature";
+    // AiProjectId is set dynamically by JS when user selects a project
 }
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
@@ -10,6 +13,8 @@
         <i class="fas fa-arrow-left"></i> Back to Epics
     </a>
 </div>
+
+@await Html.PartialAsync("_AiEstimationPanel")
 
 <form asp-action="Create" enctype="multipart/form-data">
     <div class="item-editor-container">

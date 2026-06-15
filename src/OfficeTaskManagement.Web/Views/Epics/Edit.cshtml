@@ -4,6 +4,10 @@
 
 @{
     ViewData["Title"] = "Edit Epic";
+    ViewData["AiEntityType"] = "Epic";
+    ViewData["AiEntityId"]   = Model.Epic.Id;
+    ViewData["AiProjectId"]  = Model.Epic.ProjectId;
+    ViewData["AiChildType"]  = "Feature";
 }
 
 <style>
@@ -87,6 +91,8 @@
         <i class="fas fa-arrow-left"></i> Back to Epics
     </a>
 </div>
+
+@await Html.PartialAsync("_AiEstimationPanel")
 
 <form asp-action="Edit" enctype="multipart/form-data">
     <div class="item-editor-container">

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models.Ai;
+using OfficeTaskManagement.Services.Codebase;
 
 namespace OfficeTaskManagement.Services.Ai
 {
@@ -21,12 +22,7 @@ namespace OfficeTaskManagement.Services.Ai
         private readonly PmKnowledgeService _pmKnowledge;
         private readonly IMemoryCache _cache;
         private readonly ILogger<ContextBuilderService> _logger;
-
-#pragma warning disable CS0414 // Assigned but value never used (Phase 3 placeholder)
-        // CodebaseRetrievalService is intentionally kept as a nullable parameter
-        // until Phase 3 RAG is implemented (T35). Set to null to skip code chunks.
-        private readonly object? _codebaseRetrieval; // Will be typed CodebaseRetrievalService in Phase 3
-#pragma warning restore CS0414
+        private readonly CodebaseRetrievalService? _codebaseRetrieval;
 
         private const int MaxTotalTokens = 4000;
 
@@ -34,13 +30,14 @@ namespace OfficeTaskManagement.Services.Ai
             ApplicationDbContext db,
             PmKnowledgeService pmKnowledge,
             IMemoryCache cache,
-            ILogger<ContextBuilderService> logger)
+            ILogger<ContextBuilderService> logger,
+            CodebaseRetrievalService? codebaseRetrieval = null)
         {
             _db = db;
             _pmKnowledge = pmKnowledge;
             _cache = cache;
             _logger = logger;
-            _codebaseRetrieval = null; // Phase 3: replace with CodebaseRetrievalService
+            _codebaseRetrieval = codebaseRetrieval;
         }
 
         /// <summary>
@@ -71,11 +68,25 @@ namespace OfficeTaskManagement.Services.Ai
                 ? await _pmKnowledge.GetAverageHourlyRateBdtAsync(request.ProjectId.Value)
                 : 800m; // fallback BDT hourly rate
 
-            // 5. Code context — only inject if budget allows (Phase 3 RAG)
-            // TODO (T35): When CodebaseRetrievalService is available, inject here:
-            // if (tokenBudget > 600 && _codebaseRetrieval != null)
-            //     ctx.CodeChunks = await _codebaseRetrieval.GetRelevantChunksAsync(...);
-            ctx.CodeChunks = null; // Phase 3 placeholder
+            // 5. Code context — inject if budget allows and RAG service is available (T35)
+            if (tokenBudget > 600 && _codebaseRetrieval != null)
+            {
+                try
+                {
+                    var searchQuery = $"{request.EntityType}: {request.Title} {request.Description}";
+                    ctx.CodeChunks = await _codebaseRetrieval.GetRelevantChunksAsync(
+                        searchQuery, topK: 3, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Code chunk retrieval failed — proceeding without RAG context");
+                    ctx.CodeChunks = null;
+                }
+            }
+            else
+            {
+                ctx.CodeChunks = null;
+            }
 
             return ctx;
         }

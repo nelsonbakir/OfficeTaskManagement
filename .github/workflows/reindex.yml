@@ -1,0 +1,21 @@
+name: Reindex Codebase on Push
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  reindex:
+    name: Trigger Codebase Reindex
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Re-index via Webhook
+        env:
+          PMP_REINDEX_URL: ${{ secrets.PMP_REINDEX_URL }}
+          REINDEX_WEBHOOK_SECRET: ${{ secrets.REINDEX_WEBHOOK_SECRET }}
+        run: |
+          curl -s -o /dev/null -w "HTTP Status: %{http_code}" \
+            -X POST "$PMP_REINDEX_URL/api/agent/reindex" \
+            -H "X-Webhook-Secret: $REINDEX_WEBHOOK_SECRET" \
+            --max-time 10

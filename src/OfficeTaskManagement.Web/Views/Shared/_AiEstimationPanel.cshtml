@@ -1,0 +1,133 @@
+@* AI Estimation Panel — injected into Create/Edit views for all PM entities *@
+@* Parameters injected via ViewData *@
+@{
+    var entityType  = ViewData["AiEntityType"] as string ?? "Task";
+    var projectId   = ViewData["AiProjectId"] as int?;
+    var epicId      = ViewData["AiEpicId"] as int?;
+    var featureId   = ViewData["AiFeatureId"] as int?;
+    var userStoryId = ViewData["AiUserStoryId"] as int?;
+    var entityId    = ViewData["AiEntityId"] as int?;   // null = new item
+    var childType   = ViewData["AiChildType"] as string; // e.g. "Feature" for an Epic
+}
+
+<div id="ai-panel" class="ai-panel"
+     data-entity-type="@entityType"
+     data-project-id="@projectId"
+     data-epic-id="@epicId"
+     data-feature-id="@featureId"
+     data-user-story-id="@userStoryId"
+     data-entity-id="@entityId"
+     data-child-type="@childType">
+
+    <!-- Panel Header -->
+    <div class="ai-panel__header">
+        <span class="ai-panel__icon" aria-hidden="true">✨</span>
+        <span class="ai-panel__title">AI Estimation Assistant</span>
+        <button type="button" id="ai-analyze-btn" class="ai-panel__trigger-btn" disabled
+                aria-label="Analyze task with AI — enabled after entering a title">
+            Analyze with AI ▶
+        </button>
+        @if (entityId.HasValue)
+        {
+            <button type="button" id="ai-reestimate-btn" class="ai-panel__reestimate-btn"
+                    aria-label="Re-estimate this item with AI using current hours logged">
+                ↺ Re-estimate
+            </button>
+        }
+    </div>
+
+    <!-- Loading state -->
+    <div id="ai-loading" class="ai-panel__loading" style="display:none" role="status" aria-live="polite">
+        <div class="ai-spinner" aria-hidden="true"></div>
+        <span>Analyzing project context...</span>
+    </div>
+
+    <!-- Error state -->
+    <div id="ai-error" class="ai-panel__error" style="display:none" role="alert" aria-live="assertive">
+        <span id="ai-error-msg"></span>
+        <button type="button" id="ai-retry-btn" class="ai-btn-link ms-2">Retry</button>
+    </div>
+
+    <!-- Estimation results -->
+    <div id="ai-results" class="ai-panel__results" style="display:none" aria-live="polite">
+
+        <!-- Confidence badge + Rationale -->
+        <div class="ai-panel__rationale">
+            <span id="ai-confidence-badge" class="ai-badge" aria-label="AI confidence level"></span>
+            <p id="ai-rationale"></p>
+        </div>
+
+        <!-- PERT Estimate Row -->
+        <div class="ai-panel__estimates" role="group" aria-label="PERT hour estimates">
+            <div class="ai-est-block">
+                <label>Optimistic</label>
+                <span id="ai-opt-hours" aria-label="Optimistic hours"></span>h
+            </div>
+            <div class="ai-est-block ai-est-block--main">
+                <label>Most Likely</label>
+                <span id="ai-ml-hours" aria-label="Most likely hours"></span>h
+            </div>
+            <div class="ai-est-block">
+                <label>Pessimistic</label>
+                <span id="ai-pess-hours" aria-label="Pessimistic hours"></span>h
+            </div>
+            <div class="ai-est-block ai-est-block--pert">
+                <label>PERT</label>
+                <span id="ai-pert-hours" aria-label="PERT estimated hours"></span>h
+            </div>
+        </div>
+
+        <!-- Meta row -->
+        <div class="ai-panel__meta">
+            <span>Priority: <strong id="ai-priority"></strong></span>
+            <span>Story Points: <strong id="ai-story-points"></strong></span>
+            <span>Est. Budget: <strong id="ai-budget"></strong> BDT</span>
+        </div>
+
+        <!-- Risks -->
+        <div id="ai-risks-block" class="ai-panel__risks" style="display:none">
+            <strong>⚠ Risks:</strong>
+            <ul id="ai-risks-list" aria-label="Identified risk factors"></ul>
+        </div>
+
+        <!-- Apply Estimates button -->
+        <button type="button" id="ai-apply-btn" class="ai-panel__apply-btn"
+                aria-label="Apply AI-generated estimates to the form fields">
+            ✓ Apply These Estimates to Form
+        </button>
+    </div>
+
+    <!-- Child suggestions (only if childType is set) -->
+    @if (!string.IsNullOrEmpty(childType))
+    {
+        <div id="ai-children" class="ai-panel__children" style="display:none" aria-live="polite">
+            <div class="ai-panel__children-header">
+                <strong>✨ Suggested <span class="child-type-label">@childType</span>s</strong>
+                <div class="ai-children-mode" role="radiogroup" aria-label="Breakdown depth">
+                    <label>
+                        <input type="radio" name="ai-depth" value="step" checked
+                               aria-label="Step-by-step: one level of children" /> Step-by-step
+                    </label>
+                    <label>
+                        <input type="radio" name="ai-depth" value="full"
+                               aria-label="Full breakdown: complete hierarchy" /> Full breakdown
+                    </label>
+                </div>
+            </div>
+            <div id="ai-children-list" class="ai-children-list" role="list"
+                 aria-label="Suggested child items">
+                <!-- Populated by ai-panel.js -->
+            </div>
+            <div class="ai-panel__children-actions">
+                <button type="button" id="ai-select-all-btn" class="ai-btn-link"
+                        aria-label="Select all suggested children">Select All</button>
+                <button type="button" id="ai-deselect-all-btn" class="ai-btn-link"
+                        aria-label="Deselect all suggested children">Deselect All</button>
+                <button type="button" id="ai-create-children-btn" class="ai-panel__create-btn" disabled
+                        aria-label="Create the selected child items">
+                    Create Selected (<span id="ai-selected-count">0</span>)
+                </button>
+            </div>
+        </div>
+    }
+</div>

@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Create Task";
+    ViewData["AiEntityType"] = "Task";
+    // No AiChildType — Tasks have no AI-generated children
 }
 
 <style>
@@ -147,6 +149,7 @@
 </div>
 
 <form asp-action="Create" enctype="multipart/form-data">
+    @await Html.PartialAsync("_AiEstimationPanel")
     <div class="task-editor-container">
         <!-- Main Editor -->
         <div class="task-editor-main">

@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Create User Story";
+    ViewData["AiEntityType"] = "UserStory";
+    ViewData["AiChildType"]  = "Task";
 }
 
 <h1>Create User Story</h1>
@@ -11,6 +13,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <form asp-action="Create" enctype="multipart/form-data">
+                    @await Html.PartialAsync("_AiEstimationPanel")
                     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                     <div class="mb-3">
                         <label asp-for="UserStory.FeatureId" class="form-label font-weight-bold">Feature</label>
