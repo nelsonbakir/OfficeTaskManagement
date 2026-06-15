@@ -1,5 +1,7 @@
+using System.Linq;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services;
@@ -433,13 +435,20 @@ namespace OfficeTaskManagement.Data
             //   - The [Column(TypeName = "vector(768)")] attribute tells Npgsql to use pgvector type
             //   - The conversion is overridden by Pgvector EF Core extension when available
             // For design-time tools and SQLite dev: always store as TEXT (JSON float array)
+            var floatArrayComparer = new ValueComparer<float[]>(
+                (c1, c2) => c1 != null && c2 != null ? c1.SequenceEqual(c2) : c1 == c2,
+                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c.ToArray()
+            );
+
             builder.Entity<CodeEmbedding>()
                 .Property(e => e.Embedding)
                 .HasColumnType("TEXT")  // Overridden to vector(768) in migration for PostgreSQL
                 .HasConversion(
                     v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
                     v => System.Text.Json.JsonSerializer.Deserialize<float[]>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? Array.Empty<float>()
-                );
+                )
+                .Metadata.SetValueComparer(floatArrayComparer);
 
             // AgentConversation — expire index for cleanup job
             builder.Entity<AgentConversation>(e =>

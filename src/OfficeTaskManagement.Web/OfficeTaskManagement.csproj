@@ -27,6 +27,8 @@
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
+    <PackageReference Include="NuGet.Protocol" Version="7.6.0" />
     <PackageReference Include="QuestPDF" Version="2026.2.3" />
     <!-- pgvector EF Core integration for Phase 3 RAG -->
     <PackageReference Include="Pgvector" Version="0.3.*" />
