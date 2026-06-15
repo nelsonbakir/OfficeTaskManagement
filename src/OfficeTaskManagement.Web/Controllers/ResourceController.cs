@@ -283,6 +283,7 @@ namespace OfficeTaskManagement.Controllers
 
             ViewBag.ProjectName = model.ProjectName ?? "Project";
             ViewBag.Users = await _context.Users.OrderBy(u => u.FullName ?? u.Email).ToListAsync();
+            ViewBag.Projects = await _context.Projects.OrderBy(p => p.Name).ToListAsync();
             return View(model);
         }
 

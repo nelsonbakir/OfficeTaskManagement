@@ -35,7 +35,7 @@
 
 <div class="row g-4">
     <div class="col-lg-7">
-        <form asp-action="EditRole" asp-route-id="@Model.Id" method="post">
+        <form asp-action="EditRole" asp-route-id="@Model.Id" method="post" id="editForm">
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="IsSystemRole" />

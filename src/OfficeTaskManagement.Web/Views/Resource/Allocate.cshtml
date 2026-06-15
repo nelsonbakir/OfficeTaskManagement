@@ -7,7 +7,18 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-person-lines-fill"></i> Allocate Resource</h2>
     <div>
-        <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-outline-secondary">Back to Project</a>
+        @if (Model.ProjectId > 0)
+        {
+            <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-outline-secondary">Back to Project</a>
+        }
+        else if (!string.IsNullOrEmpty(Model.UserId))
+        {
+            <a asp-controller="Resource" asp-action="Profile" asp-route-id="@Model.UserId" class="btn btn-outline-secondary">Back to Profile</a>
+        }
+        else
+        {
+            <a asp-controller="Resource" asp-action="Index" class="btn btn-outline-secondary">Back to Resources</a>
+        }
     </div>
 </div>
 

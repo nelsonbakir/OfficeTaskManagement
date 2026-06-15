@@ -193,7 +193,7 @@
             </button>
         </div>
 
-        @await Html.PartialAsync("_OtherCostsPartial", new ViewDataDictionary(ViewData) { { "ProjectId", projectId } })
+        @await Html.PartialAsync("_OtherCostsPartial", ViewData)
     </div>
 
 </div>

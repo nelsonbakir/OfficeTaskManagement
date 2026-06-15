@@ -22,7 +22,7 @@
 
 <div class="row g-4">
     <div class="col-lg-7">
-        <form asp-action="CreateRole" method="post" enctype="multipart/form-data">
+        <form asp-action="CreateRole" method="post" enctype="multipart/form-data" id="createForm">
             @Html.AntiForgeryToken()
 
             <div class="card border-0 shadow-sm mb-4">
@@ -126,7 +126,7 @@
                         <div class="d-flex align-items-start gap-3">
                             <input type="checkbox" name="SelectedGroupIds" value="@grp.Id"
                                    class="form-check-input mt-1" @(isChecked ? "checked" : "")
-                                   onclick="event.stopPropagation()" />
+                                   onclick="event.stopPropagation()" form="createForm" />
                             <div class="flex-grow-1">
                                 <div class="fw-semibold small">@grp.Name</div>
                                 @if (!string.IsNullOrEmpty(grp.Description))

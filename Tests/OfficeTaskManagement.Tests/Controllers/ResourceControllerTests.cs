@@ -144,5 +144,30 @@ namespace OfficeTaskManagement.Tests.Controllers
             // Verify TempData does NOT contain the warning
             Assert.False(_controller.TempData.ContainsKey("ResourceWarning"));
         }
+
+        [Fact]
+        public async Task Allocate_PopulatesViewBagProjects_OnValidationFailure()
+        {
+            // Arrange
+            _context.Projects.Add(new Project { Id = 1, Name = "Test Project A" });
+            _context.Projects.Add(new Project { Id = 2, Name = "Test Project B" });
+            await _context.SaveChangesAsync();
+
+            _controller.ModelState.AddModelError("StartDate", "Required");
+
+            var model = new EditProjectAllocationViewModel
+            {
+                UserId = "user1",
+                ProjectId = 1
+            };
+
+            // Act
+            var result = await _controller.Allocate(model);
+
+            // Assert
+            var viewResult = Assert.IsType<ViewResult>(result);
+            var projects = Assert.IsAssignableFrom<System.Collections.IEnumerable>(viewResult.ViewData["Projects"]);
+            Assert.NotNull(projects);
+        }
     }
 }
