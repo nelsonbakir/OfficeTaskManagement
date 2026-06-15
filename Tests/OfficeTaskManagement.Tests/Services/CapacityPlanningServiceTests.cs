@@ -20,19 +20,19 @@ namespace OfficeTaskManagement.Tests.Services
 
         public CapacityPlanningServiceTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-
-            _context = new ApplicationDbContext(options);
+            _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             _mockResourceService = new Mock<IResourceService>();
             _capacityPlanningService = new CapacityPlanningService(_context, _mockResourceService.Object, new MemoryCache(new MemoryCacheOptions()));
         }
 
         public void Dispose()
         {
-            _context.Database.EnsureDeleted();
+            var dbName = _context.Database.GetDbConnection().Database;
             _context.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
         }
 
         [Fact]
@@ -40,6 +40,8 @@ namespace OfficeTaskManagement.Tests.Services
         {
             // Arrange
             var sprintId = 1;
+            _context.Sprints.Add(new Sprint { Id = 1, ProjectId = 0, Name = "Sprint 1", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(14) });
+            _context.Sprints.Add(new Sprint { Id = 2, ProjectId = 0, Name = "Sprint 2", StartDate = DateTime.UtcNow, EndDate = DateTime.UtcNow.AddDays(14) });
             _context.Tasks.Add(new TaskItem { Title = "Task 1", SprintId = sprintId, EstimatedHours = 5, Status = OfficeTaskManagement.Models.Enums.TaskStatus.ToDo });
             _context.Tasks.Add(new TaskItem { Title = "Task 2", SprintId = sprintId, EstimatedHours = 3, Status = OfficeTaskManagement.Models.Enums.TaskStatus.InProgress });
             _context.Tasks.Add(new TaskItem { Title = "Task 3", SprintId = 2, EstimatedHours = 8, Status = OfficeTaskManagement.Models.Enums.TaskStatus.ToDo }); // Different sprint

@@ -25,11 +25,7 @@ namespace OfficeTaskManagement.Tests.Controllers
 
         public ResourceControllerTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-
-            _context = new ApplicationDbContext(options);
+            _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             _mockResourceService = new Mock<IResourceService>();
 
             var store = new Mock<IUserStore<User>>();
@@ -56,8 +52,12 @@ namespace OfficeTaskManagement.Tests.Controllers
 
         public void Dispose()
         {
-            _context.Database.EnsureDeleted();
+            var dbName = _context.Database.GetDbConnection().Database;
             _context.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
         }
 
         [Fact]
@@ -71,6 +71,7 @@ namespace OfficeTaskManagement.Tests.Controllers
             _context.Projects.Add(new Project { Id = projectId, Name = "Test Project" });
             
             var resourceProfile = new ResourceProfile { Id = 1, UserId = userId, DailyCapacityHours = 8 };
+            _context.ResourceProfiles.Add(resourceProfile);
             _mockResourceService.Setup(s => s.GetOrCreateProfileAsync(userId)).ReturnsAsync(resourceProfile);
             
             _mockResourceService.Setup(s => s.IsUserOverAllocatedAsync(userId, It.IsAny<DateTime>(), It.IsAny<DateTime>()))
@@ -117,6 +118,7 @@ namespace OfficeTaskManagement.Tests.Controllers
             _context.Projects.Add(new Project { Id = projectId, Name = "Test Project" });
             
             var resourceProfile = new ResourceProfile { Id = 1, UserId = userId, DailyCapacityHours = 8 };
+            _context.ResourceProfiles.Add(resourceProfile);
             _mockResourceService.Setup(s => s.GetOrCreateProfileAsync(userId)).ReturnsAsync(resourceProfile);
             
             _mockResourceService.Setup(s => s.IsUserOverAllocatedAsync(userId, It.IsAny<DateTime>(), It.IsAny<DateTime>()))

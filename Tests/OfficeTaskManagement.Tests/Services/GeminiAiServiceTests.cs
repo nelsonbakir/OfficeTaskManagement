@@ -26,14 +26,18 @@ namespace OfficeTaskManagement.Tests.Services
         public GeminiAiServiceTests()
         {
             _httpHandlerMock = new Mock<HttpMessageHandler>();
-
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            _db = new ApplicationDbContext(options);
+            _db = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
         }
 
-        public void Dispose() => _db.Dispose();
+        public void Dispose()
+        {
+            var dbName = _db.Database.GetDbConnection().Database;
+            _db.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
+        }
 
         private GeminiAiService CreateService(string? apiKey = "test-key")
         {

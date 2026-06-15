@@ -24,32 +24,41 @@ namespace OfficeTaskManagement.Tests.Controllers
     public class AiEstimationControllerTests : IDisposable
     {
         private readonly ApplicationDbContext _db;
+        private readonly ApplicationDbContext _logDb;
         private readonly Mock<IGeminiAiService> _aiMock;
         private readonly Mock<IWorkflowEngineService> _workflowMock;
         private readonly AiEstimationLogService _logService;
 
         public AiEstimationControllerTests()
         {
-            // InMemory DB — suppress TransactionIgnoredWarning so bulk-create tests work
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options;
-            _db = new ApplicationDbContext(options);
+            _db = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            _logDb = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
 
             _aiMock       = new Mock<IGeminiAiService>();
             _workflowMock = new Mock<IWorkflowEngineService>();
 
-            // Use a separate InMemory DB for the log service (needs ILogger too)
-            var logOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
             _logService = new AiEstimationLogService(
-                new ApplicationDbContext(logOptions),
+                _logDb,
                 NullLogger<AiEstimationLogService>.Instance);
         }
 
-        public void Dispose() => _db.Dispose();
+        public void Dispose()
+        {
+            var dbName1 = _db.Database.GetDbConnection().Database;
+            var dbName2 = _logDb.Database.GetDbConnection().Database;
+
+            _db.Dispose();
+            _logDb.Dispose();
+
+            if (!string.IsNullOrEmpty(dbName1))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName1).GetAwaiter().GetResult();
+            }
+            if (!string.IsNullOrEmpty(dbName2))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName2).GetAwaiter().GetResult();
+            }
+        }
 
         private AiEstimationController CreateController(string userId = "user-1", string tenantId = "tenant-1")
         {

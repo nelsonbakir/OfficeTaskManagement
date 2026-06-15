@@ -18,18 +18,18 @@ namespace OfficeTaskManagement.Tests.Services
 
         public ResourceServiceTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-                .Options;
-
-            _context = new ApplicationDbContext(options);
+            _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             _resourceService = new ResourceService(_context);
         }
 
         public void Dispose()
         {
-            _context.Database.EnsureDeleted();
+            var dbName = _context.Database.GetDbConnection().Database;
             _context.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
         }
 
         [Fact]
@@ -96,6 +96,8 @@ namespace OfficeTaskManagement.Tests.Services
             var endDate = new DateTime(2023, 10, 31);
             
             _context.ResourceProfiles.Add(new ResourceProfile { UserId = userId, DailyCapacityHours = 8 });
+            _context.Projects.Add(new Project { Id = 1, Name = "P1" });
+            _context.Projects.Add(new Project { Id = 2, Name = "P2" });
             
             _context.ProjectResourceAllocations.Add(new ProjectResourceAllocation
             {
@@ -133,6 +135,7 @@ namespace OfficeTaskManagement.Tests.Services
             var endDate = new DateTime(2023, 10, 31);
             
             _context.ResourceProfiles.Add(new ResourceProfile { UserId = userId, DailyCapacityHours = 8 });
+            _context.Projects.Add(new Project { Id = 1, Name = "P1" });
             
             _context.ProjectResourceAllocations.Add(new ProjectResourceAllocation
             {

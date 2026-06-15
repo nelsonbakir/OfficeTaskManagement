@@ -27,15 +27,20 @@ public class WorkflowEngineServiceTests : IDisposable
 
     public WorkflowEngineServiceTests()
     {
-        var opts = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
-        _db   = new ApplicationDbContext(opts);
+        _db   = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
         _gate = new StageGateService(_db);
         _sut  = new WorkflowEngineService(_db, _gate);
     }
 
-    public void Dispose() => _db.Dispose();
+    public void Dispose()
+    {
+        var dbName = _db.Database.GetDbConnection().Database;
+        _db.Dispose();
+        if (!string.IsNullOrEmpty(dbName))
+        {
+            PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+        }
+    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 

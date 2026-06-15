@@ -28,11 +28,7 @@ namespace OfficeTaskManagement.Tests.Services
 
         public BudgetServiceTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-
-            _context          = new ApplicationDbContext(options);
+            _context          = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             _resourceSvcMock  = new Mock<IResourceService>();
 
             // Default: effective hourly rate = BDT 100
@@ -49,8 +45,12 @@ namespace OfficeTaskManagement.Tests.Services
 
         public void Dispose()
         {
-            _context.Database.EnsureDeleted();
+            var dbName = _context.Database.GetDbConnection().Database;
             _context.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
         }
 
         // ── Set Budget ────────────────────────────────────────────────────────

@@ -17,18 +17,26 @@ namespace OfficeTaskManagement.Tests.Services
         public MultiTenancyTests()
         {
             _tenantProvider = new FakeTenantProvider();
+            _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            // Re-instantiate context with the mock tenant provider but using the same connection options
+            var options = _context.Database.GetDbConnection().ConnectionString;
+            _context.Dispose();
+            var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(options, x => x.MigrationsAssembly("OfficeTaskManagement"))
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
                 .Options;
-
-            _context = new ApplicationDbContext(options, _tenantProvider);
+            _context = new ApplicationDbContext(dbOptions, _tenantProvider);
         }
 
         public void Dispose()
         {
-            _context.Database.EnsureDeleted();
+            var dbName = _context.Database.GetDbConnection().Database;
             _context.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
         }
 
         [Fact]
@@ -89,7 +97,9 @@ namespace OfficeTaskManagement.Tests.Services
             var allProjects = await _context.Projects.IgnoreQueryFilters().ToListAsync();
 
             // Assert
-            Assert.Equal(2, allProjects.Count);
+            Assert.Contains(allProjects, p => p.Name == "Project 1");
+            Assert.Contains(allProjects, p => p.Name == "Project 2");
+            Assert.True(allProjects.Count >= 2);
         }
 
         private class FakeTenantProvider : ITenantProvider

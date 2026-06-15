@@ -21,14 +21,19 @@ namespace OfficeTaskManagement.Tests.Services
 
         public CodebaseRetrievalServiceTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            _db = new ApplicationDbContext(options);
+            _db = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             _embeddingMock = new Mock<IGeminiEmbeddingService>();
         }
 
-        public void Dispose() => _db.Dispose();
+        public void Dispose()
+        {
+            var dbName = _db.Database.GetDbConnection().Database;
+            _db.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
+        }
 
         private CodebaseRetrievalService CreateService()
             => new(_db, _embeddingMock.Object, NullLogger<CodebaseRetrievalService>.Instance);
@@ -141,7 +146,7 @@ namespace MyApp
                 ChunkType = "method",
                 StartLine = 42,
                 ChunkText = "public async Task<bool> LoginAsync(string email, string password) { ... }",
-                Embedding = Array.Empty<float>(), // No real embedding in test
+                Embedding = new float[768], // Seed a 768-dim dummy vector for PostgreSQL pgvector compatibility
                 FileHash  = "abc123"
             });
             await _db.SaveChangesAsync();

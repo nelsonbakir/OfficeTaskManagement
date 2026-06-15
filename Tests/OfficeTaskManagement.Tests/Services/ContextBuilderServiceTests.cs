@@ -20,13 +20,18 @@ namespace OfficeTaskManagement.Tests.Services
 
         public ContextBuilderServiceTests()
         {
-            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            _db = new ApplicationDbContext(options);
+            _db = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
         }
 
-        public void Dispose() => _db.Dispose();
+        public void Dispose()
+        {
+            var dbName = _db.Database.GetDbConnection().Database;
+            _db.Dispose();
+            if (!string.IsNullOrEmpty(dbName))
+            {
+                PostgresTestDb.DropDatabaseAsync(dbName).GetAwaiter().GetResult();
+            }
+        }
 
         private ContextBuilderService CreateService()
         {
@@ -40,6 +45,7 @@ namespace OfficeTaskManagement.Tests.Services
         {
             // Arrange — project with 4 epics
             var projectId = 1;
+            _db.Projects.Add(new Project { Id = projectId, Name = "Test Project" });
             _db.Epics.AddRange(
                 new Epic { ProjectId = projectId, Name = "Login" },
                 new Epic { ProjectId = projectId, Name = "Payroll" },
