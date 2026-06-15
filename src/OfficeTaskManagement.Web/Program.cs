@@ -62,6 +62,7 @@ else
 // Resource Management Services
 builder.Services.AddScoped<IResourceService, ResourceService>();
 builder.Services.AddScoped<ICapacityPlanningService, CapacityPlanningService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
 
 // Workflow Engine (RACI task lifecycle)
 builder.Services.AddScoped<StageGateService>();

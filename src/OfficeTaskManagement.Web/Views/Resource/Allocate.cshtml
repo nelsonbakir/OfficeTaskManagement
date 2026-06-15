@@ -77,6 +77,13 @@
                         <span asp-validation-for="AllocationPercentage" class="text-danger"></span>
                     </div>
 
+                    <!-- Budget Advisory Panel -->
+                    <div id="budgetAdvisoryPanel" class="budget-advisory-panel" role="alert">
+                        <i class="bi bi-wallet2" id="budgetAdvisoryIcon"></i>
+                        <span id="budgetAdvisoryMsg"></span>
+                    </div>
+                    <link rel="stylesheet" href="~/css/budget.css" />
+
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <label asp-for="StartDate" class="form-label"></label>
@@ -129,10 +136,16 @@
             range.on('input', function() {
                 valDisp.text($(this).val() + '%');
                 checkAvailability();
+                checkBudgetAdvisory();
             });
 
             $('#UserId, #StartDate, #EndDate').on('change', function() {
                 checkAvailability();
+                checkBudgetAdvisory();
+            });
+
+            $('#ProjectId').on('change', function() {
+                checkBudgetAdvisory();
             });
 
             function checkAvailability() {
@@ -163,6 +176,50 @@
                 } else {
                      $('#availabilityCheckResult').hide();
                 }
+            }
+
+            function checkBudgetAdvisory() {
+                var projId = $('#ProjectId').val() || @(Model.ProjectId > 0 ? Model.ProjectId.ToString() : "0");
+                var uId    = $('#UserId').val();
+                var pct    = parseInt($('#pctRange').val()) || 0;
+                var start  = $('#StartDate').val();
+                var end    = $('#EndDate').val();
+                var panel  = $('#budgetAdvisoryPanel');
+
+                if (!projId || projId === '0' || !uId || !start) {
+                    panel.removeClass('visible advisory-info advisory-warning advisory-critical');
+                    return;
+                }
+
+                // Rough cost estimate: pct/100 × dailyHours(8) × 22days × months × hourlyRate(unknown here, server resolves)
+                // We pass a signal additionalCost=0 initially; server returns current state.
+                // For a richer estimate the server could accept hours, but for UI advisory
+                // we let the server compute based on the ResourceProfile's rate.
+                var months = 1;
+                if (end && start) {
+                    var ms = new Date(end) - new Date(start);
+                    months = Math.max(1, Math.round(ms / (1000*60*60*24*30)));
+                }
+
+                $.get('/api/budget/' + projId + '/advisory', { additionalCost: 0 })
+                 .done(function(data) {
+                     if (!data.hasbudget) { panel.removeClass('visible advisory-info advisory-warning advisory-critical'); return; }
+                     var msg = data.message;
+                     panel.removeClass('advisory-info advisory-warning advisory-critical');
+                     if (data.level === 3) panel.addClass('advisory-critical');
+                     else if (data.level === 2) panel.addClass('advisory-warning');
+                     else panel.addClass('advisory-info');
+                     $('#budgetAdvisoryMsg').text(msg);
+                     panel.addClass('visible');
+                 })
+                 .fail(function() {
+                     panel.removeClass('visible advisory-info advisory-warning advisory-critical');
+                 });
+            }
+
+            // Run on load if project is pre-set
+            @if (Model.ProjectId > 0) {
+                <text>checkBudgetAdvisory();</text>
             }
         });
     </script>

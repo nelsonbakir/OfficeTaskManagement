@@ -1,0 +1,123 @@
+@using OfficeTaskManagement.Models
+@using OfficeTaskManagement.Models.Enums
+@{
+    var projectId = (int)(ViewData["ProjectId"] ?? 0);
+}
+
+@{
+    // Load costs from the DB via ViewBag (populated by parent view via partial data)
+    // The table renders server-side; JS handles add/edit/delete via Budget API.
+}
+
+<table class="cost-table" id="otherCostsTable">
+    <thead>
+        <tr>
+            <th>Description</th>
+            <th>Category</th>
+            <th>Frequency</th>
+            <th>Estimated (BDT)</th>
+            <th>Actual (BDT)</th>
+            <th>Planned Date</th>
+            <th>Contingency</th>
+            <th class="text-right">Actions</th>
+        </tr>
+    </thead>
+    <tbody id="otherCostsTbody">
+        <!-- Rows loaded dynamically via fetchOtherCosts() on page load -->
+    </tbody>
+    <tfoot>
+        <tr class="cost-table-totals">
+            <td colspan="3"><strong>Total</strong></td>
+            <td id="totalEstimated">BDT —</td>
+            <td id="totalActual">BDT —</td>
+            <td colspan="3"></td>
+        </tr>
+    </tfoot>
+</table>
+
+<div id="noCostsMessage" class="no-costs-msg" style="display:none">
+    <i class="bi bi-receipt"></i>
+    <p>No non-labour cost items have been added yet.</p>
+    <p>Click <strong>Add Cost Item</strong> to track expenses like hardware, licenses, or travel.</p>
+</div>
+
+<script>
+const COST_CATEGORY_LABELS = {
+    1:'Hardware', 2:'Software', 3:'License', 4:'Travel',
+    5:'Training', 6:'Subcontractor', 7:'Facilities',
+    8:'Marketing', 9:'Legal', 10:'Miscellaneous'
+};
+const COST_FREQ_LABELS = { 1:'One-Time', 2:'Monthly', 3:'Quarterly', 4:'Annual' };
+
+async function fetchOtherCosts() {
+    const res = await fetch(`/api/budget/@projectId/othercosts`);
+    if (!res.ok) return;
+    const costs = await res.json();
+
+    const tbody  = document.getElementById('otherCostsTbody');
+    const noMsg  = document.getElementById('noCostsMessage');
+    const table  = document.getElementById('otherCostsTable');
+    tbody.innerHTML = '';
+
+    if (!costs.length) {
+        table.style.display = 'none';
+        noMsg.style.display  = 'block';
+        document.getElementById('totalEstimated').textContent = 'BDT —';
+        document.getElementById('totalActual').textContent    = 'BDT —';
+        return;
+    }
+
+    table.style.display = '';
+    noMsg.style.display  = 'none';
+
+    let totalEst = 0, totalAct = 0;
+
+    costs.forEach(c => {
+        totalEst += c.estimatedAmount;
+        if (c.actualAmount != null) totalAct += c.actualAmount;
+
+        const pd = c.plannedDate ? new Date(c.plannedDate).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+        const contingBadge = c.isContingency ? '<span class="contingency-badge">Reserve</span>' : '—';
+
+        const tr = document.createElement('tr');
+        tr.className = c.isContingency ? 'row-contingency' : '';
+        tr.innerHTML = `
+            <td class="cost-desc">${escHtml(c.description)}${c.notes ? `<br><small class="cost-notes">${escHtml(c.notes)}</small>` : ''}</td>
+            <td><span class="category-tag cat-${c.category}">${COST_CATEGORY_LABELS[c.category] ?? c.category}</span></td>
+            <td>${COST_FREQ_LABELS[c.frequency] ?? c.frequency}</td>
+            <td class="text-right cost-amount">BDT ${fmtNum(c.estimatedAmount)}</td>
+            <td class="text-right cost-amount">${c.actualAmount != null ? 'BDT ' + fmtNum(c.actualAmount) : '<span class="not-incurred">Not incurred</span>'}</td>
+            <td>${pd}</td>
+            <td class="text-center">${contingBadge}</td>
+            <td class="text-right">
+                <button class="btn-cost-edit" onclick='openEditCostModal(
+                    ${c.id},
+                    ${JSON.stringify(c.description)},
+                    ${c.category},${c.frequency},${c.estimatedAmount},
+                    ${c.actualAmount ?? 'null'},
+                    ${c.plannedDate ? JSON.stringify(c.plannedDate.substring(0,10)) : 'null'},
+                    ${c.actualDate  ? JSON.stringify(c.actualDate.substring(0,10))  : 'null'},
+                    ${JSON.stringify(c.notes ?? "")},
+                    ${c.isContingency}
+                )'>
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn-cost-delete" onclick="deleteCostItem(${c.id})">
+                    <i class="bi bi-trash3"></i>
+                </button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('totalEstimated').textContent = `BDT ${fmtNum(totalEst)}`;
+    document.getElementById('totalActual').textContent    = totalAct > 0 ? `BDT ${fmtNum(totalAct)}` : '—';
+}
+
+function fmtNum(n) { return Number(n).toLocaleString('en-BD', {minimumFractionDigits:2,maximumFractionDigits:2}); }
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('DOMContentLoaded', fetchOtherCosts);
+</script>

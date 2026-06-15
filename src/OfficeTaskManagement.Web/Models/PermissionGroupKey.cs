@@ -54,6 +54,10 @@ namespace OfficeTaskManagement.Models
         // ── Capacity ──────────────────────────────────────────────────────────
         public const string CapacityView = "capacity.view";
 
+        // ── Budget ──────────────────────────────────────────────────
+        public const string BudgetView   = "budget.view";
+        public const string BudgetManage = "budget.manage";
+
         // ── System / Holidays ─────────────────────────────────────────────────
         public const string HolidaysManage = "holidays.manage";
 
@@ -81,6 +85,7 @@ namespace OfficeTaskManagement.Models
             ResourcesView, ResourcesManage,
             SalaryView, SalaryManage,
             CapacityView,
+            BudgetView, BudgetManage,
             HolidaysManage,
             EpicsManage, FeaturesManage, SprintsManage,
             TasksManage,

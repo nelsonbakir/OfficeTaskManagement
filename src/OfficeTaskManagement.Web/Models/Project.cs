@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using OfficeTaskManagement.Models.Enums;
 
 namespace OfficeTaskManagement.Models
@@ -53,6 +54,35 @@ namespace OfficeTaskManagement.Models
 
         // ── Resource Management ──────────────────────────────────────────────
         public ICollection<ProjectResourceAllocation> ResourceAllocations { get; set; } = new List<ProjectResourceAllocation>();
+        // ────────────────────────────────────────────────────────────────────
+
+        // ── Budget Management (PMBOK Cost Management, Ch. 7) ─────────────────
+        /// <summary>How this project's budget was established (top-down, bottom-up, or not yet set).</summary>
+        public BudgetMode BudgetMode { get; set; } = BudgetMode.NotSet;
+
+        /// <summary>
+        /// The formally approved cost baseline in BDT.
+        /// Null when BudgetMode is NotSet or DerivedFromWork.
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? ApprovedBudget { get; set; }
+
+        /// <summary>
+        /// Contingency reserve in BDT (PMBOK 7.3 — known risks buffer).
+        /// Included in the total budget ceiling but excluded from the cost baseline.
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? ContingencyReserve { get; set; }
+
+        /// <summary>When the budget was formally set or last revised.</summary>
+        public DateTime? BudgetSetAt { get; set; }
+
+        /// <summary>Who set or last revised the budget.</summary>
+        public string? BudgetSetById { get; set; }
+        public User? BudgetSetBy { get; set; }
+
+        /// <summary>Non-labour cost line items (hardware, licenses, travel, etc.).</summary>
+        public ICollection<ProjectOtherCost> OtherCosts { get; set; } = new List<ProjectOtherCost>();
         // ────────────────────────────────────────────────────────────────────
     }
 }

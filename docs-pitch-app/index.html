@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexGov — Next-Gen Project Governance & Resource Intelligence</title>
+    <meta name="description" content="An interactive showcase proving how the OfficeTaskManagement PM system solves organization capacity leaks, budget slips, and compliance bottlenecks using an effortless, C# workflow engine.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navbar -->
+        <header class="navbar">
+            <a href="#" class="navbar-brand">
+                <div class="logo-icon">A</div>
+                <div class="logo-text">ApexGov</div>
+            </a>
+            
+            <nav class="nav-tabs" role="tablist">
+                <button class="tab-btn active" data-tab="pitch" role="tab" aria-selected="true">Executive Pitch</button>
+                <button class="tab-btn" data-tab="simulator" role="tab" aria-selected="false">Dynamic Sandbox</button>
+                <button class="tab-btn" data-tab="blueprint" role="tab" aria-selected="false">Codebase Blueprint</button>
+            </nav>
+            
+            <div class="navbar-actions">
+                <button class="theme-toggle" id="btn-theme-toggle" title="Toggle Theme" aria-label="Toggle Theme">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                    </svg>
+                </button>
+                <a href="#simulator" class="btn btn-primary btn-small" id="nav-cta-btn">Try Sandbox</a>
+            </div>
+        </header>
+
+        <!-- ===================================================================
+             TAB 1: EXECUTIVE PITCH (HOME)
+             =================================================================== -->
+        <main id="tab-pitch" class="tab-content active" role="tabpanel">
+            <section class="hero-section">
+                <span class="hero-tagline">The Effortless PM Revolution</span>
+                <h1 class="hero-title">High-Governance Project Intelligence</h1>
+                <p class="hero-desc">
+                    Eliminate resource leakage, automate pipeline compliance, and secure historical cost integrity. 
+                    ApexGov combines structured project governance with a zero-overhead workflow engine designed for modern enterprises.
+                </p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" id="hero-btn-sandbox">Open Interactive Sandbox</button>
+                    <button class="btn btn-secondary" id="hero-btn-blueprint">Browse Clean Codebase</button>
+                </div>
+            </section>
+
+            <!-- Pain Points / Solutions Toggler -->
+            <section class="pain-toggle-container">
+                <div class="pain-header">
+                    <div>
+                        <h2>Corporate Blindspots vs. ApexGov Guardrails</h2>
+                        <p>Toggle between legacy project management pitfalls and our proactive resolutions.</p>
+                    </div>
+                    <div class="pain-switcher">
+                        <button class="pain-switch-btn active" id="btn-switch-pain">Traditional Pain</button>
+                        <button class="pain-switch-btn" id="btn-switch-solution">Our Solution</button>
+                    </div>
+                </div>
+
+                <div class="pain-grid" id="pain-cards-grid">
+                    <!-- Cards will be populated dynamically by app.js -->
+                </div>
+            </section>
+
+            <!-- Macro to Micro Feature Architecture -->
+            <section>
+                <div class="section-header">
+                    <h2>Engineered for Holistic Visibility</h2>
+                    <p>How our technical features scale from high-level portfolio oversight down to micro-level developer queues.</p>
+                </div>
+
+                <div class="architecture-grid">
+                    <!-- Left Column: Summary Box -->
+                    <div class="feature-summary-box">
+                        <div>
+                            <span class="level-indicator" id="arch-level-indicator">Macro Level: Strategic</span>
+                            <h3 id="arch-level-title">Strategic Resource Optimization</h3>
+                            <ul class="feature-benefits-list" id="arch-benefits-list">
+                                <!-- Populated dynamically by app.js -->
+                            </ul>
+                        </div>
+                        <p id="arch-level-desc" style="font-size: 0.95rem; color: var(--text-secondary);">
+                            Empowers decision makers to balance portfolios, allocate capital efficiently, and track financial variance in real time.
+                        </p>
+                    </div>
+
+                    <!-- Right Column: Interactive Details List -->
+                    <div class="feature-details-column">
+                        <div class="detail-card active" data-level="macro">
+                            <div class="detail-card-header">
+                                <span class="detail-card-title">Macro-Level Portfolio Oversight</span>
+                                <span class="detail-tag">Strategic</span>
+                            </div>
+                            <p class="detail-card-desc">Unified capacity planning, cost tracking, and safety envelope calculations that shield margins.</p>
+                        </div>
+                        <div class="detail-card secondary" data-level="meso">
+                            <div class="detail-card-header">
+                                <span class="detail-card-title">Meso-Level Governance Pipelines</span>
+                                <span class="detail-tag">Governance</span>
+                            </div>
+                            <p class="detail-card-desc">Automated Stage-Gate inference, audit logging, and Kanban WIP limit rules that prevent bottleneck delays.</p>
+                        </div>
+                        <div class="detail-card" data-level="micro">
+                            <div class="detail-card-header">
+                                <span class="detail-card-title">Micro-Level Development Flow</span>
+                                <span class="detail-tag">Execution</span>
+                            </div>
+                            <p class="detail-card-desc">Automated Lag Scheduling background service, RACI-based notifications, and localized calendar logic.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ===================================================================
+             TAB 2: DYNAMIC SIMULATOR (SANDBOX)
+             =================================================================== -->
+        <main id="tab-simulator" class="tab-content" role="tabpanel">
+            <div class="section-header">
+                <h2>Interactive Sandbox</h2>
+                <p>Run live simulations to see how the system operates under load, validates stages, and returns concrete ROI.</p>
+            </div>
+
+            <div class="simulator-container">
+                <!-- Sandbox Nav -->
+                <nav class="sim-nav">
+                    <button class="sim-nav-btn active" data-sim="roi">ROI Calculator</button>
+                    <button class="sim-nav-btn" data-sim="heatmap">Capacity Heatmap Grid</button>
+                    <button class="sim-nav-btn" data-sim="gates">Stage Gate Classifier</button>
+                </nav>
+
+                <!-- Sandbox Panel A: ROI Calculator -->
+                <div class="sim-panel active" id="sim-panel-roi">
+                    <div class="sim-control-panel">
+                        <h3>Strategic Savings Modeler</h3>
+                        <p>Adjust variables to see how automated governance and over-allocation prevention impact organizational margins.</p>
+                        
+                        <div class="slider-group">
+                            <div class="slider-label-row">
+                                <span>Team Size (Developers)</span>
+                                <span class="slider-val" id="roi-team-size-val">50</span>
+                            </div>
+                            <input type="range" id="roi-team-size" min="10" max="250" value="50" step="5">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-label-row">
+                                <span>Average Annual Salary</span>
+                                <span class="slider-val" id="roi-salary-val">$80,000</span>
+                            </div>
+                            <input type="range" id="roi-salary" min="40000" max="180000" value="80000" step="5000">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-label-row">
+                                <span>Estimated Burnout/Over-allocation Leakage</span>
+                                <span class="slider-val" id="roi-leakage-val">10%</span>
+                            </div>
+                            <input type="range" id="roi-leakage" min="5" max="30" value="10" step="1">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-label-row">
+                                <span>Yearly Project Bottleneck Delays</span>
+                                <span class="slider-val" id="roi-delays-val">3 Weeks</span>
+                            </div>
+                            <input type="range" id="roi-delays" min="1" max="8" value="3" step="1">
+                        </div>
+                    </div>
+                    <div class="sim-result-panel">
+                        <div>
+                            <h4 style="margin-bottom:1rem;color:var(--color-primary)">Annual Efficiency Gains</h4>
+                            <div class="roi-metrics-grid">
+                                <div class="roi-metric-box">
+                                    <div class="roi-metric-val" id="metric-hours-saved">3,200 hrs</div>
+                                    <div class="roi-metric-label">Productive Hours Recovered</div>
+                                </div>
+                                <div class="roi-metric-box">
+                                    <div class="roi-metric-val" id="metric-cost-accuracy">85%</div>
+                                    <div class="roi-metric-label">Estimation Precision (EAC vs PV)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="savings-total-box">
+                            <div class="savings-title">Estimated Yearly Organizational ROI</div>
+                            <div class="savings-val" id="metric-total-savings">$320,000</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sandbox Panel B: Capacity Heatmap Simulator -->
+                <div class="sim-panel" id="sim-panel-heatmap">
+                    <div class="sim-control-panel" style="grid-column: span 2;">
+                        <h3>PMP Total Load & Weekend Capacity Simulator</h3>
+                        <p>
+                            Demonstrates how the capacity planning engine calculates resource load. 
+                            It maps Bangladesh weekends (Friday/Saturday) and leave blocks to 0 capacity, 
+                            and applies the PMP formula <code>Max(StrategicAllocation, OperationalTaskDemand)</code> 
+                            per project to prevent double-counting.
+                        </p>
+                        
+                        <div class="heatmap-grid-container">
+                            <table class="heatmap-table">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Sun</th>
+                                        <th>Mon</th>
+                                        <th>Tue</th>
+                                        <th>Wed</th>
+                                        <th>Thu</th>
+                                        <th class="weekend-cell">Fri</th>
+                                        <th class="weekend-cell">Sat</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="heatmap-tbody">
+                                    <!-- Rendered dynamically by heatmap-simulator.js -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="heatmap-config-row">
+                            <button class="btn btn-primary btn-small" id="btn-toggle-leave">Approve Tuesday Leave</button>
+                            <button class="btn btn-secondary btn-small" id="btn-add-alloc">Increase Sunday Allocation</button>
+                            <button class="btn btn-secondary btn-small" id="btn-reset-heat" style="margin-left: auto;">Reset Grid</button>
+                        </div>
+                        
+                        <div class="heat-legend">
+                            <div class="legend-item"><div class="legend-dot green"></div> Optimal (<= 85% load)</div>
+                            <div class="legend-item"><div class="legend-dot yellow"></div> High Demand (86% - 100% load)</div>
+                            <div class="legend-item"><div class="legend-dot red"></div> Overallocated (> 100% load)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sandbox Panel C: Stage Gate Inference Tester -->
+                <div class="sim-panel" id="sim-panel-gates">
+                    <div class="sim-control-panel">
+                        <h3>DoD Inference Sandbox</h3>
+                        <p>Type a custom stage name below to test the automatic heuristics parser from the workflow engine. PMs never have to configure gates manually.</p>
+                        
+                        <div class="gate-input-group">
+                            <label for="gate-stage-input" style="font-size:0.9rem; font-weight:600;">Workflow Stage Name</label>
+                            <input type="text" id="gate-stage-input" class="gate-input" value="Code Review" placeholder="e.g. UAT Testing, Database Design, Deploy to Prod">
+                            
+                            <div class="presets-container">
+                                <span class="preset-chip" data-value="Sprint Planning Kickoff">Kickoff Meeting</span>
+                                <span class="preset-chip" data-value="Database Migration Setup">DB Migration</span>
+                                <span class="preset-chip" data-value="QA Integration Testing">QA Test Run</span>
+                                <span class="preset-chip" data-value="Peer Code Audit">Peer Review</span>
+                                <span class="preset-chip" data-value="Write Developer Docs">Update Docs</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sim-result-panel">
+                        <div>
+                            <div class="gate-status-header">
+                                <h4 style="color:var(--text-primary);">Inferred DoD Gate</h4>
+                                <span class="gate-badge" id="gate-badge-el">None</span>
+                            </div>
+                            <div class="gate-status-card">
+                                <p id="gate-desc-el" style="font-size:0.95rem; color:var(--text-secondary);">
+                                    Gate rules will be calculated instantly...
+                                </p>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="checklist-title">Enforced DoD checklist for promotion</div>
+                            <ul class="checklist-items" id="gate-checklist-el">
+                                <!-- Populated dynamically by gate-simulator.js -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ===================================================================
+             TAB 3: ARCHITECTURAL BLUEPRINT (CODE VIEW)
+             =================================================================== -->
+        <main id="tab-blueprint" class="tab-content" role="tabpanel">
+            <div class="section-header">
+                <h2>Clean Codebase, Elegant Architecture</h2>
+                <p>Verify the technical details. Read clean C# snippets from the core backend and review their strategic business impacts.</p>
+            </div>
+
+            <div class="code-layout">
+                <!-- Sidebar Code Menu -->
+                <nav class="code-menu" aria-label="Code Snippet Menu">
+                    <button class="code-menu-btn active" data-target="resource">Compliance Weekend Matrix</button>
+                    <button class="code-menu-btn" data-target="capacity">Safety Utilization Formula</button>
+                    <button class="code-menu-btn" data-target="stagegate">Governance Inference</button>
+                    <button class="code-menu-btn" data-target="lagschedule">Lag Scheduling Background Service</button>
+                </nav>
+
+                <!-- Viewer Code Panel -->
+                <div class="code-viewer-panel">
+                    <div class="code-viewer-header">
+                        <span class="code-file-name" id="code-file-name-el">ResourceService.cs</span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">C# Language</span>
+                    </div>
+                    <div class="code-description-box" id="code-desc-el">
+                        <!-- Populated by code-viewer.js -->
+                    </div>
+                    <pre class="code-body" id="code-body-el">
+                        <!-- Populated by code-viewer.js -->
+                    </pre>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer style="margin-top:5rem; padding:2rem 0; border-top:1px solid var(--border-color); text-align:center; color:var(--text-muted); font-size:0.9rem;">
+            <p>© 2026 ApexGov Showcase — Powered by ASP.NET Core & Gemini AI. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

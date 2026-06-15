@@ -1,0 +1,444 @@
+@model OfficeTaskManagement.Services.ProjectBudgetSummary
+@using OfficeTaskManagement.Models.Enums
+@using OfficeTaskManagement.Services
+
+@{
+    ViewData["Title"] = $"Budget — {ViewBag.ProjectName}";
+    var projectId = (int)ViewBag.ProjectId;
+
+    string healthBadge = Model.HealthStatus switch {
+        BudgetHealthStatus.OnTrack  => "badge-on-track",
+        BudgetHealthStatus.AtRisk   => "badge-at-risk",
+        BudgetHealthStatus.Exceeded => "badge-exceeded",
+        _                           => "badge-not-set"
+    };
+    string healthLabel = Model.HealthStatus switch {
+        BudgetHealthStatus.OnTrack  => "On Track",
+        BudgetHealthStatus.AtRisk   => "At Risk",
+        BudgetHealthStatus.Exceeded => "Over Budget",
+        _                           => "Not Set"
+    };
+}
+
+<link rel="stylesheet" href="~/css/budget.css" asp-append-version="true" />
+
+<div class="budget-page">
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="budget-header">
+        <div class="budget-header-left">
+            <a asp-action="Details" asp-route-id="@projectId" class="back-link">
+                <i class="bi bi-arrow-left"></i> Back to Project
+            </a>
+            <h1 class="budget-title">
+                <i class="bi bi-wallet2"></i>
+                Budget & Cost Forecast
+            </h1>
+            <p class="budget-subtitle">@Model.ProjectName</p>
+        </div>
+        <div class="budget-header-right">
+            <span class="health-badge @healthBadge">
+                <i class="bi bi-circle-fill"></i> @healthLabel
+            </span>
+        </div>
+    </div>
+
+    <!-- ── Budget Mode Selector ─────────────────────────────────────────────── -->
+    <div class="budget-card">
+        <div class="budget-card-header">
+            <i class="bi bi-sliders2"></i>
+            <h2>Budget Mode</h2>
+            @if (Model.BudgetSetAt.HasValue)
+            {
+                <span class="set-by-info">
+                    Last updated @Model.BudgetSetAt.Value.ToString("dd MMM yyyy")
+                    @if (Model.BudgetSetByName != null) { <span>by @Model.BudgetSetByName</span> }
+                </span>
+            }
+        </div>
+        <div class="budget-mode-selector" id="budgetModeSelector">
+            <div class="mode-option @(Model.BudgetMode == BudgetMode.NotSet ? "mode-active" : "")" data-mode="0">
+                <div class="mode-icon"><i class="bi bi-dash-circle"></i></div>
+                <div class="mode-label">Not Set</div>
+                <div class="mode-desc">No budget defined yet</div>
+            </div>
+            <div class="mode-option @(Model.BudgetMode == BudgetMode.PreApproved ? "mode-active" : "")" data-mode="1">
+                <div class="mode-icon"><i class="bi bi-shield-check"></i></div>
+                <div class="mode-label">Pre-Approved</div>
+                <div class="mode-desc">Top-down budget set upfront</div>
+            </div>
+            <div class="mode-option @(Model.BudgetMode == BudgetMode.DerivedFromWork ? "mode-active" : "")" data-mode="2">
+                <div class="mode-icon"><i class="bi bi-calculator"></i></div>
+                <div class="mode-label">Derived from Work</div>
+                <div class="mode-desc">Live forecast from task estimates</div>
+            </div>
+            <div class="mode-option @(Model.BudgetMode == BudgetMode.Hybrid ? "mode-active" : "")" data-mode="3">
+                <div class="mode-icon"><i class="bi bi-bar-chart-steps"></i></div>
+                <div class="mode-label">Hybrid</div>
+                <div class="mode-desc">Approved ceiling + live EVM tracking</div>
+            </div>
+        </div>
+
+        <!-- Budget Amount Form (shown when Pre-Approved or Hybrid) -->
+        <div id="budgetAmountForm" class="budget-amount-form" style="display:@(Model.BudgetMode == BudgetMode.PreApproved || Model.BudgetMode == BudgetMode.Hybrid ? "block" : "none")">
+            <div class="amount-row">
+                <div class="amount-group">
+                    <label for="approvedBudget">Approved Budget (BDT)</label>
+                    <input type="number" id="approvedBudget" class="amount-input"
+                           value="@(Model.ApprovedBudget?.ToString("F2") ?? "")"
+                           placeholder="0.00" min="0" step="0.01" />
+                </div>
+                <div class="amount-group">
+                    <label for="contingencyReserve">Contingency Reserve (BDT)</label>
+                    <input type="number" id="contingencyReserve" class="amount-input"
+                           value="@(Model.ContingencyReserve?.ToString("F2") ?? "")"
+                           placeholder="0.00" min="0" step="0.01" />
+                    <small class="amount-hint">PMBOK 7.3 — excluded from cost baseline</small>
+                </div>
+                <div class="amount-group amount-action">
+                    <button id="saveBudgetBtn" class="btn-budget-save" onclick="saveBudget(@projectId)">
+                        <i class="bi bi-floppy"></i> Save Budget
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Cost Breakdown Cards ──────────────────────────────────────────────── -->
+    <div class="cost-cards-grid">
+
+        <!-- Approved Budget -->
+        <div class="cost-card cost-card-approved">
+            <div class="cost-card-icon"><i class="bi bi-shield-check"></i></div>
+            <div class="cost-card-label">Approved Budget</div>
+            <div class="cost-card-value">
+                @(Model.ApprovedBudget.HasValue ? $"BDT {Model.ApprovedBudget.Value:N0}" : "—")
+            </div>
+            @if (Model.ContingencyReserve.HasValue && Model.ContingencyReserve > 0)
+            {
+                <div class="cost-card-sub">+ BDT @Model.ContingencyReserve.Value.ToString("N0") contingency</div>
+            }
+        </div>
+
+        <!-- Labour Cost (Allocation-based PV) -->
+        <div class="cost-card cost-card-labour">
+            <div class="cost-card-icon"><i class="bi bi-people"></i></div>
+            <div class="cost-card-label">Labour — Planned Value (PV)</div>
+            <div class="cost-card-value">BDT @Model.LaborCostAllocated.ToString("N0")</div>
+            <div class="cost-card-sub">From resource allocations</div>
+        </div>
+
+        <!-- Labour Cost (Task-estimate EAC) -->
+        <div class="cost-card cost-card-task">
+            <div class="cost-card-icon"><i class="bi bi-list-task"></i></div>
+            <div class="cost-card-label">Labour — Task Estimate (EAC)</div>
+            <div class="cost-card-value">BDT @Model.LaborCostEstimated.ToString("N0")</div>
+            <div class="cost-card-sub">From PERT task hours × rates</div>
+        </div>
+
+        <!-- Other Costs -->
+        <div class="cost-card cost-card-other">
+            <div class="cost-card-icon"><i class="bi bi-receipt"></i></div>
+            <div class="cost-card-label">Other Costs (Estimated)</div>
+            <div class="cost-card-value">BDT @Model.OtherCostEstimated.ToString("N0")</div>
+            <div class="cost-card-sub">@Model.OtherCostLineItemCount line item(s)</div>
+        </div>
+
+        <!-- Total Estimated -->
+        <div class="cost-card cost-card-total @healthBadge-card">
+            <div class="cost-card-icon"><i class="bi bi-calculator"></i></div>
+            <div class="cost-card-label">Total Estimated Cost</div>
+            <div class="cost-card-value">BDT @Model.TotalEstimatedCost.ToString("N0")</div>
+            @if (Model.BudgetVariance.HasValue)
+            {
+                var sign = Model.BudgetVariance >= 0 ? "+" : "";
+                var varClass = Model.BudgetVariance >= 0 ? "variance-positive" : "variance-negative";
+                <div class="cost-card-sub @varClass">
+                    Variance: @sign BDT @Model.BudgetVariance.Value.ToString("N0")
+                </div>
+            }
+        </div>
+
+        <!-- Budget Utilisation -->
+        @if (Model.BudgetUtilizationPercent.HasValue)
+        {
+            <div class="cost-card cost-card-util">
+                <div class="cost-card-icon"><i class="bi bi-speedometer2"></i></div>
+                <div class="cost-card-label">Budget Utilisation</div>
+                <div class="cost-card-value">@Model.BudgetUtilizationPercent.Value.ToString("N1")%</div>
+                <div class="utilisation-bar">
+                    <div class="utilisation-fill @healthBadge"
+                         style="width: @(Math.Min(Model.BudgetUtilizationPercent.Value, 100))%"></div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- ── Health Advisory ────────────────────────────────────────────────────── -->
+    @if (!string.IsNullOrEmpty(Model.HealthReason))
+    {
+        <div class="health-advisory advisory-@Model.HealthStatus.ToString().ToLower()">
+            <i class="bi bi-info-circle-fill"></i>
+            @Model.HealthReason
+        </div>
+    }
+
+    <!-- ── Other Costs Table ──────────────────────────────────────────────────── -->
+    <div class="budget-card">
+        <div class="budget-card-header">
+            <i class="bi bi-receipt-cutoff"></i>
+            <h2>Non-Labour Cost Line Items</h2>
+            <button class="btn-add-cost" onclick="openAddCostModal()">
+                <i class="bi bi-plus-circle"></i> Add Cost Item
+            </button>
+        </div>
+
+        @await Html.PartialAsync("_OtherCostsPartial", new ViewDataDictionary(ViewData) { { "ProjectId", projectId } })
+    </div>
+
+</div>
+
+<!-- ── Add / Edit Cost Modal ────────────────────────────────────────────────── -->
+<div id="costModal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3 id="costModalTitle">Add Cost Item</h3>
+            <button class="modal-close" onclick="closeCostModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Description *</label>
+                    <input type="text" id="cost-description" class="form-input" maxlength="200" placeholder="e.g. AWS server license" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="cost-category" class="form-input">
+                        <option value="1">Hardware</option>
+                        <option value="2">Software</option>
+                        <option value="3">License</option>
+                        <option value="4">Travel</option>
+                        <option value="5">Training</option>
+                        <option value="6">Subcontractor</option>
+                        <option value="7">Facilities</option>
+                        <option value="8">Marketing</option>
+                        <option value="9">Legal</option>
+                        <option value="10" selected>Miscellaneous</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="cost-frequency" class="form-input">
+                        <option value="1" selected>One-Time</option>
+                        <option value="2">Monthly</option>
+                        <option value="3">Quarterly</option>
+                        <option value="4">Annual</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Estimated Amount (BDT) *</label>
+                    <input type="number" id="cost-estimated" class="form-input" min="0" step="0.01" placeholder="0.00" />
+                </div>
+                <div class="form-group">
+                    <label>Actual Amount (BDT)</label>
+                    <input type="number" id="cost-actual" class="form-input" min="0" step="0.01" placeholder="Leave blank if not yet incurred" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Planned Date</label>
+                    <input type="date" id="cost-planned-date" class="form-input" />
+                </div>
+                <div class="form-group">
+                    <label>Actual Date</label>
+                    <input type="date" id="cost-actual-date" class="form-input" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group full-width">
+                    <label>Notes</label>
+                    <textarea id="cost-notes" class="form-input" rows="2" placeholder="Vendor, PO number, approver..."></textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="cost-contingency" />
+                        <span>Contingency reserve item (excluded from baseline)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal-cancel" onclick="closeCostModal()">Cancel</button>
+            <button class="btn-modal-save" id="costSaveBtn" onclick="saveCostItem()">
+                <i class="bi bi-floppy"></i> Save
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const PROJECT_ID = @projectId;
+let editingCostId = null;
+
+// ── Budget Mode ────────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-option').forEach(el => {
+    el.addEventListener('click', function () {
+        document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('mode-active'));
+        this.classList.add('mode-active');
+        const mode = parseInt(this.dataset.mode);
+        const form = document.getElementById('budgetAmountForm');
+        form.style.display = (mode === 1 || mode === 3) ? 'block' : 'none';
+        if (mode === 0 || mode === 2) {
+            // Auto-save for NotSet and DerivedFromWork (no amount needed)
+            saveBudgetMode(mode);
+        }
+    });
+});
+
+async function saveBudget(projectId) {
+    const mode = parseInt(document.querySelector('.mode-option.mode-active')?.dataset.mode ?? '0');
+    const approved    = parseFloat(document.getElementById('approvedBudget')?.value) || null;
+    const contingency = parseFloat(document.getElementById('contingencyReserve')?.value) || null;
+
+    const btn = document.getElementById('saveBudgetBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving…';
+
+    const res = await fetch(`/api/budget/${projectId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+        body: JSON.stringify({ budgetMode: mode, approvedBudget: approved, contingencyReserve: contingency })
+    });
+    if (res.ok) {
+        showToast('Budget saved successfully.', 'success');
+        setTimeout(() => location.reload(), 900);
+    } else {
+        showToast('Failed to save budget. Please try again.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-floppy"></i> Save Budget';
+    }
+}
+
+async function saveBudgetMode(mode) {
+    await fetch(`/api/budget/${PROJECT_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+        body: JSON.stringify({ budgetMode: mode, approvedBudget: null, contingencyReserve: null })
+    });
+    setTimeout(() => location.reload(), 400);
+}
+
+// ── Other Costs Modal ──────────────────────────────────────────────────────
+function openAddCostModal() {
+    editingCostId = null;
+    document.getElementById('costModalTitle').textContent = 'Add Cost Item';
+    clearModal();
+    document.getElementById('costModal').style.display = 'flex';
+}
+
+function openEditCostModal(id, desc, cat, freq, est, actual, pd, ad, notes, contingency) {
+    editingCostId = id;
+    document.getElementById('costModalTitle').textContent = 'Edit Cost Item';
+    document.getElementById('cost-description').value = desc || '';
+    document.getElementById('cost-category').value    = cat;
+    document.getElementById('cost-frequency').value   = freq;
+    document.getElementById('cost-estimated').value   = est;
+    document.getElementById('cost-actual').value      = actual || '';
+    document.getElementById('cost-planned-date').value= pd || '';
+    document.getElementById('cost-actual-date').value = ad || '';
+    document.getElementById('cost-notes').value       = notes || '';
+    document.getElementById('cost-contingency').checked = contingency;
+    document.getElementById('costModal').style.display = 'flex';
+}
+
+function closeCostModal() {
+    document.getElementById('costModal').style.display = 'none';
+}
+
+function clearModal() {
+    ['cost-description','cost-estimated','cost-actual','cost-planned-date','cost-actual-date','cost-notes']
+        .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cost-category').value  = '10';
+    document.getElementById('cost-frequency').value = '1';
+    document.getElementById('cost-contingency').checked = false;
+}
+
+async function saveCostItem() {
+    const desc = document.getElementById('cost-description').value.trim();
+    const est  = parseFloat(document.getElementById('cost-estimated').value);
+    if (!desc || isNaN(est)) {
+        showToast('Description and estimated amount are required.', 'error');
+        return;
+    }
+
+    const payload = {
+        projectId     : PROJECT_ID,
+        description   : desc,
+        category      : parseInt(document.getElementById('cost-category').value),
+        frequency     : parseInt(document.getElementById('cost-frequency').value),
+        estimatedAmount: est,
+        actualAmount  : parseFloat(document.getElementById('cost-actual').value) || null,
+        plannedDate   : document.getElementById('cost-planned-date').value || null,
+        actualDate    : document.getElementById('cost-actual-date').value || null,
+        notes         : document.getElementById('cost-notes').value.trim() || null,
+        isContingency : document.getElementById('cost-contingency').checked
+    };
+
+    const url    = editingCostId ? `/api/budget/${PROJECT_ID}/othercosts/${editingCostId}` : `/api/budget/${PROJECT_ID}/othercosts`;
+    const method = editingCostId ? 'PUT' : 'POST';
+
+    const btn = document.getElementById('costSaveBtn');
+    btn.disabled = true;
+
+    const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': getToken() },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        showToast(editingCostId ? 'Cost item updated.' : 'Cost item added.', 'success');
+        closeCostModal();
+        setTimeout(() => location.reload(), 700);
+    } else {
+        showToast('Failed to save cost item.', 'error');
+        btn.disabled = false;
+    }
+}
+
+async function deleteCostItem(id) {
+    if (!confirm('Delete this cost item? This action cannot be undone.')) return;
+    const res = await fetch(`/api/budget/${PROJECT_ID}/othercosts/${id}`, {
+        method: 'DELETE',
+        headers: { 'RequestVerificationToken': getToken() }
+    });
+    if (res.ok) { showToast('Cost item deleted.', 'success'); setTimeout(() => location.reload(), 700); }
+    else showToast('Failed to delete cost item.', 'error');
+}
+
+function getToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+}
+
+function showToast(msg, type) {
+    const t = document.createElement('div');
+    t.className = `budget-toast budget-toast-${type}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+document.getElementById('costModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCostModal();
+});
+</script>
+@Html.AntiForgeryToken()
+}

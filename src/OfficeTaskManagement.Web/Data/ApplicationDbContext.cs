@@ -60,7 +60,10 @@ namespace OfficeTaskManagement.Data
         public DbSet<ResourceAvailabilityBlock> ResourceAvailabilityBlocks { get; set; }
         public DbSet<PublicHoliday> PublicHolidays { get; set; }
         public DbSet<SalaryHistory> SalaryHistories { get; set; }
-        // ────────────────────────────────────────────────────────────────────
+
+        // ── Budget Management ───────────────────────────────────────
+        public DbSet<ProjectOtherCost> ProjectOtherCosts { get; set; }
+        // ───────────────────────────────────────────────────────────
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -287,6 +290,30 @@ namespace OfficeTaskManagement.Data
                 .WithMany()
                 .HasForeignKey(pd => pd.MadeById)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // ── Budget Management Relationships ─────────────────────────────
+
+            // Project.BudgetSetBy (SetNull: manager deletion does not affect budget record)
+            builder.Entity<Project>()
+                .HasOne(p => p.BudgetSetBy)
+                .WithMany()
+                .HasForeignKey(p => p.BudgetSetById)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // ProjectOtherCost → Project (Cascade: deleting a project removes its cost line items)
+            builder.Entity<ProjectOtherCost>()
+                .HasOne(oc => oc.Project)
+                .WithMany(p => p.OtherCosts)
+                .HasForeignKey(oc => oc.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // ProjectOtherCost → CreatedBy (SetNull: preserve cost records if user is removed)
+            builder.Entity<ProjectOtherCost>()
+                .HasOne(oc => oc.CreatedBy)
+                .WithMany()
+                .HasForeignKey(oc => oc.CreatedById)
+                .OnDelete(DeleteBehavior.SetNull);
+            // ────────────────────────────────────────────────────────────────
 
             // ── Resource Management Relationships ────────────────────────────
 

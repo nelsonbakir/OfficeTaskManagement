@@ -21,11 +21,16 @@ namespace OfficeTaskManagement.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IMediaService _mediaService;
+        private readonly IBudgetService _budgetService;
 
-        public ProjectsController(ApplicationDbContext context, IMediaService mediaService)
+        public ProjectsController(
+            ApplicationDbContext context,
+            IMediaService mediaService,
+            IBudgetService budgetService)
         {
-            _context = context;
-            _mediaService = mediaService;
+            _context       = context;
+            _mediaService  = mediaService;
+            _budgetService = budgetService;
         }
 
         // GET: Projects
@@ -94,6 +99,28 @@ namespace OfficeTaskManagement.Controllers
             }
 
             return View(project);
+        }
+
+        // GET: Projects/Budget/5
+        [HasPermission(Permissions.BudgetView)]
+        public async Task<IActionResult> Budget(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            try
+            {
+                var summary = await _budgetService.GetBudgetSummaryAsync(id.Value);
+                ViewBag.ProjectId = id;
+                ViewBag.ProjectName = project.Name;
+                return View(summary);
+            }
+            catch (InvalidOperationException)
+            {
+                return NotFound();
+            }
         }
 
         // GET: Projects/Create
