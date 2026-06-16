@@ -97,6 +97,14 @@ builder.Services.AddHostedService(sp =>
     sp.GetRequiredService<OfficeTaskManagement.Services.Codebase.CodebaseIndexingService>());
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Phase 4: Multi-turn AI Copilot Services ───────────────────────────────────
+builder.Services.AddHttpClient<OfficeTaskManagement.Services.Agent.AgentService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.IAgentService,
+                            OfficeTaskManagement.Services.Agent.AgentService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.AgentConversationService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.AgentToolDispatcher>();
+// ─────────────────────────────────────────────────────────────────────────────
+
 // In-process caching for heatmap and utilization data (15-min sliding window)
 builder.Services.AddMemoryCache();
 
