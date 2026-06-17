@@ -14,7 +14,9 @@ using Moq.Protected;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services.Ai;
+using OfficeTaskManagement.Services.Codebase;
 using Xunit;
+
 
 namespace OfficeTaskManagement.Tests.Services
 {
@@ -62,10 +64,18 @@ namespace OfficeTaskManagement.Tests.Services
                 NullLogger<ContextBuilderService>.Instance
             );
 
+            var codebaseRetrieval = new CodebaseRetrievalService(
+                _db,
+                new Mock<IGeminiEmbeddingService>().Object,
+                NullLogger<CodebaseRetrievalService>.Instance
+            );
+
             return new GeminiAiService(
                 httpClient,
                 config,
                 contextBuilder,
+                _db,
+                codebaseRetrieval,
                 NullLogger<GeminiAiService>.Instance
             );
         }

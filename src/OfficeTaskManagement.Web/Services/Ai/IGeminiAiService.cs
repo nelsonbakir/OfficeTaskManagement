@@ -40,5 +40,28 @@ namespace OfficeTaskManagement.Services.Ai
         /// fewer than 5 existing features.
         /// </summary>
         Task<FullCascadeResult> GenerateFullCascadeAsync(FullCascadeRequest request, CancellationToken ct = default);
+
+        /// <summary>
+        /// Scans and analyzes the repository structure and technology stack of a project,
+        /// returning a project summary and a list of recommended Epics.
+        /// </summary>
+        Task<ProjectAnalysisResult> AnalyzeProjectCodebaseAsync(int projectId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Suggests features for a given Epic, grounded in relevant codebase files/classes.
+        /// </summary>
+        Task<List<FeatureSuggestionDto>> SuggestFeaturesForEpicAsync(int projectId, string epicName, string epicDescription, CancellationToken ct = default);
+
+        /// <summary>
+        /// Suggests User Stories for a Feature, complete with acceptance criteria in Given/When/Then format.
+        /// </summary>
+        Task<List<UserStorySuggestionDto>> SuggestUserStoriesForFeatureAsync(int projectId, string epicName, string featureName, string featureDescription, CancellationToken ct = default);
+
+        /// <summary>
+        /// Suggests implementation tasks and test cases for a User Story.
+        /// If suggestTests is true, focuses on creating comprehensive QA test cases and writing unit tests.
+        /// </summary>
+        Task<TaskAndTestCaseSuggestionsDto> SuggestTasksAndTestCasesAsync(int projectId, string storyTitle, string storyDescription, bool suggestTests, CancellationToken ct = default);
     }
 }
+

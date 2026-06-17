@@ -32,7 +32,9 @@
 | [08_DATA_MODEL.md](./08_DATA_MODEL.md) | DB migrations, new EF Core entities, pgvector setup | Reference |
 | [09_TESTING.md](./09_TESTING.md) | Unit tests, integration tests, mocking strategy | Reference |
 | [10_EXECUTION_TASKS.md](./10_EXECUTION_TASKS.md) | **THE TASK LIST** — resumable, ordered, checkboxed | Reference |
-| [11_MULTI_PROJECT_RAG.md](./11_MULTI_PROJECT_RAG.md) | **THE MULTI-PROJECT ENHANCEMENT TASK LIST** — resumable, checkboxed | **ACTIVE** |
+| [11_MULTI_PROJECT_RAG.md](./11_MULTI_PROJECT_RAG.md) | **THE MULTI-PROJECT ENHANCEMENT TASK LIST** — resumable, checkboxed | DONE |
+| [12_CODEBASE_FIRST_ONBOARDING.md](./12_CODEBASE_FIRST_ONBOARDING.md) | **THE CODEBASE-FIRST ONBOARDING WIZARD TASK LIST** — resumable, checkboxed | **ACTIVE** |
+
 
 ---
 

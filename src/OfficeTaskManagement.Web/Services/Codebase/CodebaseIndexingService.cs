@@ -57,11 +57,17 @@ public class CodebaseIndexingService : IHostedService
         var db           = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var embeddingApi = scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>();
 
-        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct);
+        var project = await db.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId, ct);
         if (project == null)
         {
             _logger.LogWarning("Project {ProjectId} not found for indexing.", projectId);
             return;
+        }
+
+        var tenantProvider = scope.ServiceProvider.GetService<OfficeTaskManagement.Services.ITenantProvider>();
+        if (tenantProvider != null)
+        {
+            tenantProvider.SetTenant(project.TenantId);
         }
 
         var repoRoot = project.RepositoryPath;

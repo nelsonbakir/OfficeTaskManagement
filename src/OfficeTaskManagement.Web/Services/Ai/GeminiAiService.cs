@@ -1,9 +1,14 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OfficeTaskManagement.Models.Ai;
+using OfficeTaskManagement.Data;
+using OfficeTaskManagement.Services.Codebase;
+
 
 namespace OfficeTaskManagement.Services.Ai
 {
@@ -20,6 +25,8 @@ namespace OfficeTaskManagement.Services.Ai
         private readonly HttpClient _http;
         private readonly IConfiguration _config;
         private readonly ContextBuilderService _contextBuilder;
+        private readonly ApplicationDbContext _db;
+        private readonly CodebaseRetrievalService _codebaseRetrieval;
         private readonly ILogger<GeminiAiService> _logger;
 
         private const string StaticSystemPrompt = """
@@ -46,13 +53,18 @@ namespace OfficeTaskManagement.Services.Ai
             HttpClient http,
             IConfiguration config,
             ContextBuilderService contextBuilder,
+            ApplicationDbContext db,
+            CodebaseRetrievalService codebaseRetrieval,
             ILogger<GeminiAiService> logger)
         {
             _http = http;
             _config = config;
             _contextBuilder = contextBuilder;
+            _db = db;
+            _codebaseRetrieval = codebaseRetrieval;
             _logger = logger;
         }
+
 
         /// <inheritdoc/>
         public async Task<EstimationResult> EstimateAsync(
@@ -581,7 +593,467 @@ namespace OfficeTaskManagement.Services.Ai
                 Risks:              new[] { "AI estimation unavailable — manual review required" },
                 InputTokensUsed:    0,
                 OutputTokensUsed:   0
-            );
+             );
+
+        /// <inheritdoc/>
+        public async Task<ProjectAnalysisResult> AnalyzeProjectCodebaseAsync(int projectId, CancellationToken ct = default)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return new ProjectAnalysisResult(
+                    "AI Analysis unavailable (no API Key).",
+                    "N/A",
+                    "N/A",
+                    true,
+                    new[] { new EpicSuggestionDto("Default Module", "Basic features logic") }
+                );
+            }
+
+            var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
+            if (project == null)
+            {
+                throw new ArgumentException($"Project with ID {projectId} not found.", nameof(projectId));
+            }
+
+            var repoPath = project.RepositoryPath;
+            if (string.IsNullOrEmpty(repoPath))
+            {
+                repoPath = ".";
+            }
+
+            var actualPath = repoPath;
+            if (!Path.IsPathRooted(actualPath))
+            {
+                actualPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), actualPath));
+            }
+
+            _logger.LogInformation("Analyzing project codebase for onboarding. Project: {ProjectName}, Root: {Root}", project.Name, actualPath);
+
+            var repoScanText = await ScanCodebaseStructureAsync(actualPath, ct);
+
+            var promptText = $"""
+                You are a master PMP and software architect. We are onboarding an existing code repository to our project management system.
+                Here is the structural scanning of the codebase:
+
+                {repoScanText}
+
+                Based on this scan, please analyze the project codebase and provide suggestions:
+                1. A clear high-level summary of what this project does.
+                2. The technology stack, framework, and language details.
+                3. An overview of the test coverage. State if unit or integration tests are absent or incomplete. Set testsAbsentOrIncomplete=true if tests are absent or look very sparse/non-comprehensive.
+                4. Suggest 3 to 6 logical Epics (high-level system modules/domains) to initiate the task backlog.
+
+                Return JSON only.
+                """;
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    projectSummary = new { type = "STRING" },
+                    techStack = new { type = "STRING" },
+                    testOverview = new { type = "STRING" },
+                    testsAbsentOrIncomplete = new { type = "BOOLEAN" },
+                    suggestedEpics = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                name = new { type = "STRING" },
+                                description = new { type = "STRING" }
+                            },
+                            required = new[] { "name", "description" }
+                        }
+                    }
+                },
+                required = new[] { "projectSummary", "techStack", "testOverview", "testsAbsentOrIncomplete", "suggestedEpics" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(promptText, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var epics = root.GetProperty("suggestedEpics").EnumerateArray()
+                    .Select(e => new EpicSuggestionDto(
+                        GetString(e, "name", "Module"),
+                        GetString(e, "description", "")
+                    ))
+                    .ToArray();
+
+                return new ProjectAnalysisResult(
+                    GetString(root, "projectSummary", "Scanned codebase."),
+                    GetString(root, "techStack", "Undetermined"),
+                    GetString(root, "testOverview", "No tests scanned."),
+                    root.TryGetProperty("testsAbsentOrIncomplete", out var tai) && tai.ValueKind == JsonValueKind.True,
+                    epics
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Codebase onboarding analysis failed for project {ProjectId}", projectId);
+                return new ProjectAnalysisResult(
+                    "Failed to analyze repository. " + ex.Message,
+                    "N/A",
+                    "N/A",
+                    true,
+                    new[] { new EpicSuggestionDto("Core Functionality", "General module for the project features") }
+                );
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<FeatureSuggestionDto>> SuggestFeaturesForEpicAsync(int projectId, string epicName, string epicDescription, CancellationToken ct = default)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return new List<FeatureSuggestionDto> { new FeatureSuggestionDto("Core features", "Standard epic logic") };
+            }
+
+            // RAG codebase query
+            var query = $"Epic: {epicName} {epicDescription}";
+            var chunks = await _codebaseRetrieval.GetRelevantChunksAsync(query, projectId, topK: 3, ct);
+            var codeContext = chunks.Any() ? string.Join("\n\n", chunks) : "No specific code chunks found.";
+
+            var promptText = $"""
+                Epic Name: {epicName}
+                Epic Description: {epicDescription}
+
+                CODEBASE CONTEXT FROM RELEVANT FILES:
+                {codeContext}
+
+                Suggest 3 to 5 Features that belong under this Epic, grounded in the codebase context provided above.
+                Return JSON only.
+                """;
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    features = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                name = new { type = "STRING" },
+                                description = new { type = "STRING" }
+                            },
+                            required = new[] { "name", "description" }
+                        }
+                    }
+                },
+                required = new[] { "features" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(promptText, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                return root.GetProperty("features").EnumerateArray()
+                    .Select(f => new FeatureSuggestionDto(
+                        GetString(f, "name", "Feature"),
+                        GetString(f, "description", "")
+                    ))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SuggestFeaturesForEpic failed for Epic {EpicName}", epicName);
+                return new List<FeatureSuggestionDto> { new FeatureSuggestionDto("General Implementation", "Implementation of the epic features") };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<UserStorySuggestionDto>> SuggestUserStoriesForFeatureAsync(int projectId, string epicName, string featureName, string featureDescription, CancellationToken ct = default)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return new List<UserStorySuggestionDto> { new UserStorySuggestionDto("As a user...", "Basic user story", "Given/When/Then", "Medium") };
+            }
+
+            var query = $"Feature: {featureName} {featureDescription}";
+            var chunks = await _codebaseRetrieval.GetRelevantChunksAsync(query, projectId, topK: 3, ct);
+            var codeContext = chunks.Any() ? string.Join("\n\n", chunks) : "No specific code chunks found.";
+
+            var promptText = $"""
+                Epic: {epicName}
+                Feature Name: {featureName}
+                Feature Description: {featureDescription}
+
+                CODEBASE CONTEXT FROM RELEVANT FILES:
+                {codeContext}
+
+                Suggest 2 to 4 User Stories for this Feature.
+                For each story, provide:
+                - Title (in standard 'As a... I want to... So that...' or descriptive form)
+                - Description
+                - AcceptanceCriteria in clear Given/When/Then format.
+                - Priority (Low, Medium, High, Critical)
+
+                Return JSON only.
+                """;
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    stories = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                title = new { type = "STRING" },
+                                description = new { type = "STRING" },
+                                acceptanceCriteria = new { type = "STRING" },
+                                priority = new { type = "STRING", @enum = new[] { "Low", "Medium", "High", "Critical" } }
+                            },
+                            required = new[] { "title", "description", "acceptanceCriteria", "priority" }
+                        }
+                    }
+                },
+                required = new[] { "stories" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(promptText, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                return root.GetProperty("stories").EnumerateArray()
+                    .Select(s => new UserStorySuggestionDto(
+                        GetString(s, "title", "User Story"),
+                        GetString(s, "description", ""),
+                        GetString(s, "acceptanceCriteria", ""),
+                        GetString(s, "priority", "Medium")
+                    ))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SuggestUserStoriesForFeature failed for Feature {FeatureName}", featureName);
+                return new List<UserStorySuggestionDto>
+                {
+                    new UserStorySuggestionDto($"Implement {featureName}", "General implementation story", "Given validation succeeds, When feature runs, Then it works", "Medium")
+                };
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<TaskAndTestCaseSuggestionsDto> SuggestTasksAndTestCasesAsync(int projectId, string storyTitle, string storyDescription, bool suggestTests, CancellationToken ct = default)
+        {
+            var apiKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return new TaskAndTestCaseSuggestionsDto(
+                    new[] { new TaskSuggestionDto("Implement story", "Main task", 4m, 8m, 16m, "Medium") },
+                    new[] { new TestCaseSuggestionDto("Verify logic", "Execute feature", "Runs correctly") }
+                );
+            }
+
+            var query = $"Story: {storyTitle} {storyDescription}";
+            var chunks = await _codebaseRetrieval.GetRelevantChunksAsync(query, projectId, topK: 3, ct);
+            var codeContext = chunks.Any() ? string.Join("\n\n", chunks) : "No specific code chunks found.";
+
+            var testInstruct = suggestTests
+                ? "TEST GAP DETECTED: Unit tests are absent or incomplete for this area. You MUST include QA/test creation tasks (e.g. 'Write xUnit tests', 'Integrate integration tests') and highly comprehensive test cases."
+                : "Include standard implementation tasks and functional verification test cases.";
+
+            var promptText = $"""
+                User Story: {storyTitle}
+                Description: {storyDescription}
+
+                CODEBASE CONTEXT FROM RELEVANT FILES:
+                {codeContext}
+
+                {testInstruct}
+
+                Suggest:
+                1. 2 to 4 engineering Tasks. For each task, estimate Optimistic, Most Likely, and Pessimistic hours. Specify task Priority.
+                2. 1 to 3 QA Test Cases. For each, give a clear Title, step-by-step Steps, and ExpectedResult.
+
+                Return JSON only.
+                """;
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    tasks = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                title = new { type = "STRING" },
+                                description = new { type = "STRING" },
+                                optimisticHours = new { type = "NUMBER" },
+                                mostLikelyHours = new { type = "NUMBER" },
+                                pessimisticHours = new { type = "NUMBER" },
+                                priority = new { type = "STRING", @enum = new[] { "Low", "Medium", "High", "Critical" } }
+                            },
+                            required = new[] { "title", "description", "optimisticHours", "mostLikelyHours", "pessimisticHours", "priority" }
+                        }
+                    },
+                    testCases = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                title = new { type = "STRING" },
+                                steps = new { type = "STRING" },
+                                expectedResult = new { type = "STRING" }
+                            },
+                            required = new[] { "title", "steps", "expectedResult" }
+                        }
+                    }
+                },
+                required = new[] { "tasks", "testCases" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(promptText, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var tasks = root.GetProperty("tasks").EnumerateArray()
+                    .Select(t => new TaskSuggestionDto(
+                        GetString(t, "title", "Task"),
+                        GetString(t, "description", ""),
+                        GetDecimal(t, "optimisticHours", 4m),
+                        GetDecimal(t, "mostLikelyHours", 8m),
+                        GetDecimal(t, "pessimisticHours", 16m),
+                        GetString(t, "priority", "Medium")
+                    ))
+                    .ToArray();
+
+                var testCases = root.GetProperty("testCases").EnumerateArray()
+                    .Select(tc => new TestCaseSuggestionDto(
+                        GetString(tc, "title", "Test Case"),
+                        GetString(tc, "steps", ""),
+                        GetString(tc, "expectedResult", "")
+                    ))
+                    .ToArray();
+
+                return new TaskAndTestCaseSuggestionsDto(tasks, testCases);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "SuggestTasksAndTestCases failed for story {StoryTitle}", storyTitle);
+                return new TaskAndTestCaseSuggestionsDto(
+                    new[] { new TaskSuggestionDto($"Develop {storyTitle}", "Engineering task", 4m, 8m, 16m, "Medium") },
+                    new[] { new TestCaseSuggestionDto($"Verify {storyTitle}", "Run validation", "Works successfully") }
+                );
+            }
+        }
+
+        private async Task<string> ScanCodebaseStructureAsync(string repoPath, CancellationToken ct)
+
+        {
+            var sb = new StringBuilder();
+            if (!Directory.Exists(repoPath))
+            {
+                return "Directory does not exist.";
+            }
+
+            sb.AppendLine($"Repository Root: {repoPath}");
+
+            // Read README.md if present
+            var readmePath = Path.Combine(repoPath, "README.md");
+            if (!File.Exists(readmePath))
+            {
+                readmePath = Path.Combine(repoPath, "readme.md");
+            }
+            if (File.Exists(readmePath))
+            {
+                try
+                {
+                    var readmeContent = await File.ReadAllTextAsync(readmePath, ct);
+                    var snippet = readmeContent.Length > 2000 ? readmeContent[..2000] + "..." : readmeContent;
+                    sb.AppendLine("\n--- README.md Content Snippet ---");
+                    sb.AppendLine(snippet);
+                    sb.AppendLine("---------------------------------\n");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"[Error reading README.md: {ex.Message}]");
+                }
+            }
+
+            // Scan directory structure (max 3 levels deep)
+            sb.AppendLine("Directory Structure (up to 3 levels, ignoring bin/obj/node_modules/.git/.vs/Migrations):");
+            ScanDirectory(repoPath, repoPath, sb, 0, maxDepth: 3);
+
+            // Scan test coverage indicator
+            var hasTests = Directory.EnumerateFiles(repoPath, "*.*", SearchOption.AllDirectories)
+                .Any(f => f.Contains("Test", StringComparison.OrdinalIgnoreCase) || f.Contains("spec", StringComparison.OrdinalIgnoreCase));
+            sb.AppendLine($"\nTest files detection indicator: {(hasTests ? "Found test files in repository." : "No files containing 'Test' or 'spec' detected in repository.")}");
+
+            return sb.ToString();
+        }
+
+        private void ScanDirectory(string root, string current, StringBuilder sb, int depth, int maxDepth)
+        {
+            if (depth > maxDepth) return;
+
+            var skipDirs = new[] { "bin", "obj", "node_modules", ".git", ".vs", "Migrations", "wwwroot", "uploads", "Debug", "Properties" };
+
+            try
+            {
+                var dirs = Directory.GetDirectories(current)
+                    .Select(d => Path.GetFileName(d))
+                    .Where(name => !skipDirs.Contains(name, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                var files = Directory.GetFiles(current)
+                    .Select(f => Path.GetFileName(f))
+                    .Where(name => !name.StartsWith(".") && !name.EndsWith(".user") && !name.EndsWith(".suo"))
+                    .Take(15) // limit files per dir in scan to avoid huge context
+                    .ToList();
+
+                var indent = new string(' ', depth * 2);
+
+                foreach (var dir in dirs)
+                {
+                    sb.AppendLine($"{indent}📁 {dir}/");
+                    ScanDirectory(root, Path.Combine(current, dir), sb, depth + 1, maxDepth);
+                }
+
+                foreach (var file in files)
+                {
+                    sb.AppendLine($"{indent}📄 {file}");
+                }
+            }
+            catch
+            {
+                // Ignore folder reading errors
+            }
+        }
 
         // ── JSON Extraction Helpers ───────────────────────────────────────────
 

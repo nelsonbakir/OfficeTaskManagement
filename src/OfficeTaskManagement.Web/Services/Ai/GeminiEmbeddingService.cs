@@ -48,7 +48,23 @@ namespace OfficeTaskManagement.Services.Ai
             var jsonContent = new StringContent(
                 JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
-            var response = await _http.PostAsync(url, jsonContent, ct);
+            HttpResponseMessage response = null!;
+            int retries = 0;
+            int delayMs = 1000;
+            while (true)
+            {
+                response = await _http.PostAsync(url, jsonContent, ct);
+                var statusCode = (int)response.StatusCode;
+                if ((statusCode == 429 || statusCode == 503) && retries < 5)
+                {
+                    _logger.LogWarning("Gemini API returned {StatusCode}. Retrying in {Delay}ms... (Attempt {Attempt}/5)", statusCode, delayMs, retries + 1);
+                    await Task.Delay(delayMs, ct);
+                    retries++;
+                    delayMs *= 2;
+                    continue;
+                }
+                break;
+            }
             response.EnsureSuccessStatusCode();
 
             var jsonString = await response.Content.ReadAsStringAsync(ct);
@@ -65,14 +81,62 @@ namespace OfficeTaskManagement.Services.Ai
         /// <inheritdoc/>
         public async Task<float[][]> EmbedBatchAsync(string[] texts, CancellationToken ct = default)
         {
-            // TODO: Replace with real batch API call when available in Gemini API
-            // Currently processes sequentially; for Phase 3, batching in groups of 100
-            // is handled by CodebaseIndexingService to avoid rate limits.
-            var results = new List<float[]>();
-            foreach (var text in texts)
+            if (texts == null || texts.Length == 0)
             {
-                ct.ThrowIfCancellationRequested();
-                results.Add(await EmbedAsync(text, ct));
+                return Array.Empty<float[]>();
+            }
+
+            var apiKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                _logger.LogWarning("Gemini:ApiKey not configured. Returning empty embeddings.");
+                return texts.Select(_ => Array.Empty<float>()).ToArray();
+            }
+
+            var model = _config["Gemini:EmbeddingModel"] ?? "models/gemini-embedding-001";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/{model}:batchEmbedContents?key={apiKey}";
+
+            var requests = texts.Select(text => new
+            {
+                model,
+                content = new { parts = new[] { new { text } } }
+            }).ToArray();
+
+            var body = new { requests };
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response = null!;
+            int retries = 0;
+            int delayMs = 1000;
+            while (true)
+            {
+                response = await _http.PostAsync(url, jsonContent, ct);
+                var statusCode = (int)response.StatusCode;
+                if ((statusCode == 429 || statusCode == 503) && retries < 5)
+                {
+                    _logger.LogWarning("Gemini API returned {StatusCode}. Retrying batch in {Delay}ms... (Attempt {Attempt}/5)", statusCode, delayMs, retries + 1);
+                    await Task.Delay(delayMs, ct);
+                    retries++;
+                    delayMs *= 2;
+                    continue;
+                }
+                break;
+            }
+            response.EnsureSuccessStatusCode();
+
+            var jsonString = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(jsonString);
+
+            var results = new List<float[]>();
+            foreach (var item in doc.RootElement.GetProperty("embeddings").EnumerateArray())
+            {
+                var values = item.GetProperty("values")
+                    .EnumerateArray()
+                    .Select(v => v.GetSingle())
+                    .ToArray();
+                results.Add(values);
             }
             return results.ToArray();
         }

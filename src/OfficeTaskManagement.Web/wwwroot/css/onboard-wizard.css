@@ -1,0 +1,348 @@
+/* Onboarding Wizard Premium Glassmorphism Theme */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+.onboard-container {
+    font-family: 'Outfit', sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    border-radius: 16px;
+    padding: 2.5rem;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    margin-bottom: 3rem;
+}
+
+/* Wizard Header & Title */
+.onboard-header {
+    margin-bottom: 2.5rem;
+}
+
+.onboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a253c;
+    background: linear-gradient(90deg, #0f5132 0%, #0d6efd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.onboard-subtitle {
+    color: #5c687e;
+    font-size: 1rem;
+    margin-top: 0.25rem;
+}
+
+/* Navigation Steps (Horizontal) */
+.wizard-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    margin-bottom: 3rem;
+    padding: 0 1rem;
+}
+
+.wizard-steps::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+.wizard-step-progress {
+    position: absolute;
+    top: 24px;
+    left: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #198754 0%, #0d6efd 100%);
+    z-index: 2;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 0%;
+}
+
+.wizard-step-node {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+}
+
+.wizard-step-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 3px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #64748b;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.wizard-step-node.active .wizard-step-circle {
+    border-color: #0d6efd;
+    background: #0d6efd;
+    color: #ffffff;
+    transform: scale(1.1);
+    box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);
+}
+
+.wizard-step-node.completed .wizard-step-circle {
+    border-color: #198754;
+    background: #198754;
+    color: #ffffff;
+}
+
+.wizard-step-label {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    transition: color 0.3s ease;
+}
+
+.wizard-step-node.active .wizard-step-label {
+    color: #1a253c;
+    font-weight: 700;
+}
+
+.wizard-step-node.completed .wizard-step-label {
+    color: #198754;
+}
+
+/* Wizard Panels */
+.wizard-panel {
+    display: none;
+    animation: fadeInSlide 0.5s ease forwards;
+}
+
+.wizard-panel.active {
+    display: block;
+}
+
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Glassmorphic Cards */
+.glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    border-radius: 12px;
+    padding: 1.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(31, 38, 135, 0.04);
+}
+
+/* Loading & Progress States */
+.onboard-loading-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+}
+
+.onboard-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(13, 110, 253, 0.15);
+    border-top-color: #0d6efd;
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+    margin-bottom: 1.5rem;
+}
+
+.onboard-progress-bar {
+    width: 100%;
+    max-width: 400px;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.onboard-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #0d6efd 0%, #0f5132 100%);
+    transition: width 0.3s ease;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Tree Editor / List Styling */
+.onboard-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.8);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.onboard-list-item:hover {
+    background: #fdfdfd;
+    border-color: #cbd5e1;
+}
+
+.item-checkbox {
+    margin-top: 0.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+}
+
+.item-content {
+    flex-grow: 1;
+}
+
+.item-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.item-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.item-desc {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0.25rem 0 0 0;
+}
+
+/* Edit / Delete Buttons */
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-icon-action {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.btn-icon-action:hover {
+    color: #475569;
+}
+
+.btn-icon-delete:hover {
+    color: #ef4444;
+}
+
+/* Accordion Accordance */
+.accordion-toggle {
+    cursor: pointer;
+}
+
+.accordion-arrow {
+    transition: transform 0.3s ease;
+}
+
+.collapsed .accordion-arrow {
+    transform: rotate(-90deg);
+}
+
+/* Bottom Navigation Controls */
+.wizard-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+/* Badges */
+.badge-tech {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.badge-coverage {
+    background: #fef3c7;
+    color: #d97706;
+    border: 1px solid #fde68a;
+}
+
+.badge-coverage.passed {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+/* Floating Actions Panel */
+.floating-add-btn {
+    border: 1px dashed #94a3b8;
+    background: rgba(255, 255, 255, 0.4);
+    color: #475569;
+    border-radius: 8px;
+    width: 100%;
+    padding: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+}
+
+.floating-add-btn:hover {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: #475569;
+    color: #1e293b;
+}
+
+/* Hours Inputs Group */
+.hours-est-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.hours-est-group input {
+    text-align: center;
+    font-weight: 600;
+}

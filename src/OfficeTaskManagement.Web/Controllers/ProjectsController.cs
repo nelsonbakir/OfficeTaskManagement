@@ -134,7 +134,7 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [HasPermission(Permissions.ProjectsManage)]
-        public async Task<IActionResult> Create(ProjectViewModel vm)
+        public async Task<IActionResult> Create([Bind(Prefix = "")] ProjectViewModel vm)
         {
             if (ModelState.IsValid)
             {
@@ -203,7 +203,7 @@ namespace OfficeTaskManagement.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [HasPermission(Permissions.ProjectsManage)]
-        public async Task<IActionResult> Edit(int id, ProjectViewModel vm)
+        public async Task<IActionResult> Edit(int id, [Bind(Prefix = "")] ProjectViewModel vm)
         {
             if (id != vm.Project.Id)
             {
@@ -224,6 +224,9 @@ namespace OfficeTaskManagement.Controllers
                         
                         existingProject.Name = vm.Project.Name;
                         existingProject.Description = vm.Project.Description;
+                        existingProject.RequiredSkills = vm.Project.RequiredSkills;
+                        existingProject.RepositoryPath = vm.Project.RepositoryPath;
+                        existingProject.RepositoryUrl = vm.Project.RepositoryUrl;
 
                         // Handle Logo Update
                         if (vm.Logo != null)
@@ -337,6 +340,17 @@ namespace OfficeTaskManagement.Controllers
 
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
+        }
+
+        // GET: Projects/OnboardWizard/5
+        public async Task<IActionResult> OnboardWizard(int? id)
+        {
+            if (id == null) return NotFound();
+
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            return View(project);
         }
 
         private bool ProjectExists(int id)

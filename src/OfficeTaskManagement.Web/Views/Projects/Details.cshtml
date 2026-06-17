@@ -824,11 +824,20 @@
                 <div style="background: #F3F2F1; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.25rem;">
                     <h3 style="font-size: 0.9rem; font-weight: 600; color: #252424; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.5px;">Actions</h3>
                     
-                    @if (string.IsNullOrEmpty(Model.RepositoryPath))
+                    @if (string.IsNullOrEmpty(Model.RepositoryPath) && string.IsNullOrEmpty(Model.RepositoryUrl))
                     {
                         <div class="alert alert-info" style="font-size: 0.8rem; margin-bottom: 1rem; padding: 0.5rem 0.75rem;">
-                            <i class="fas fa-info-circle"></i> Set a repository path in Project Settings to enable RAG indexing.
+                            <i class="fas fa-info-circle"></i> Set a repository path or Git URL in settings to enable RAG indexing and codebase onboarding.
                         </div>
+                        <button class="btn btn-success" style="width: 100%; margin-bottom: 0.75rem; background: #198754; border-color: #198754; opacity: 0.65;" disabled>
+                            <i class="fas fa-magic"></i> Codebase Onboarding
+                        </button>
+                    }
+                    else
+                    {
+                        <a href="/Projects/OnboardWizard/@Model.Id" class="btn btn-success" style="width: 100%; margin-bottom: 0.75rem; background: #198754; border-color: #198754;">
+                            <i class="fas fa-magic"></i> Codebase Onboarding
+                        </a>
                     }
                     
                     <button id="btn-sync-codebase" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem; background: #0078D4; border-color: #0078D4;" @(string.IsNullOrEmpty(Model.RepositoryPath) ? "disabled" : "")>

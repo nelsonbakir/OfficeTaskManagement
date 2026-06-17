@@ -88,6 +88,9 @@ builder.Services.AddScoped<PmKnowledgeService>();
 builder.Services.AddScoped<AiEstimationLogService>();
 
 // ── Phase 3: Codebase RAG Services ───────────────────────────────────────────
+// GitCloneService: clones remote repositories
+builder.Services.AddScoped<OfficeTaskManagement.Services.Codebase.GitCloneService>();
+
 // CodebaseRetrievalService: semantic search over indexed code chunks
 builder.Services.AddScoped<OfficeTaskManagement.Services.Codebase.CodebaseRetrievalService>();
 
