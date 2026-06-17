@@ -16,9 +16,6 @@ using OfficeTaskManagement.Services.Ai;
 using OfficeTaskManagement.ViewModels;
 using Xunit;
 using System.Net.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using OfficeTaskManagement.Services.Codebase;
 
 namespace OfficeTaskManagement.Tests.Controllers
 {
@@ -97,94 +94,6 @@ namespace OfficeTaskManagement.Tests.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Embedding failed: {ex.Message}");
-                throw;
-            }
-        }
-
-        [Fact]
-        public async Task TempDiagnosticTest()
-        {
-            var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true)
-                .AddUserSecrets<Program>()
-                .Build();
-
-            var connStr = config.GetConnectionString("DefaultConnection") 
-                ?? "Host=localhost:5432;Database=OfficeTaskManagementDb;Username=school_user;Password=123456_Az;Trust Server Certificate=true";
-
-            Console.WriteLine($"ConnStr: {connStr}");
-
-            var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-            optionsBuilder.UseNpgsql(connStr, o => o.UseVector());
-
-            using var db = new ApplicationDbContext(optionsBuilder.Options);
-
-            var projects = await db.Projects.IgnoreQueryFilters().AsNoTracking().ToListAsync();
-            Console.WriteLine($"--- Projects ---");
-            foreach (var p in projects)
-            {
-                Console.WriteLine($"Id: {p.Id}, Name: {p.Name}, RepoPath: '{p.RepositoryPath}', RepoUrl: '{p.RepositoryUrl}', Status: {p.StrategicStatus}, TenantId: '{p.TenantId}'");
-            }
-
-            var embeddingsCount = await db.CodeEmbeddings.IgnoreQueryFilters().CountAsync();
-            Console.WriteLine($"Total CodeEmbeddings in DB: {embeddingsCount}");
-
-            var projectsWithEmbeddings = await db.CodeEmbeddings.IgnoreQueryFilters()
-                .GroupBy(e => e.ProjectId)
-                .Select(g => new { ProjectId = g.Key, Count = g.Count() })
-                .ToListAsync();
-
-            Console.WriteLine($"--- CodeEmbeddings by Project ---");
-            foreach (var pe in projectsWithEmbeddings)
-            {
-                Console.WriteLine($"ProjectId: {pe.ProjectId}, Count: {pe.Count}");
-            }
-        }
-
-        private class TestTenantProvider : ITenantProvider
-        {
-            public string TenantId { get; set; } = "default-tenant-id";
-            public void SetTenant(string tenantId) => TenantId = tenantId;
-        }
-
-        [Fact]
-        public async Task TestRunIndexerAsync()
-        {
-            var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: true)
-                .AddUserSecrets<Program>()
-                .Build();
-
-            var connStr = config.GetConnectionString("DefaultConnection") 
-                ?? "Host=localhost:5432;Database=OfficeTaskManagementDb;Username=school_user;Password=123456_Az;Trust Server Certificate=true";
-
-            var services = new ServiceCollection();
-            services.AddSingleton<IConfiguration>(config);
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseNpgsql(connStr, o => o.UseVector()));
-            
-            services.AddScoped<ITenantProvider, TestTenantProvider>();
-            services.AddLogging(builder => builder.AddConsole());
-            services.AddHttpClient<IGeminiEmbeddingService, GeminiEmbeddingService>();
-            
-            var serviceProvider = services.BuildServiceProvider();
-            var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
-
-            var indexer = new CodebaseIndexingService(
-                scopeFactory,
-                config,
-                NullLogger<CodebaseIndexingService>.Instance
-            );
-
-            try
-            {
-                Console.WriteLine("Running IndexProjectAsync for Project 3...");
-                await indexer.IndexProjectAsync(3, CancellationToken.None);
-                Console.WriteLine("IndexProjectAsync completed successfully!");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"IndexProjectAsync threw exception: {ex}");
                 throw;
             }
         }

@@ -32,11 +32,131 @@
     const editModalEl = document.getElementById('wizardEditModal');
     const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
 
-    // Initialize Step 1
+    // Initialize Onboarding Wizard
     document.addEventListener('DOMContentLoaded', () => {
-        updateStepNav();
-        startCloneAndIndexPipeline();
+        loadInitialState();
     });
+
+    async function loadInitialState() {
+        try {
+            const res = await fetch(`/api/onboard/state/${projectId}`);
+            if (res.ok) {
+                const data = await res.json();
+                
+                wizardState.techStack = data.techStack || 'N/A';
+                wizardState.projectSummary = data.projectSummary || '';
+                wizardState.testOverview = data.testOverview || 'N/A';
+                wizardState.testsAbsentOrIncomplete = data.testsAbsentOrIncomplete;
+
+                if (data.epics && data.epics.length > 0) {
+                    wizardState.epics = data.epics.map(epic => ({
+                        id: epic.id,
+                        name: epic.name,
+                        description: epic.description,
+                        selected: epic.selected !== false,
+                        features: (epic.features || []).map(feat => ({
+                            id: feat.id,
+                            name: feat.name,
+                            description: feat.description,
+                            selected: feat.selected !== false,
+                            userStories: (feat.userStories || []).map(story => ({
+                                id: story.id,
+                                title: story.title,
+                                description: story.description,
+                                acceptanceCriteria: story.acceptanceCriteria,
+                                priority: story.priority,
+                                selected: story.selected !== false,
+                                tasks: (story.tasks || []).map(t => ({
+                                    id: t.id,
+                                    title: t.title,
+                                    description: t.description,
+                                    priority: t.priority,
+                                    optimisticHours: t.optimisticHours,
+                                    mostLikelyHours: t.mostLikelyHours,
+                                    pessimisticHours: t.pessimisticHours,
+                                    selected: true
+                                })),
+                                testCases: (story.testCases || []).map(tc => ({
+                                    id: tc.id,
+                                    title: tc.title,
+                                    steps: tc.steps,
+                                    expectedResult: tc.expectedResult,
+                                    selected: true
+                                }))
+                            }))
+                        }))
+                    }));
+
+                    let hasFeatures = false;
+                    let hasStories = false;
+                    let hasTasks = false;
+
+                    for (const epic of wizardState.epics) {
+                        if (epic.features && epic.features.length > 0) {
+                            hasFeatures = true;
+                            for (const feat of epic.features) {
+                                if (feat.userStories && feat.userStories.length > 0) {
+                                    hasStories = true;
+                                    for (const story of feat.userStories) {
+                                        if ((story.tasks && story.tasks.length > 0) || (story.testCases && story.testCases.length > 0)) {
+                                            hasTasks = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (hasTasks) {
+                        currentStep = 5;
+                    } else if (hasStories) {
+                        currentStep = 4;
+                    } else if (hasFeatures) {
+                        currentStep = 3;
+                    } else {
+                        currentStep = 2;
+                    }
+
+                    if (wizardState.projectSummary) {
+                        const ovCard = document.getElementById('overview-card');
+                        if (ovCard) ovCard.style.display = 'block';
+                        const badgeTech = document.getElementById('onboard-badge-tech');
+                        if (badgeTech) badgeTech.textContent = wizardState.techStack;
+                        const ovSumm = document.getElementById('onboard-overview-summary');
+                        if (ovSumm) ovSumm.textContent = wizardState.projectSummary;
+                        
+                        const badgeCoverage = document.getElementById('onboard-badge-coverage');
+                        if (badgeCoverage) {
+                            badgeCoverage.textContent = wizardState.testsAbsentOrIncomplete ? "⚠️ Gaps Detected" : "✓ Comprehensive";
+                            badgeCoverage.className = `badge badge-coverage ${wizardState.testsAbsentOrIncomplete ? "" : "passed"}`;
+                        }
+                        
+                        const testsDesc = document.getElementById('onboard-overview-tests');
+                        if (testsDesc) {
+                            testsDesc.textContent = wizardState.testOverview;
+                            testsDesc.className = `test-overview-desc ${wizardState.testsAbsentOrIncomplete ? "warning" : "passed"}`;
+                        }
+                    }
+
+                    await transitionToStep(currentStep);
+                    updateStepNav();
+                } else {
+                    currentStep = 1;
+                    updateStepNav();
+                    startCloneAndIndexPipeline();
+                }
+            } else {
+                currentStep = 1;
+                updateStepNav();
+                startCloneAndIndexPipeline();
+            }
+        } catch (err) {
+            console.error("Failed to load initial state", err);
+            currentStep = 1;
+            updateStepNav();
+            startCloneAndIndexPipeline();
+        }
+    }
 
     // ── STEP 1: Git Clone & Index Pipeline ───────────────────────────────────
     async function startCloneAndIndexPipeline() {
@@ -154,7 +274,10 @@
             const badgeCoverage = document.getElementById('onboard-badge-coverage');
             badgeCoverage.textContent = data.testsAbsentOrIncomplete ? "⚠️ Gaps Detected" : "✓ Comprehensive";
             badgeCoverage.className = `badge badge-coverage ${data.testsAbsentOrIncomplete ? "" : "passed"}`;
-            document.getElementById('onboard-overview-tests').textContent = data.testOverview;
+            
+            const testsDesc = document.getElementById('onboard-overview-tests');
+            testsDesc.textContent = data.testOverview;
+            testsDesc.className = `test-overview-desc ${data.testsAbsentOrIncomplete ? "warning" : "passed"}`;
 
             loader.remove();
             renderEpicsList();
@@ -245,22 +368,17 @@
             // Fetch features from AI if empty
             if (epic.features.length === 0) {
                 try {
-                    const res = await fetch('/api/onboard/suggest-features', {
+                    const res = await fetch(`/api/onboard/analyze-features/${epic.id}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
                             'RequestVerificationToken': getAntiForgeryToken()
-                        },
-                        body: JSON.stringify({
-                            projectId: projectId,
-                            epicName: epic.name,
-                            epicDescription: epic.description
-                        })
+                        }
                     });
 
                     if (res.ok) {
                         const data = await res.json();
                         epic.features = data.map(f => ({
+                            id: f.id,
                             name: f.name,
                             description: f.description,
                             selected: true,
@@ -376,23 +494,17 @@
                 // Fetch user stories if empty
                 if (feat.userStories.length === 0) {
                     try {
-                        const res = await fetch('/api/onboard/suggest-stories', {
+                        const res = await fetch(`/api/onboard/analyze-stories/${feat.id}`, {
                             method: 'POST',
                             headers: {
-                                'Content-Type': 'application/json',
                                 'RequestVerificationToken': getAntiForgeryToken()
-                            },
-                            body: JSON.stringify({
-                                projectId: projectId,
-                                epicName: epic.name,
-                                featureName: feat.name,
-                                featureDescription: feat.description
-                            })
+                            }
                         });
 
                         if (res.ok) {
                             const data = await res.json();
                             feat.userStories = data.map(s => ({
+                                id: s.id,
                                 title: s.title,
                                 description: s.description,
                                 acceptanceCriteria: s.acceptanceCriteria,
@@ -542,23 +654,17 @@
                     // Fetch tasks & test cases if empty
                     if (story.tasks.length === 0 && story.testCases.length === 0) {
                         try {
-                            const res = await fetch('/api/onboard/suggest-tasks-and-tests', {
+                            const res = await fetch(`/api/onboard/analyze-tasks-tests/${story.id}`, {
                                 method: 'POST',
                                 headers: {
-                                    'Content-Type': 'application/json',
                                     'RequestVerificationToken': getAntiForgeryToken()
-                                },
-                                body: JSON.stringify({
-                                    projectId: projectId,
-                                    storyTitle: story.title,
-                                    storyDescription: story.description,
-                                    suggestTests: wizardState.testsAbsentOrIncomplete
-                                })
+                                }
                             });
 
                             if (res.ok) {
                                 const data = await res.json();
                                 story.tasks = data.tasks.map(t => ({
+                                    id: t.id,
                                     title: t.title,
                                     description: t.description,
                                     optimisticHours: t.optimisticHours,
@@ -569,6 +675,7 @@
                                 }));
 
                                 story.testCases = data.testCases.map(tc => ({
+                                    id: tc.id,
                                     title: tc.title,
                                     steps: tc.steps,
                                     expectedResult: tc.expectedResult,
@@ -784,16 +891,12 @@
         btnNext.disabled = true;
         btnNext.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Initiating Project...';
 
-        const tree = buildFinalHierarchyTree();
-
         try {
-            const res = await fetch('/api/onboard/submit-onboarding', {
+            const res = await fetch(`/api/onboard/complete/${projectId}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'RequestVerificationToken': getAntiForgeryToken()
-                },
-                body: JSON.stringify(tree)
+                }
             });
 
             if (!res.ok) {
@@ -1025,6 +1128,200 @@
             renderTasksAndTcsList(eIdx, fIdx, sIdx);
         }
     }
+    // ── STEP-BY-STEP PERSISTENCE FUNCTIONS ──────────────────────────────────────
+    async function saveEpicsStep() {
+        const selectedEpics = wizardState.epics.filter(e => e.selected);
+        const body = {
+            projectId: projectId,
+            epics: selectedEpics.map(e => ({
+                id: e.id || null,
+                name: e.name,
+                description: e.description
+            }))
+        };
+
+        const res = await fetch('/api/onboard/save-epics', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken()
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+            throw new Error(await res.text());
+        }
+
+        const savedEpics = await res.json();
+        let savedIdx = 0;
+        for (let i = 0; i < wizardState.epics.length; i++) {
+            if (wizardState.epics[i].selected) {
+                const saved = savedEpics[savedIdx++];
+                wizardState.epics[i].id = saved.id;
+                if (!wizardState.epics[i].features) {
+                    wizardState.epics[i].features = [];
+                }
+            }
+        }
+        wizardState.epics = wizardState.epics.filter(e => e.selected);
+    }
+
+    async function saveFeaturesStep() {
+        for (const epic of wizardState.epics) {
+            if (!epic.selected || !epic.id) continue;
+
+            const selectedFeatures = (epic.features || []).filter(f => f.selected);
+            const body = {
+                epicId: epic.id,
+                features: selectedFeatures.map(f => ({
+                    id: f.id || null,
+                    name: f.name,
+                    description: f.description
+                }))
+            };
+
+            const res = await fetch('/api/onboard/save-features', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                throw new Error(`Failed to save features for epic ${epic.name}: ${await res.text()}`);
+            }
+
+            const savedFeatures = await res.json();
+            let savedIdx = 0;
+            for (let i = 0; i < epic.features.length; i++) {
+                if (epic.features[i].selected) {
+                    const saved = savedFeatures[savedIdx++];
+                    epic.features[i].id = saved.id;
+                    if (!epic.features[i].userStories) {
+                        epic.features[i].userStories = [];
+                    }
+                }
+            }
+            epic.features = epic.features.filter(f => f.selected);
+        }
+    }
+
+    async function saveStoriesStep() {
+        for (const epic of wizardState.epics) {
+            if (!epic.selected) continue;
+            for (const feat of epic.features) {
+                if (!feat.selected || !feat.id) continue;
+
+                const selectedStories = (feat.userStories || []).filter(s => s.selected);
+                const body = {
+                    featureId: feat.id,
+                    stories: selectedStories.map(s => ({
+                        id: s.id || null,
+                        title: s.title,
+                        description: s.description,
+                        acceptanceCriteria: s.acceptanceCriteria,
+                        priority: s.priority
+                    }))
+                };
+
+                const res = await fetch('/api/onboard/save-stories', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Failed to save stories for feature ${feat.name}: ${await res.text()}`);
+                }
+
+                const savedStories = await res.json();
+                let savedIdx = 0;
+                for (let i = 0; i < feat.userStories.length; i++) {
+                    if (feat.userStories[i].selected) {
+                        const saved = savedStories[savedIdx++];
+                        feat.userStories[i].id = saved.id;
+                        if (!feat.userStories[i].tasks) {
+                            feat.userStories[i].tasks = [];
+                        }
+                        if (!feat.userStories[i].testCases) {
+                            feat.userStories[i].testCases = [];
+                        }
+                    }
+                }
+                feat.userStories = feat.userStories.filter(s => s.selected);
+            }
+        }
+    }
+
+    async function saveTasksStep() {
+        for (const epic of wizardState.epics) {
+            if (!epic.selected) continue;
+            for (const feat of epic.features) {
+                if (!feat.selected) continue;
+                for (const story of feat.userStories) {
+                    if (!story.selected || !story.id) continue;
+
+                    const selectedTasks = (story.tasks || []).filter(t => t.selected);
+                    const selectedTests = (story.testCases || []).filter(tc => tc.selected);
+
+                    const body = {
+                        storyId: story.id,
+                        tasks: selectedTasks.map(t => ({
+                            id: t.id || null,
+                            title: t.title,
+                            description: t.description,
+                            priority: t.priority,
+                            optimisticHours: parseFloat(t.optimisticHours) || 0,
+                            mostLikelyHours: parseFloat(t.mostLikelyHours) || 0,
+                            pessimisticHours: parseFloat(t.pessimisticHours) || 0
+                        })),
+                        testCases: selectedTests.map(tc => ({
+                            id: tc.id || null,
+                            title: tc.title,
+                            steps: tc.steps,
+                            expectedResult: tc.expectedResult
+                        }))
+                    };
+
+                    const res = await fetch('/api/onboard/save-tasks-tests', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getAntiForgeryToken()
+                        },
+                        body: JSON.stringify(body)
+                    });
+
+                    if (!res.ok) {
+                        throw new Error(`Failed to save tasks/tests for story ${story.title}: ${await res.text()}`);
+                    }
+
+                    const saved = await res.json();
+                    let savedTaskIdx = 0;
+                    for (let i = 0; i < story.tasks.length; i++) {
+                        if (story.tasks[i].selected) {
+                            story.tasks[i].id = saved.tasks[savedTaskIdx++].id;
+                        }
+                    }
+                    story.tasks = story.tasks.filter(t => t.selected);
+
+                    let savedTestIdx = 0;
+                    for (let i = 0; i < story.testCases.length; i++) {
+                        if (story.testCases[i].selected) {
+                            story.testCases[i].id = saved.testCases[savedTestIdx++].id;
+                        }
+                    }
+                    story.testCases = story.testCases.filter(tc => tc.selected);
+                }
+            }
+        }
+    }
 
     // ── STEPPER NAVIGATION DRIVER ─────────────────────────────────────────────
     btnNext.addEventListener('click', async () => {
@@ -1033,13 +1330,33 @@
             return;
         }
 
-        const nextStep = currentStep + 1;
-        if (await transitionToStep(nextStep)) {
-            currentStep = nextStep;
-            updateStepNav();
+        btnNext.disabled = true;
+        const originalText = btnNext.innerHTML;
+        btnNext.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving Step...';
+
+        try {
+            if (currentStep === 2) {
+                await saveEpicsStep();
+            } else if (currentStep === 3) {
+                await saveFeaturesStep();
+            } else if (currentStep === 4) {
+                await saveStoriesStep();
+            } else if (currentStep === 5) {
+                await saveTasksStep();
+            }
+
+            const nextStep = currentStep + 1;
+            if (await transitionToStep(nextStep)) {
+                currentStep = nextStep;
+                updateStepNav();
+            }
+        } catch (err) {
+            alert(`Failed to save step: ${err.message}`);
+        } finally {
+            btnNext.disabled = false;
+            btnNext.innerHTML = originalText;
         }
     });
-
     btnPrev.addEventListener('click', async () => {
         if (currentStep === 1) return;
 

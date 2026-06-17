@@ -346,3 +346,39 @@
     text-align: center;
     font-weight: 600;
 }
+
+/* AI Codebase Analysis Premium Styles */
+.tech-stack-desc {
+    background: rgba(3, 105, 161, 0.08);
+    color: #0369a1;
+    border: 1px solid rgba(3, 105, 161, 0.15);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.project-summary-desc {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #475569;
+}
+
+.test-overview-desc {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+}
+.test-overview-desc.warning {
+    background: rgba(217, 119, 6, 0.08);
+    color: #d97706;
+    border: 1px solid rgba(217, 119, 6, 0.15);
+}
+.test-overview-desc.passed {
+    background: rgba(6, 95, 70, 0.08);
+    color: #065f46;
+    border: 1px solid rgba(6, 95, 70, 0.15);
+}

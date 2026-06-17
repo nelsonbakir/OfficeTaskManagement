@@ -26,14 +26,60 @@ namespace OfficeTaskManagement.Services.Codebase
 
             if (Directory.Exists(targetDirectory))
             {
-                try
+                var gitDir = Path.Combine(targetDirectory, ".git");
+                if (Directory.Exists(gitDir))
                 {
-                    _logger.LogInformation("Target directory {Path} exists. Cleaning it before cloning...", targetDirectory);
-                    Directory.Delete(targetDirectory, true);
+                    _logger.LogInformation("Target directory {Path} exists and contains a .git repository. Running git pull...", targetDirectory);
+                    var pullStartInfo = new ProcessStartInfo
+                    {
+                        FileName = "git",
+                        Arguments = "pull",
+                        WorkingDirectory = targetDirectory,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+
+                    using var pullProcess = new Process { StartInfo = pullStartInfo };
+                    try
+                    {
+                        pullProcess.Start();
+                        var pullOutputTask = pullProcess.StandardOutput.ReadToEndAsync(ct);
+                        var pullErrorTask = pullProcess.StandardError.ReadToEndAsync(ct);
+
+                        await pullProcess.WaitForExitAsync(ct);
+
+                        if (pullProcess.ExitCode == 0)
+                        {
+                            _logger.LogInformation("Git pull completed successfully for {Path}.", targetDirectory);
+                            return targetDirectory;
+                        }
+                        else
+                        {
+                            var pullErrorMsg = await pullErrorTask;
+                            _logger.LogWarning("Git pull failed with exit code {ExitCode}. Error: {Error}. Progressing with existing directory.", pullProcess.ExitCode, pullErrorMsg);
+                            return targetDirectory;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to run Git pull in {Path}. Progressing with existing directory.", targetDirectory);
+                        return targetDirectory;
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.LogWarning(ex, "Failed to clean directory {Path} before cloning. Attempting to continue.", targetDirectory);
+                    try
+                    {
+                        _logger.LogInformation("Target directory {Path} exists but is not a Git repository. Attempting to delete and clean it...", targetDirectory);
+                        Directory.Delete(targetDirectory, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to delete existing non-git directory {Path}. Progressing with existing files without cloning.", targetDirectory);
+                        return targetDirectory;
+                    }
                 }
             }
 
