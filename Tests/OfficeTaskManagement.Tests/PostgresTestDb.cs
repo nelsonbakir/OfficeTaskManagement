@@ -45,7 +45,7 @@ namespace OfficeTaskManagement.Tests
                 Database = "template_db"
             };
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseNpgsql(templateBuilder.ConnectionString, x => x.MigrationsAssembly("OfficeTaskManagement"))
+                .UseNpgsql(templateBuilder.ConnectionString, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
                 .Options;
 
@@ -101,10 +101,25 @@ namespace OfficeTaskManagement.Tests
         {
             var dbName = $"db_{Guid.NewGuid():N}";
 
+            // Clear Npgsql pools to release idle connections
+            NpgsqlConnection.ClearAllPools();
+
             // Connect to master 'postgres' db to create the database from template
             using (var connection = new NpgsqlConnection(_masterConnectionString))
             {
                 await connection.OpenAsync();
+
+                // Terminate any active connections to template_db to ensure clone succeeds
+                using (var termCmd = connection.CreateCommand())
+                {
+                    termCmd.CommandText = @"
+                        SELECT pg_terminate_backend(pg_stat_activity.pid)
+                        FROM pg_stat_activity
+                        WHERE pg_stat_activity.datname = 'template_db'
+                          AND pid <> pg_backend_pid();";
+                    await termCmd.ExecuteNonQueryAsync();
+                }
+
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandText = $"CREATE DATABASE \"{dbName}\" TEMPLATE template_db;";
@@ -119,7 +134,7 @@ namespace OfficeTaskManagement.Tests
             var connectionString = builder.ConnectionString;
 
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseNpgsql(connectionString, x => x.MigrationsAssembly("OfficeTaskManagement"))
+                .UseNpgsql(connectionString, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
                 .Options;
 

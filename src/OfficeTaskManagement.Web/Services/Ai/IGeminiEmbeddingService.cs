@@ -1,7 +1,7 @@
 namespace OfficeTaskManagement.Services.Ai
 {
     /// <summary>
-    /// Service for generating text embeddings using the Gemini text-embedding-004 model.
+    /// Service for generating text embeddings using the Gemini gemini-embedding-001 model.
     /// Used by CodebaseIndexingService (Phase 3) to embed code chunks for vector similarity search.
     /// </summary>
     public interface IGeminiEmbeddingService

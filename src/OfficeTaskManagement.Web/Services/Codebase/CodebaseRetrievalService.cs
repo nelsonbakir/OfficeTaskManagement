@@ -36,30 +36,11 @@ public class CodebaseRetrievalService
     /// <param name="topK">Maximum number of chunks to return</param>
     /// <param name="ct">Cancellation token</param>
     public async Task<IReadOnlyList<string>> GetRelevantChunksAsync(
-        string query, int topK = 3, CancellationToken ct = default)
+        string query, int? projectId, int topK = 3, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<string>();
 
-        // Determine DB provider at runtime
-        var providerName = _db.Database.ProviderName ?? "";
-        bool isPostgres  = providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);
-
-        if (isPostgres)
-        {
-            return await GetChunksViaVectorSearchAsync(query, topK, ct);
-        }
-        else
-        {
-            // Dev/test fallback: keyword search
-            return await GetChunksViaKeywordSearchAsync(query, topK, ct);
-        }
-    }
-
-    // ── PostgreSQL path: pgvector cosine similarity ────────────────────────────
-    private async Task<IReadOnlyList<string>> GetChunksViaVectorSearchAsync(
-        string query, int topK, CancellationToken ct)
-    {
         float[] queryEmbedding;
         try
         {
@@ -67,72 +48,27 @@ public class CodebaseRetrievalService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Embedding query failed — falling back to keyword search");
-            return await GetChunksViaKeywordSearchAsync(query, topK, ct);
+            _logger.LogWarning(ex, "Embedding query failed");
+            return Array.Empty<string>();
         }
 
         if (queryEmbedding.Length == 0)
-            return await GetChunksViaKeywordSearchAsync(query, topK, ct);
-
-        // pgvector <=> operator via Pgvector.EntityFrameworkCore
-        try
-        {
-            var qVec = new Pgvector.Vector(queryEmbedding);
-            var chunks = await _db.CodeEmbeddings
-                .Where(e => e.Embedding != null && e.Embedding.Length > 0)
-                .OrderBy(e => e.Embedding.CosineDistance(qVec.ToArray()))
-                .Take(topK)
-                .Select(e => $"[{e.FilePath}:{e.StartLine}]\n{e.ChunkText}")
-                .ToListAsync(ct);
-
-            return chunks;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Vector search failed — falling back to keyword search");
-            return await GetChunksViaKeywordSearchAsync(query, topK, ct);
-        }
-    }
-
-    // ── SQLite / InMemory fallback: simple keyword search ─────────────────────
-    private async Task<IReadOnlyList<string>> GetChunksViaKeywordSearchAsync(
-        string query, int topK, CancellationToken ct)
-    {
-        if (await _db.CodeEmbeddings.AnyAsync(ct) == false)
             return Array.Empty<string>();
 
-        // Extract significant keywords (words > 3 chars)
-        var keywords = query
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 3)
-            .Select(w => w.ToLower())
-            .Distinct()
-            .Take(5)
-            .ToArray();
+        var qVec = new Pgvector.Vector(queryEmbedding);
+        var queryable = _db.CodeEmbeddings.AsNoTracking();
+        if (projectId.HasValue)
+        {
+            queryable = queryable.Where(e => e.ProjectId == projectId.Value);
+        }
 
-        if (keywords.Length == 0) return Array.Empty<string>();
-
-        // Load all rows then filter in C# — InMemory provider cannot translate
-        // arbitrary .Any() expressions over captured arrays.
-        // Acceptable for dev/test with a small index.
-        var all = await _db.CodeEmbeddings
-            .Select(e => new { e.FilePath, e.StartLine, e.ChunkText })
+        var chunks = await queryable
+            .Where(e => e.Embedding != null)
+            .OrderBy(e => e.Embedding.CosineDistance(qVec))
+            .Take(topK)
+            .Select(e => $"[{e.FilePath}:{e.StartLine}]\n{e.ChunkText}")
             .ToListAsync(ct);
 
-        // Score by keyword hit count, return top-K
-        var scored = all
-            .Select(e => new
-            {
-                Chunk = $"[{e.FilePath}:{e.StartLine}]\n{e.ChunkText}",
-                Score = keywords.Count(k =>
-                    e.ChunkText.Contains(k, StringComparison.OrdinalIgnoreCase))
-            })
-            .Where(x => x.Score > 0)
-            .OrderByDescending(x => x.Score)
-            .Take(topK)
-            .Select(x => x.Chunk)
-            .ToList();
-
-        return scored;
+        return chunks;
     }
 }

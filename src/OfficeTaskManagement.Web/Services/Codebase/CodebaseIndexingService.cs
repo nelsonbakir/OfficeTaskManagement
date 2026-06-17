@@ -42,39 +42,53 @@ public class CodebaseIndexingService : IHostedService
         _logger = logger;
     }
 
-    /// <summary>Fires background indexing on startup — non-blocking.</summary>
-    public Task StartAsync(CancellationToken ct)
-    {
-        _ = Task.Run(() => IndexRepositoryAsync(CancellationToken.None), CancellationToken.None);
-        return Task.CompletedTask;
-    }
+    /// <summary>Hosted service startup — no-op as indexing is project-specific and manual/lazy.</summary>
+    public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
 
     public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
-    /// Traverses the repository, chunks every file, embeds changed files, and persists to DB.
-    /// Safe to call multiple times — unchanged files (same MD5 hash) are skipped.
+    /// Traverses a specific project's repository, chunks changed files, embeds using Gemini text-embedding-004,
+    /// and persists to the database.
     /// </summary>
-    public async Task IndexRepositoryAsync(CancellationToken ct)
+    public async Task IndexProjectAsync(int projectId, CancellationToken ct)
     {
-        var repoRoot = _config["Codebase:RepositoryRoot"];
-        if (string.IsNullOrEmpty(repoRoot) || !Directory.Exists(repoRoot))
-        {
-            // Attempt to resolve relative to current working directory
-            var cwd = Directory.GetCurrentDirectory();
-            repoRoot = Path.GetFullPath(Path.Combine(cwd, "../../../../"));
-        }
-
-        _logger.LogInformation("Starting codebase indexing from: {Root}", repoRoot);
-
-        var files = DiscoverFiles(repoRoot).ToList();
-        _logger.LogInformation("Discovered {Count} files to consider", files.Count);
-
-        int indexed = 0, skipped = 0, failed = 0;
-
         using var scope = _scopeFactory.CreateScope();
         var db           = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var embeddingApi = scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>();
+
+        var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct);
+        if (project == null)
+        {
+            _logger.LogWarning("Project {ProjectId} not found for indexing.", projectId);
+            return;
+        }
+
+        var repoRoot = project.RepositoryPath;
+        if (string.IsNullOrEmpty(repoRoot))
+        {
+            repoRoot = ".";
+        }
+
+        var actualPath = repoRoot;
+        if (!Path.IsPathRooted(actualPath))
+        {
+            actualPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), actualPath));
+        }
+
+        _logger.LogInformation("Starting codebase indexing for Project {ProjectId} ({ProjectName}) from: {Root}", 
+            projectId, project.Name, actualPath);
+
+        if (!Directory.Exists(actualPath))
+        {
+            _logger.LogWarning("Repository path '{Path}' does not exist for project {ProjectId}.", actualPath, projectId);
+            return;
+        }
+
+        var files = DiscoverFiles(actualPath).ToList();
+        _logger.LogInformation("Discovered {Count} files to consider for Project {ProjectId}", files.Count, projectId);
+
+        int indexed = 0, skipped = 0, failed = 0;
 
         foreach (var filePath in files)
         {
@@ -82,18 +96,18 @@ public class CodebaseIndexingService : IHostedService
             try
             {
                 var fileHash = ComputeMd5(filePath);
-                var relative = GetRelativePath(repoRoot, filePath);
+                var relative = GetRelativePath(actualPath, filePath);
 
-                // Skip if file hasn't changed since last indexing
+                // Skip if file hasn't changed since last indexing for this project
                 if (await db.CodeEmbeddings.AnyAsync(
-                    e => e.FilePath == relative && e.FileHash == fileHash, ct))
+                    e => e.ProjectId == projectId && e.FilePath == relative && e.FileHash == fileHash, ct))
                 {
                     skipped++;
                     continue;
                 }
 
-                // Remove old chunks for this file
-                var old = db.CodeEmbeddings.Where(e => e.FilePath == relative);
+                // Remove old chunks for this file under this project
+                var old = db.CodeEmbeddings.Where(e => e.ProjectId == projectId && e.FilePath == relative);
                 db.CodeEmbeddings.RemoveRange(old);
 
                 var content = await File.ReadAllTextAsync(filePath, ct);
@@ -122,13 +136,15 @@ public class CodebaseIndexingService : IHostedService
                     {
                         db.CodeEmbeddings.Add(new CodeEmbedding
                         {
+                            TenantId  = project.TenantId,
+                            ProjectId = projectId,
                             FilePath  = relative,
                             ChunkType = batch[i].ChunkType,
                             StartLine = batch[i].StartLine,
                             ChunkText = batch[i].Text.Length <= 3000
                                         ? batch[i].Text
                                         : batch[i].Text[..3000],
-                            Embedding = embeddings[i],
+                            Embedding = new Pgvector.Vector(embeddings[i]),
                             FileHash  = fileHash
                         });
                     }
@@ -144,8 +160,23 @@ public class CodebaseIndexingService : IHostedService
         }
 
         _logger.LogInformation(
-            "Codebase indexing complete: {Indexed} indexed, {Skipped} unchanged, {Failed} failed",
-            indexed, skipped, failed);
+            "Codebase indexing complete for Project {ProjectId}: {Indexed} indexed, {Skipped} unchanged, {Failed} failed",
+            projectId, indexed, skipped, failed);
+    }
+
+    /// <summary>
+    /// Purges all codebase index entries for a specific project.
+    /// </summary>
+    public async Task PurgeProjectIndexAsync(int projectId)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var old = db.CodeEmbeddings.Where(e => e.ProjectId == projectId);
+        db.CodeEmbeddings.RemoveRange(old);
+        await db.SaveChangesAsync();
+
+        _logger.LogInformation("Purged all codebase index entries for Project {ProjectId}", projectId);
     }
 
     private IEnumerable<string> DiscoverFiles(string root)

@@ -1005,6 +1005,72 @@ namespace OfficeTaskManagement.Controllers
 
             return "On Track";
         }
+
+        // ── T53: AI Accuracy Dashboard ────────────────────────────────────────
+        [HasPermission(Permissions.StrategicView)]
+        public async Task<IActionResult> AiAccuracy()
+        {
+            var tenantId = User.FindFirstValue("TenantId") ?? string.Empty;
+
+            var logs = await _context.AiEstimationLogs
+                .Where(l => l.TenantId == tenantId && l.ActualHours.HasValue && l.AiPertHours.HasValue)
+                .ToListAsync();
+
+            // Accuracy by entity type
+            var byType = logs
+                .GroupBy(l => l.EntityType)
+                .Select(g => new AiAccuracyTypeRow
+                {
+                    EntityType    = g.Key,
+                    Count         = g.Count(),
+                    AvgAiHours    = Math.Round((double)g.Average(l => l.AiPertHours!.Value), 2),
+                    AvgActualHours= Math.Round((double)g.Average(l => l.ActualHours!.Value), 2),
+                    AvgDeltaPct   = Math.Round(g.Average(l =>
+                        l.AiPertHours!.Value == 0 ? 0
+                        : (double)(l.ActualHours!.Value - l.AiPertHours!.Value)
+                          / (double)l.AiPertHours!.Value * 100), 1)
+                })
+                .OrderBy(r => r.EntityType)
+                .ToList();
+
+            // Accuracy over time (monthly)
+            var byMonth = logs
+                .GroupBy(l => new { l.CreatedAt.Year, l.CreatedAt.Month })
+                .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
+                .Select(g => new AiAccuracyMonthRow
+                {
+                    Month         = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
+                    Count         = g.Count(),
+                    AvgAiHours    = Math.Round((double)g.Average(l => l.AiPertHours!.Value), 2),
+                    AvgActualHours= Math.Round((double)g.Average(l => l.ActualHours!.Value), 2)
+                })
+                .ToList();
+
+            // Token usage summary (T55 data)
+            var tokenSummary = await _context.AiEstimationLogs
+                .Where(l => l.TenantId == tenantId)
+                .GroupBy(l => l.Model)
+                .Select(g => new AiTokenUsageRow
+                {
+                    Model       = g.Key,
+                    TotalCalls  = g.Count(),
+                    TotalInput  = g.Sum(l => l.InputTokens),
+                    TotalOutput = g.Sum(l => l.OutputTokens)
+                })
+                .ToListAsync();
+
+            var vm = new AiAccuracyViewModel
+            {
+                ByType       = byType,
+                ByMonth      = byMonth,
+                TokenUsage   = tokenSummary,
+                TotalLogs    = await _context.AiEstimationLogs.CountAsync(l => l.TenantId == tenantId),
+                LogsWithData = logs.Count
+            };
+
+            return View(vm);
+        }
     }
 }
+
 

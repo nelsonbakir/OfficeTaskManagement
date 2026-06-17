@@ -1,6 +1,8 @@
+using Pgvector;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using OfficeTaskManagement.Models;
 
 namespace OfficeTaskManagement.Models.Ai
 {
@@ -9,13 +11,17 @@ namespace OfficeTaskManagement.Models.Ai
     /// from the Git repository. Used by CodebaseRetrievalService for
     /// vector similarity search (pgvector).
     /// </summary>
-    public class CodeEmbedding
+    public class CodeEmbedding : IMustHaveTenant
     {
         [Key]
         public int Id { get; set; }
 
         /// <summary>Tenant scope — prevents cross-tenant code leakage.</summary>
         public string TenantId { get; set; } = string.Empty;
+
+        [Required]
+        public int ProjectId { get; set; }
+        public Project Project { get; set; } = null!;
 
         /// <summary>Relative path from repo root, e.g. "src/Services/ResourceService.cs".</summary>
         [Required]
@@ -34,10 +40,10 @@ namespace OfficeTaskManagement.Models.Ai
         public string ChunkText { get; set; } = string.Empty;
 
         /// <summary>
-        /// 768-dimensional float vector from Gemini text-embedding-004.
-        /// Stored as TEXT (JSON array) in SQLite dev; overridden to vector(768) in PostgreSQL migration.
+        /// 768-dimensional vector from Gemini text-embedding-004.
         /// </summary>
-        public float[] Embedding { get; set; } = Array.Empty<float>();
+        [Required]
+        public Vector Embedding { get; set; } = null!;
 
         /// <summary>MD5 hash of the file at index time. Used to skip unchanged files.</summary>
         [StringLength(32)]

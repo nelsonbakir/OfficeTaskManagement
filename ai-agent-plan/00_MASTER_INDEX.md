@@ -31,7 +31,8 @@
 | [07_FRONTEND_UX.md](./07_FRONTEND_UX.md) | Razor partials, JS patterns, UI components per entity | Reference |
 | [08_DATA_MODEL.md](./08_DATA_MODEL.md) | DB migrations, new EF Core entities, pgvector setup | Reference |
 | [09_TESTING.md](./09_TESTING.md) | Unit tests, integration tests, mocking strategy | Reference |
-| [10_EXECUTION_TASKS.md](./10_EXECUTION_TASKS.md) | **THE TASK LIST** — resumable, ordered, checkboxed | **ACTIVE** |
+| [10_EXECUTION_TASKS.md](./10_EXECUTION_TASKS.md) | **THE TASK LIST** — resumable, ordered, checkboxed | Reference |
+| [11_MULTI_PROJECT_RAG.md](./11_MULTI_PROJECT_RAG.md) | **THE MULTI-PROJECT ENHANCEMENT TASK LIST** — resumable, checkboxed | **ACTIVE** |
 
 ---
 

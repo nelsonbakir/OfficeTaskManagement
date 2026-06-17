@@ -1,0 +1,81 @@
+@* AI Copilot Sidebar — Phase 4 Multi-turn Copilot
+   Spec: ai-agent-plan/07_FRONTEND_UX.md → FLOW 7
+   Always injected via _Layout.cshtml; hidden by default.
+   JS: wwwroot/js/copilot-sidebar.js *@
+
+<div id="ai-copilot-sidebar" class="copilot-sidebar" role="complementary" aria-label="AI Copilot" aria-hidden="true">
+
+    <!-- Sidebar Header -->
+    <div class="copilot-sidebar__header">
+        <span class="copilot-sidebar__icon" aria-hidden="true">🤖</span>
+        <span class="copilot-sidebar__title">AI Copilot</span>
+        <div class="copilot-sidebar__header-actions">
+            <button type="button" id="copilot-clear-btn"
+                    class="copilot-sidebar__clear-btn"
+                    aria-label="Clear conversation history"
+                    title="Clear conversation">
+                🗑
+            </button>
+            <button type="button" id="copilot-close-btn"
+                    class="copilot-sidebar__close-btn"
+                    aria-label="Close AI Copilot sidebar">
+                ✕
+            </button>
+        </div>
+    </div>
+
+    <!-- Conversation display -->
+    <div id="copilot-messages" class="copilot-sidebar__messages" role="log" aria-live="polite" aria-label="Conversation">
+        <!-- Welcome message -->
+        <div class="copilot-msg copilot-msg--ai">
+            <span class="copilot-msg__avatar" aria-hidden="true">🤖</span>
+            <div class="copilot-msg__bubble">
+                <p>Hello! I'm your AI PM Copilot. I can help you:</p>
+                <ul>
+                    <li>Create Epics, Features, User Stories and Tasks</li>
+                    <li>Analyze resource availability and sprint capacity</li>
+                    <li>Suggest project breakdowns and priorities</li>
+                    <li>Update estimates based on actual progress</li>
+                </ul>
+                <p>What would you like to do?</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action buttons (populated by JS from AgentAction[] responses) -->
+    <div id="copilot-actions" class="copilot-sidebar__actions" style="display:none" aria-label="Suggested actions">
+        <!-- Populated by copilot-sidebar.js -->
+    </div>
+
+    <!-- Input area -->
+    <div class="copilot-sidebar__input-area">
+        <div class="copilot-sidebar__input-wrapper">
+            <textarea id="copilot-input"
+                      class="copilot-sidebar__input"
+                      placeholder="Ask me anything about this project..."
+                      rows="2"
+                      aria-label="Message to AI Copilot"
+                      maxlength="2000"></textarea>
+            <button type="button" id="copilot-send-btn"
+                    class="copilot-sidebar__send-btn"
+                    aria-label="Send message"
+                    disabled>
+                <span aria-hidden="true">↑</span>
+            </button>
+        </div>
+        <div class="copilot-sidebar__input-footer">
+            <span class="copilot-sidebar__hint">Enter to send · Shift+Enter for new line</span>
+            <span id="copilot-char-count" class="copilot-sidebar__char-count">0/2000</span>
+        </div>
+    </div>
+</div>
+
+<!-- Floating toggle button (always visible when sidebar is closed) -->
+<button type="button" id="copilot-toggle-btn"
+        class="copilot-toggle-btn"
+        aria-label="Open AI Copilot"
+        aria-expanded="false"
+        aria-controls="ai-copilot-sidebar">
+    <span class="copilot-toggle-btn__icon" aria-hidden="true">🤖</span>
+    <span class="copilot-toggle-btn__label">AI Copilot</span>
+</button>

@@ -73,9 +73,37 @@ namespace OfficeTaskManagement.Services.Ai
             {
                 try
                 {
+                    int? projectId = request.ProjectId;
+                    if (!projectId.HasValue)
+                    {
+                        if (request.EpicId.HasValue)
+                        {
+                            projectId = await _db.Epics
+                                .Where(e => e.Id == request.EpicId.Value)
+                                .Select(e => (int?)e.ProjectId)
+                                .FirstOrDefaultAsync(ct);
+                        }
+                        else if (request.FeatureId.HasValue)
+                        {
+                            projectId = await _db.Features
+                                .Where(f => f.Id == request.FeatureId.Value)
+                                .Include(f => f.Epic)
+                                .Select(f => (int?)f.Epic.ProjectId)
+                                .FirstOrDefaultAsync(ct);
+                        }
+                        else if (request.UserStoryId.HasValue)
+                        {
+                            projectId = await _db.UserStories
+                                .Where(us => us.Id == request.UserStoryId.Value)
+                                .Include(us => us.Feature.Epic)
+                                .Select(us => (int?)us.Feature.Epic.ProjectId)
+                                .FirstOrDefaultAsync(ct);
+                        }
+                    }
+
                     var searchQuery = $"{request.EntityType}: {request.Title} {request.Description}";
                     ctx.CodeChunks = await _codebaseRetrieval.GetRelevantChunksAsync(
-                        searchQuery, topK: 3, ct);
+                        searchQuery, projectId, topK: 3, ct);
                 }
                 catch (Exception ex)
                 {

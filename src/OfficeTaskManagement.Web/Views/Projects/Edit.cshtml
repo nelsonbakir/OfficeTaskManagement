@@ -181,6 +181,21 @@
                 </div>
             </div>
 
+            <!-- Codebase Settings -->
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-code"></i> Codebase Repository (RAG)</h3>
+                <div class="form-group">
+                    <label asp-for="Project.RepositoryPath">Local Repository Path</label>
+                    <input asp-for="Project.RepositoryPath" class="form-control" placeholder="e.g. D:\Projects\MyProject" />
+                    <span asp-validation-for="Project.RepositoryPath" class="text-danger small"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="Project.RepositoryUrl">Git Remote URL</label>
+                    <input asp-for="Project.RepositoryUrl" class="form-control" placeholder="e.g. https://github.com/user/repo.git" />
+                    <span asp-validation-for="Project.RepositoryUrl" class="text-danger small"></span>
+                </div>
+            </div>
+
             <!-- Description Section -->
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-align-left"></i> Description</h3>

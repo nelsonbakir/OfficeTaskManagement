@@ -1,0 +1,198 @@
+@model OfficeTaskManagement.ViewModels.Analytics.AiAccuracyViewModel
+@{
+    ViewData["Title"] = "AI Accuracy Dashboard";
+    ViewData["AiEntityType"] = null;
+}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+    <div>
+        <h1 style="font-size:1.6rem; margin:0; color:var(--text-primary);">
+            <span style="color:#b39dff;">✨</span> AI Estimation Accuracy
+        </h1>
+        <p style="color:var(--text-secondary); margin:0.25rem 0 0; font-size:0.9rem;">
+            Compares AI PERT estimates vs actual hours logged — updated nightly.
+        </p>
+    </div>
+    <a asp-action="StrategicHub" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Analytics
+    </a>
+</div>
+
+@* ── Summary Cards ── *@
+<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:2rem;">
+    <div class="ai-accuracy-card">
+        <div class="ai-accuracy-card__label">Total AI Calls</div>
+        <div class="ai-accuracy-card__value" style="color:#b39dff;">@Model.TotalLogs.ToString("N0")</div>
+    </div>
+    <div class="ai-accuracy-card">
+        <div class="ai-accuracy-card__label">With Actual Data</div>
+        <div class="ai-accuracy-card__value" style="color:#22c55e;">@Model.LogsWithData.ToString("N0")</div>
+    </div>
+    <div class="ai-accuracy-card">
+        <div class="ai-accuracy-card__label">Coverage</div>
+        <div class="ai-accuracy-card__value" style="color:#fbbf24;">
+            @(Model.TotalLogs > 0 ? $"{(Model.LogsWithData * 100.0 / Model.TotalLogs):F1}%" : "—")
+        </div>
+    </div>
+    <div class="ai-accuracy-card">
+        <div class="ai-accuracy-card__label">Est. Monthly Cost (BDT)</div>
+        <div class="ai-accuracy-card__value" style="color:#6c47ff;">
+            @Model.TokenUsage.Sum(r => r.EstimatedCostBDT).ToString("N2")
+        </div>
+    </div>
+</div>
+
+@if (Model.LogsWithData == 0)
+{
+    <div class="alert" style="background:#1d1640; border:1px solid #6c47ff33; color:#b39dff; border-radius:10px; padding:1.5rem;">
+        <strong>✨ No accuracy data yet.</strong>
+        AI estimates are tracked automatically. Once tasks reach <strong>Done</strong> status with actual hours logged,
+        the nightly job will populate comparison data here.
+    </div>
+}
+else
+{
+    @* ── Accuracy by Entity Type ── *@
+    <div class="ai-accuracy-section">
+        <h2 class="ai-accuracy-section__title">📊 Accuracy by Entity Type</h2>
+        <div class="table-responsive">
+            <table class="table table-dark" style="--bs-table-bg:transparent;">
+                <thead style="border-bottom:1px solid #6c47ff33;">
+                    <tr>
+                        <th>Entity Type</th>
+                        <th class="text-end">Samples</th>
+                        <th class="text-end">Avg AI (h)</th>
+                        <th class="text-end">Avg Actual (h)</th>
+                        <th class="text-end">Avg Delta</th>
+                        <th>Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.ByType)
+                    {
+                        var deltaColor = row.AvgDeltaPct > 10 ? "#ff6b6b"
+                                       : row.AvgDeltaPct < -10 ? "#fbbf24"
+                                       : "#22c55e";
+                        var deltaLabel = row.AvgDeltaPct > 0 ? $"+{row.AvgDeltaPct:F1}% (under-estimated)"
+                                       : row.AvgDeltaPct < 0 ? $"{row.AvgDeltaPct:F1}% (over-estimated)"
+                                       : "Accurate";
+                        <tr>
+                            <td><strong style="color:#d4c8ff;">@row.EntityType</strong></td>
+                            <td class="text-end">@row.Count</td>
+                            <td class="text-end">@row.AvgAiHours</td>
+                            <td class="text-end">@row.AvgActualHours</td>
+                            <td class="text-end" style="color:@deltaColor; font-weight:600;">@deltaLabel</td>
+                            <td>
+                                @{
+                                    var ratio = row.AvgAiHours > 0 ? row.AvgActualHours / row.AvgAiHours : 1;
+                                    var barWidth = Math.Min(100, Math.Max(5, ratio * 100));
+                                }
+                                <div style="background:#ffffff11; border-radius:4px; height:8px; width:120px;">
+                                    <div style="background:@deltaColor; width:@(barWidth)%; height:100%; border-radius:4px; transition:width 0.4s;"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ── Monthly Trend ── *@
+    @if (Model.ByMonth.Count > 0)
+    {
+        <div class="ai-accuracy-section">
+            <h2 class="ai-accuracy-section__title">📅 Monthly Trend</h2>
+            <div class="table-responsive">
+                <table class="table table-dark" style="--bs-table-bg:transparent;">
+                    <thead style="border-bottom:1px solid #6c47ff33;">
+                        <tr>
+                            <th>Month</th>
+                            <th class="text-end">Samples</th>
+                            <th class="text-end">Avg AI (h)</th>
+                            <th class="text-end">Avg Actual (h)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.ByMonth)
+                        {
+                            <tr>
+                                <td style="color:#b39dff;">@row.Month</td>
+                                <td class="text-end">@row.Count</td>
+                                <td class="text-end">@row.AvgAiHours</td>
+                                <td class="text-end">@row.AvgActualHours</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}
+
+@* ── Token Usage / Cost ── *@
+@if (Model.TokenUsage.Count > 0)
+{
+    <div class="ai-accuracy-section">
+        <h2 class="ai-accuracy-section__title">💰 AI Token Usage &amp; Estimated Cost</h2>
+        <p style="color:var(--text-secondary); font-size:0.85rem; margin-bottom:1rem;">
+            Pricing: Flash $0.075/1M input · $0.30/1M output — Pro $1.25/1M input · $5.00/1M output. BDT at 110/USD.
+        </p>
+        <div class="table-responsive">
+            <table class="table table-dark" style="--bs-table-bg:transparent;">
+                <thead style="border-bottom:1px solid #6c47ff33;">
+                    <tr>
+                        <th>Model</th>
+                        <th class="text-end">Total Calls</th>
+                        <th class="text-end">Input Tokens</th>
+                        <th class="text-end">Output Tokens</th>
+                        <th class="text-end">Est. Cost (USD)</th>
+                        <th class="text-end">Est. Cost (BDT)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.TokenUsage)
+                    {
+                        <tr>
+                            <td><code style="color:#b39dff;">@row.Model</code></td>
+                            <td class="text-end">@row.TotalCalls.ToString("N0")</td>
+                            <td class="text-end">@row.TotalInput.ToString("N0")</td>
+                            <td class="text-end">@row.TotalOutput.ToString("N0")</td>
+                            <td class="text-end" style="color:#22c55e;">$@row.EstimatedCostUSD</td>
+                            <td class="text-end" style="color:#fbbf24; font-weight:600;">৳@row.EstimatedCostBDT.ToString("N2")</td>
+                        </tr>
+                    }
+                    <tr style="border-top:1px solid #6c47ff33; font-weight:700;">
+                        <td>Total</td>
+                        <td class="text-end">@Model.TokenUsage.Sum(r => r.TotalCalls).ToString("N0")</td>
+                        <td class="text-end">@Model.TokenUsage.Sum(r => r.TotalInput).ToString("N0")</td>
+                        <td class="text-end">@Model.TokenUsage.Sum(r => r.TotalOutput).ToString("N0")</td>
+                        <td class="text-end" style="color:#22c55e;">$@Model.TokenUsage.Sum(r => r.EstimatedCostUSD)</td>
+                        <td class="text-end" style="color:#fbbf24;">৳@Model.TokenUsage.Sum(r => r.EstimatedCostBDT).ToString("N2")</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<style>
+.ai-accuracy-card {
+    background: linear-gradient(135deg, #0f0a1e, #1a1040);
+    border: 1px solid #6c47ff33;
+    border-radius: 12px; padding: 1.25rem;
+    text-align: center;
+}
+.ai-accuracy-card__label { font-size: 0.78rem; color: #7c6ca8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.ai-accuracy-card__value { font-size: 1.6rem; font-weight: 700; }
+
+.ai-accuracy-section {
+    background: #0d0820; border: 1px solid #6c47ff22;
+    border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+}
+.ai-accuracy-section__title {
+    font-size: 1rem; font-weight: 700; color: #b39dff;
+    margin: 0 0 1rem; padding-bottom: 0.75rem;
+    border-bottom: 1px solid #6c47ff22;
+}
+</style>

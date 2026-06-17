@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace OfficeTaskManagement.Services.Ai
 {
     /// <summary>
-    /// Generates text embeddings using the Gemini text-embedding-004 model.
+    /// Generates text embeddings using the Gemini gemini-embedding-001 model.
     /// Used by CodebaseIndexingService (Phase 3) to create vector representations
     /// of code chunks for semantic similarity search.
     /// </summary>
@@ -36,12 +36,13 @@ namespace OfficeTaskManagement.Services.Ai
                 return Array.Empty<float>();
             }
 
-            var model = _config["Gemini:EmbeddingModel"] ?? "models/text-embedding-004";
+            var model = _config["Gemini:EmbeddingModel"] ?? "models/gemini-embedding-001";
             var url = $"https://generativelanguage.googleapis.com/v1beta/{model}:embedContent?key={apiKey}";
 
             var body = new
             {
-                content = new { parts = new[] { new { text } } }
+                content = new { parts = new[] { new { text } } },
+                outputDimensionality = 768
             };
 
             var jsonContent = new StringContent(

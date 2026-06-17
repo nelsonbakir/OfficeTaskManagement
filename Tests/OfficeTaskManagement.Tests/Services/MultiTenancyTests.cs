@@ -19,11 +19,9 @@ namespace OfficeTaskManagement.Tests.Services
             _tenantProvider = new FakeTenantProvider();
             _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
             
-            // Re-instantiate context with the mock tenant provider but using the same connection options
-            var options = _context.Database.GetDbConnection().ConnectionString;
-            _context.Dispose();
+            var connection = _context.Database.GetDbConnection();
             var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseNpgsql(options, x => x.MigrationsAssembly("OfficeTaskManagement"))
+                .UseNpgsql(connection, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
                 .Options;
             _context = new ApplicationDbContext(dbOptions, _tenantProvider);

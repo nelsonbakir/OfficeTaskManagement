@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Ai;
@@ -190,4 +191,77 @@ public class AiEstimationController : ControllerBase
             throw;
         }
     }
+
+    // POST /api/ai/bulk-reestimate  (T54)
+    // Re-estimates multiple tasks and returns updated PERT for each.
+    [HttpPost("bulk-reestimate")]
+    public async Task<ActionResult<IEnumerable<object>>> BulkReEstimateAsync(
+        [FromBody] int[] taskIds, CancellationToken ct)
+    {
+        if (taskIds == null || taskIds.Length == 0)
+            return BadRequest("No task IDs provided.");
+
+        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tasks = await _db.Tasks
+            .Where(t => taskIds.Contains(t.Id) && t.TenantId == tenantId)
+            .ToListAsync(ct);
+
+        var results = new List<object>();
+        foreach (var task in tasks)
+        {
+            var req = new ReEstimationRequest(
+                EntityType: "Task",
+                Title: task.Title,
+                Description: task.Description,
+                EntityId: task.Id,
+                ProjectId: null,
+                OriginalPertHours: task.PertEstimatedHours ?? task.EstimatedHours,
+                ActualHoursLogged: task.ActualHours,
+                ChangeReason: "Bulk re-estimation"
+            );
+
+            var result = await _ai.ReEstimateAsync(req, ct);
+            results.Add(new
+            {
+                taskId         = task.Id,
+                title          = task.Title,
+                originalHours  = task.EstimatedHours,
+                newPertHours   = result.PertHours,
+                confidence     = result.Confidence,
+                rationale      = result.Rationale
+            });
+        }
+        return Ok(results);
+    }
+
+    // GET /api/ai/usage-stats  (T55) — Admin only
+    [HttpGet("usage-stats")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<ActionResult<IEnumerable<object>>> UsageStatsAsync(CancellationToken ct)
+    {
+        var tenantId = User.FindFirstValue("TenantId") ?? "";
+
+        // Materialize in memory to avoid EF Core GroupBy translation limitations
+        var rawLogs = await _db.AiEstimationLogs
+            .Where(l => l.TenantId == tenantId)
+            .Select(l => new { l.Model, l.CreatedAt, l.InputTokens, l.OutputTokens })
+            .ToListAsync(ct);
+
+        var stats = rawLogs
+            .GroupBy(l => new { l.Model, l.CreatedAt.Month, l.CreatedAt.Year })
+            .Select(g => new
+            {
+                model        = g.Key.Model,
+                year         = g.Key.Year,
+                month        = g.Key.Month,
+                totalCalls   = g.Count(),
+                inputTokens  = g.Sum(l => l.InputTokens),
+                outputTokens = g.Sum(l => l.OutputTokens)
+            })
+            .OrderByDescending(x => x.year).ThenByDescending(x => x.month)
+            .ToList();
+
+        return Ok(stats);
+    }
 }
+

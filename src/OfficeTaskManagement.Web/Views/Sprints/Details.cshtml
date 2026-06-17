@@ -255,11 +255,52 @@
                 <i class="fas fa-trash"></i> Delete
             </a>
         }
+        <button type="button" id="sprint-ai-assist-btn"
+                class="btn-secondary"
+                style="background:linear-gradient(90deg,#6c47ff,#a855f7);color:white;border:none;cursor:pointer;"
+                aria-label="Open AI Sprint Planning Assistant"
+                title="AI analyzes capacity vs backlog demand and suggests tasks to pull in">
+            <span aria-hidden="true">✨</span> AI Sprint Assist
+        </button>
         <a asp-action="Index" class="btn-secondary">
             <i class="fas fa-arrow-left"></i> Back
         </a>
     </div>
 </div>
+
+@* T56: Sprint AI Assist — primes the copilot with sprint context *@
+<meta name="ai-entity-type" content="Sprint" />
+<meta name="ai-entity-id"   content="@Model.Id" />
+@section Scripts {
+    <script>
+    (function() {
+        var btn = document.getElementById('sprint-ai-assist-btn');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            // Open the copilot sidebar
+            var toggleBtn = document.getElementById('copilot-toggle-btn');
+            toggleBtn?.click();
+
+            // Give it 300ms to open, then inject context message
+            setTimeout(function() {
+                var input = document.getElementById('copilot-input');
+                var sendBtn = document.getElementById('copilot-send-btn');
+                if (!input || !sendBtn) return;
+
+                var sprintName = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Name));
+                var taskCount  = @Model.Tasks.Count;
+                var startDate  = "@Model.StartDate.ToString("MMM dd")";
+                var endDate    = "@Model.EndDate.ToString("MMM dd, yyyy")";
+
+                input.value = `I'm planning sprint "${sprintName}" (${startDate}–${endDate}). It currently has ${taskCount} tasks. Analyze our backlog and resource capacity, then suggest which additional tasks should be pulled into this sprint based on priority, resource availability, and PERT estimates.`;
+                input.dispatchEvent(new Event('input'));
+                sendBtn.disabled = false;
+            }, 350);
+        });
+    })();
+    </script>
+}
+
 
 <div class="tasks-section">
     <h2>

@@ -47,6 +47,9 @@ namespace OfficeTaskManagement.Models
         public string? RequiredSkills { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
+        public string? RepositoryPath { get; set; }
+        public string? RepositoryUrl { get; set; }
+
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
         public ICollection<Epic> Epics { get; set; } = new List<Epic>();
         public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();

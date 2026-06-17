@@ -457,6 +457,11 @@
             <i class="fas fa-paperclip"></i> Attachments (@(Model.Attachments?.Count ?? 0))
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#codebase">
+            <i class="fas fa-code"></i> Codebase RAG
+        </a>
+    </li>
     @if (await PermSvc.HasPermissionAsync(User, Permissions.BudgetView))
     {
         <li class="nav-item">
@@ -757,5 +762,171 @@
                 }
             </div>
         }
+    </div>
+
+    <!-- Codebase RAG Tab -->
+    <div id="codebase" class="tab-pane fade">
+        <div class="section-header" style="margin-top: 1.5rem;">
+            <h2>Codebase RAG Grounding</h2>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem; margin-top: 1.5rem;">
+            <!-- Main Content -->
+            <div>
+                <div style="background: #F3F2F1; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-top: 0; margin-bottom: 1rem; color: #252424;">
+                        <i class="fas fa-folder-open text-primary"></i> Repository Configuration
+                    </h3>
+                    <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 1.5rem; font-size: 0.9rem;">
+                        <span style="font-weight: 600; color: #605E5C;">Local Path:</span>
+                        <span>@(string.IsNullOrEmpty(Model.RepositoryPath) ? "(Not configured)" : Model.RepositoryPath)</span>
+
+                        <span style="font-weight: 600; color: #605E5C;">Git URL:</span>
+                        <span>@(string.IsNullOrEmpty(Model.RepositoryUrl) ? "(Not configured)" : Model.RepositoryUrl)</span>
+                    </div>
+                </div>
+
+                <div id="codebase-status-card" style="border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.5rem; background: white;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; margin: 0; color: #252424;">
+                            <i class="fas fa-code text-primary"></i> Index Status
+                        </h3>
+                        <span id="codebase-sync-badge" class="badge" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Loading...</span>
+                    </div>
+
+                    <div id="codebase-sync-warning" class="alert alert-warning" style="display: none; font-size: 0.9rem; align-items: center; gap: 0.5rem; padding: 0.75rem 1.25rem;">
+                        <i class="fas fa-exclamation-triangle"></i> Local changes detected since last indexing. Re-indexing is recommended.
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Indexed Chunks</span>
+                            <span id="codebase-chunks" style="font-size: 1.5rem; font-weight: 600; color: #252424;">-</span>
+                        </div>
+                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Tokens Used</span>
+                            <span id="codebase-tokens" style="font-size: 1.25rem; font-weight: 600; color: #252424; display: block; margin-top: 0.2rem;">-</span>
+                        </div>
+                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Estimated Cost</span>
+                            <span id="codebase-cost" style="font-size: 1.5rem; font-weight: 600; color: #252424;">-</span>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 0.85rem; color: #605E5C;">
+                        <strong>Last Sync Date:</strong> <span id="codebase-last-sync">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Actions -->
+            <div>
+                <div style="background: #F3F2F1; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.25rem;">
+                    <h3 style="font-size: 0.9rem; font-weight: 600; color: #252424; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.5px;">Actions</h3>
+                    
+                    @if (string.IsNullOrEmpty(Model.RepositoryPath))
+                    {
+                        <div class="alert alert-info" style="font-size: 0.8rem; margin-bottom: 1rem; padding: 0.5rem 0.75rem;">
+                            <i class="fas fa-info-circle"></i> Set a repository path in Project Settings to enable RAG indexing.
+                        </div>
+                    }
+                    
+                    <button id="btn-sync-codebase" class="btn btn-primary" style="width: 100%; margin-bottom: 0.75rem; background: #0078D4; border-color: #0078D4;" @(string.IsNullOrEmpty(Model.RepositoryPath) ? "disabled" : "")>
+                        <i class="fas fa-sync-alt"></i> Sync Index Now
+                    </button>
+                    <button id="btn-purge-codebase" class="btn btn-outline-danger" style="width: 100%;" @(string.IsNullOrEmpty(Model.RepositoryPath) ? "disabled" : "")>
+                        <i class="fas fa-trash-alt"></i> Purge Index
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const projectId = @Model.Id;
+                const syncBtn = document.getElementById("btn-sync-codebase");
+                const purgeBtn = document.getElementById("btn-purge-codebase");
+
+                async function fetchStatus() {
+                    try {
+                        const response = await fetch(`/api/agent/index-status/${projectId}`);
+                        if (!response.ok) throw new Error("Failed to fetch status");
+                        const data = await response.json();
+
+                        document.getElementById("codebase-chunks").textContent = data.chunkCount.toLocaleString();
+                        document.getElementById("codebase-tokens").textContent = (data.inputTokens + data.outputTokens).toLocaleString();
+                        document.getElementById("codebase-cost").textContent = "৳ " + data.estimatedCostBdt.toFixed(2);
+                        
+                        if (data.lastIndexedAt) {
+                            document.getElementById("codebase-last-sync").textContent = new Date(data.lastIndexedAt).toLocaleString();
+                        } else {
+                            document.getElementById("codebase-last-sync").textContent = "Never";
+                        }
+
+                        const badge = document.getElementById("codebase-sync-badge");
+                        const warning = document.getElementById("codebase-sync-warning");
+                        
+                        if (data.chunkCount === 0) {
+                            badge.textContent = "Not Indexed";
+                            badge.className = "badge bg-secondary text-white";
+                            warning.style.display = "none";
+                        } else if (data.needsSync) {
+                            badge.textContent = "Needs Sync";
+                            badge.className = "badge bg-warning text-dark";
+                            warning.style.display = "flex";
+                        } else {
+                            badge.textContent = "Up to date";
+                            badge.className = "badge bg-success text-white";
+                            warning.style.display = "none";
+                        }
+                    } catch (error) {
+                        console.error("Error fetching codebase status:", error);
+                    }
+                }
+
+                if (syncBtn) {
+                    syncBtn.addEventListener("click", async function() {
+                        syncBtn.disabled = true;
+                        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+                        try {
+                            const response = await fetch(`/api/agent/index-project/${projectId}`, { method: "POST" });
+                            if (response.ok) {
+                                alert("Sync started in the background. Please wait a few seconds and refresh this tab.");
+                                setTimeout(fetchStatus, 4000);
+                            } else {
+                                alert("Failed to start sync.");
+                            }
+                        } catch (error) {
+                            alert("Error starting sync.");
+                        } finally {
+                            syncBtn.disabled = false;
+                            syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Index Now';
+                        }
+                    });
+                }
+
+                if (purgeBtn) {
+                    purgeBtn.addEventListener("click", async function() {
+                        if (!confirm("Are you sure you want to purge all indexed codebase embeddings for this project?")) return;
+                        purgeBtn.disabled = true;
+                        try {
+                            const response = await fetch(`/api/agent/index-project/${projectId}`, { method: "DELETE" });
+                            if (response.ok) {
+                                alert("Index purged successfully.");
+                                fetchStatus();
+                            } else {
+                                alert("Failed to purge index.");
+                            }
+                        } catch (error) {
+                            alert("Error purging index.");
+                        } finally {
+                            purgeBtn.disabled = false;
+                        }
+                    });
+                }
+
+                fetchStatus();
+            });
+        </script>
     </div>
 </div>

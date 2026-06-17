@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using OfficeTaskManagement.Data;
+using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services.Ai;
 using OfficeTaskManagement.Services.Codebase;
@@ -130,34 +131,89 @@ namespace MyApp
         {
             var service = CreateService();
 
-            var result = await service.GetRelevantChunksAsync("login feature", topK: 3);
+            var result = await service.GetRelevantChunksAsync("login feature", projectId: null, topK: 3);
 
             Assert.Empty(result);
         }
 
-        // ── CodebaseRetrievalService — keyword fallback returns seeded chunk ──
+        // ── CodebaseRetrievalService — vector search returns matching chunk ──
         [Fact]
-        public async Task GetRelevantChunksAsync_KeywordMatch_ReturnsChunk()
+        public async Task GetRelevantChunksAsync_VectorMatch_ReturnsChunk()
         {
-            // Seed a code embedding with matching content
+            var project = new Project { Name = "Test Project", TenantId = "test-tenant" };
+            _db.Projects.Add(project);
+            await _db.SaveChangesAsync();
+
+            var dummyVector = new float[768];
+            dummyVector[0] = 1.0f;
+            _embeddingMock.Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(dummyVector);
+
             _db.CodeEmbeddings.Add(new CodeEmbedding
             {
+                TenantId  = "test-tenant",
+                ProjectId = project.Id,
                 FilePath  = "src/Services/AuthService.cs",
                 ChunkType = "method",
                 StartLine = 42,
                 ChunkText = "public async Task<bool> LoginAsync(string email, string password) { ... }",
-                Embedding = new float[768], // Seed a 768-dim dummy vector for PostgreSQL pgvector compatibility
+                Embedding = new Pgvector.Vector(dummyVector),
                 FileHash  = "abc123"
             });
             await _db.SaveChangesAsync();
 
             var service = CreateService();
 
-            // Act — uses keyword fallback (InMemory provider)
-            var result = await service.GetRelevantChunksAsync("login authentication", topK: 3);
+            var result = await service.GetRelevantChunksAsync("login authentication", project.Id, topK: 3);
 
             Assert.NotEmpty(result);
             Assert.Contains("AuthService.cs", result[0]);
+        }
+
+        // ── CodebaseRetrievalService — project isolation ──────────────────────
+        [Fact]
+        public async Task GetRelevantChunksAsync_ProjectIsolation_FiltersOutOtherProjects()
+        {
+            var p1 = new Project { Name = "Proj 1", TenantId = "test-tenant" };
+            var p2 = new Project { Name = "Proj 2", TenantId = "test-tenant" };
+            _db.Projects.AddRange(p1, p2);
+            await _db.SaveChangesAsync();
+
+            var dummyVector = new float[768];
+            dummyVector[0] = 1.0f;
+            _embeddingMock.Setup(e => e.EmbedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(dummyVector);
+
+            _db.CodeEmbeddings.Add(new CodeEmbedding
+            {
+                TenantId  = "test-tenant",
+                ProjectId = p1.Id,
+                FilePath  = "p1/file.cs",
+                ChunkType = "class",
+                ChunkText = "Project 1 code",
+                Embedding = new Pgvector.Vector(dummyVector),
+                FileHash  = "hash1"
+            });
+
+            _db.CodeEmbeddings.Add(new CodeEmbedding
+            {
+                TenantId  = "test-tenant",
+                ProjectId = p2.Id,
+                FilePath  = "p2/file.cs",
+                ChunkType = "class",
+                ChunkText = "Project 2 code",
+                Embedding = new Pgvector.Vector(dummyVector),
+                FileHash  = "hash2"
+            });
+            await _db.SaveChangesAsync();
+
+            var service = CreateService();
+
+            var result = await service.GetRelevantChunksAsync("query", p1.Id, topK: 3);
+
+            Assert.Single(result);
+            Assert.Contains("p1/file.cs", result[0]);
+            Assert.DoesNotContain("p2/file.cs", result[0]);
         }
 
         // ── Retrieval with empty query returns empty ──────────────────────────
@@ -166,7 +222,7 @@ namespace MyApp
         {
             var service = CreateService();
 
-            var result = await service.GetRelevantChunksAsync("   ");
+            var result = await service.GetRelevantChunksAsync("   ", projectId: null);
 
             Assert.Empty(result);
         }

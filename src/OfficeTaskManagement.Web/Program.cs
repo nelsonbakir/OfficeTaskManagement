@@ -21,7 +21,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, o => o.UseVector()));
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -95,6 +95,11 @@ builder.Services.AddScoped<OfficeTaskManagement.Services.Codebase.CodebaseRetrie
 builder.Services.AddSingleton<OfficeTaskManagement.Services.Codebase.CodebaseIndexingService>();
 builder.Services.AddHostedService(sp =>
     sp.GetRequiredService<OfficeTaskManagement.Services.Codebase.CodebaseIndexingService>());
+
+// ── Phase 5: AI Accuracy + Background Jobs ────────────────────────────────
+// Nightly job: back-fills ActualHours on AiEstimationLogs for completed tasks
+builder.Services.AddHostedService<OfficeTaskManagement.Services.Ai.AiAccuracyUpdateService>();
+// ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Phase 4: Multi-turn AI Copilot Services ───────────────────────────────────
