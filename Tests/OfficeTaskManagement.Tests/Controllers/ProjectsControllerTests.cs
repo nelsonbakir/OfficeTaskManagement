@@ -28,7 +28,17 @@ namespace OfficeTaskManagement.Tests.Controllers
 
         public ProjectsControllerTests()
         {
-            _context = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            var fakeTenantProvider = new Mock<ITenantProvider>();
+            fakeTenantProvider.Setup(t => t.TenantId).Returns("default-tenant-id");
+
+            var rawContext = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            var connection = rawContext.Database.GetDbConnection();
+            var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(connection, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+                .Options;
+            _context = new ApplicationDbContext(dbOptions, fakeTenantProvider.Object);
+
             _mockMediaService = new Mock<IMediaService>();
             _mockBudgetService = new Mock<IBudgetService>();
 
@@ -38,7 +48,8 @@ namespace OfficeTaskManagement.Tests.Controllers
             var identity = new ClaimsIdentity(new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, "test-user-id"),
-                new Claim(ClaimTypes.Role, "Manager")
+                new Claim(ClaimTypes.Role, "Manager"),
+                new Claim("TenantId", "default-tenant-id")
             }, "TestAuthentication");
             httpContext.User = new ClaimsPrincipal(identity);
 
