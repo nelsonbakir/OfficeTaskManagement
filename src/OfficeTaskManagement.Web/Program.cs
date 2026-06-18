@@ -75,12 +75,32 @@ builder.Services.AddHostedService<LagSchedulingService>();
 
 // ── AI Agent Services (Phase 1) ───────────────────────────────────────────────
 // GeminiAiService: core estimation with typed HttpClient
-builder.Services.AddHttpClient<GeminiAiService>();
+builder.Services.AddHttpClient<GeminiAiService>(client => {
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
 builder.Services.AddScoped<IGeminiAiService, GeminiAiService>();
 
-// GeminiEmbeddingService: text-embedding-004 for Phase 3 RAG
-builder.Services.AddHttpClient<GeminiEmbeddingService>();
-builder.Services.AddScoped<IGeminiEmbeddingService, GeminiEmbeddingService>();
+// Dynamic Embedding Service Registration based on config provider (Gemini, Ollama, LocalMock)
+var provider = builder.Configuration["Gemini:Provider"] 
+    ?? builder.Configuration["Gemini:EmbeddingProvider"] 
+    ?? "Gemini";
+if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+    string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<OllamaEmbeddingService>(client => {
+        client.Timeout = TimeSpan.FromMinutes(10);
+    });
+    builder.Services.AddScoped<IGeminiEmbeddingService, OllamaEmbeddingService>();
+}
+else if (string.Equals(provider, "LocalMock", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IGeminiEmbeddingService, LocalMockEmbeddingService>();
+}
+else
+{
+    builder.Services.AddHttpClient<GeminiEmbeddingService>();
+    builder.Services.AddScoped<IGeminiEmbeddingService, GeminiEmbeddingService>();
+}
 
 // Supporting AI services
 builder.Services.AddScoped<ContextBuilderService>();
@@ -106,7 +126,9 @@ builder.Services.AddHostedService<OfficeTaskManagement.Services.Ai.AiAccuracyUpd
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Phase 4: Multi-turn AI Copilot Services ───────────────────────────────────
-builder.Services.AddHttpClient<OfficeTaskManagement.Services.Agent.AgentService>();
+builder.Services.AddHttpClient<OfficeTaskManagement.Services.Agent.AgentService>(client => {
+    client.Timeout = TimeSpan.FromMinutes(10);
+});
 builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.IAgentService,
                             OfficeTaskManagement.Services.Agent.AgentService>();
 builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.AgentConversationService>();

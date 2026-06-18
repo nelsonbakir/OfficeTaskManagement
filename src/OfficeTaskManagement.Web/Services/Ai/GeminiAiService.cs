@@ -70,12 +70,12 @@ namespace OfficeTaskManagement.Services.Ai
         public async Task<EstimationResult> EstimateAsync(
             EstimationRequest request, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
             {
                 _logger.LogWarning("Gemini:ApiKey not configured. Returning fallback estimation.");
                 return FallbackEstimation("AI estimation unavailable: API key not configured.");
             }
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             try
             {
@@ -142,9 +142,9 @@ namespace OfficeTaskManagement.Services.Ai
         public async Task<ChildItemSuggestions> SuggestChildrenAsync(
             ChildRequest request, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
                 return new ChildItemSuggestions(request.ParentType, request.ChildType, Array.Empty<ChildItemDto>(), "API unavailable.");
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             try
             {
@@ -213,20 +213,40 @@ namespace OfficeTaskManagement.Services.Ai
         public async Task<string> GenerateAcceptanceCriteriaAsync(
             string title, string description, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
                 return "AI unavailable. Please write acceptance criteria manually.";
+
+            var prompt = $"""
+                Generate acceptance criteria for this user story in Given/When/Then format:
+                Title: {title}
+                Description: {description}
+                
+                Return 3–5 clear, testable acceptance criteria as a markdown bullet list.
+                """;
+
+            var provider = _config["Gemini:Provider"] ?? "Gemini";
+            if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var (text, _, _) = await CallOllamaApiAsync(prompt, StaticSystemPrompt, isJson: false, ct);
+                    return text;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Ollama GenerateAcceptanceCriteriaAsync failed. Checking for Gemini fallback.");
+                    if (string.IsNullOrEmpty(_config["Gemini:ApiKey"]))
+                    {
+                        throw;
+                    }
+                }
+            }
+
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             try
             {
-                var prompt = $"""
-                    Generate acceptance criteria for this user story in Given/When/Then format:
-                    Title: {title}
-                    Description: {description}
-                    
-                    Return 3–5 clear, testable acceptance criteria as a markdown bullet list.
-                    """;
-
                 var model = _config["Gemini:GenerativeModel"] ?? "gemini-2.5-flash";
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
@@ -261,9 +281,9 @@ namespace OfficeTaskManagement.Services.Ai
         public async Task<EstimationResult> ReEstimateAsync(
             ReEstimationRequest request, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
                 return FallbackEstimation("AI re-estimation unavailable: API key not configured.");
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             try
             {
@@ -329,9 +349,9 @@ namespace OfficeTaskManagement.Services.Ai
         public async Task<FullCascadeResult> GenerateFullCascadeAsync(
             FullCascadeRequest request, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
                 return new FullCascadeResult(Array.Empty<CascadeFeatureDto>());
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             try
             {
@@ -443,6 +463,58 @@ namespace OfficeTaskManagement.Services.Ai
 
         // ── Private Helpers ────────────────────────────────────────────────────
 
+        private bool IsApiAvailable()
+        {
+            var provider = _config["Gemini:Provider"] ?? "Gemini";
+            if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+            return !string.IsNullOrEmpty(_config["Gemini:ApiKey"]);
+        }
+
+        private async Task<(string JsonText, int InputTokens, int OutputTokens)> CallOllamaApiAsync(
+            string promptText, string? systemPrompt, bool isJson, CancellationToken ct)
+        {
+            var baseUrl = _config["Gemini:OllamaUrl"] ?? "http://localhost:11434";
+            var model = _config["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+            var url = $"{baseUrl.TrimEnd('/')}/api/generate";
+
+            var body = new Dictionary<string, object>
+            {
+                { "model", model },
+                { "prompt", promptText },
+                { "stream", false }
+            };
+
+            if (!string.IsNullOrEmpty(systemPrompt))
+            {
+                body.Add("system", systemPrompt);
+            }
+
+            if (isJson)
+            {
+                body.Add("format", "json");
+            }
+
+            var jsonContent = new StringContent(
+                JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync(url, jsonContent, ct);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(responseJson);
+            var root = doc.RootElement;
+
+            var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
+            int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
+            int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
+
+            return (text, inputTokens, outputTokens);
+        }
+
         /// <summary>
         /// Calls the Gemini generateContent API with:
         ///   - Structured JSON output (response_mime_type + response_schema)
@@ -453,6 +525,30 @@ namespace OfficeTaskManagement.Services.Ai
             string promptText, object responseSchema, string apiKey, CancellationToken ct,
             int maxRetries = 3)
         {
+            var provider = _config["Gemini:Provider"] ?? "Gemini";
+            if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    return await CallOllamaApiAsync(promptText, StaticSystemPrompt, isJson: true, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Ollama CallGeminiApiAsync failed. Checking for Gemini fallback.");
+                    var backupKey = _config["Gemini:ApiKey"];
+                    if (!string.IsNullOrEmpty(backupKey))
+                    {
+                        _logger.LogInformation("Ollama failed. Falling back to Gemini API.");
+                        apiKey = backupKey;
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            }
+
             var model = _config["Gemini:GenerativeModel"] ?? "gemini-2.5-flash";
             var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
 
@@ -598,8 +694,7 @@ namespace OfficeTaskManagement.Services.Ai
         /// <inheritdoc/>
         public async Task<ProjectAnalysisResult> AnalyzeProjectCodebaseAsync(int projectId, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
             {
                 return new ProjectAnalysisResult(
                     "AI Analysis unavailable (no API Key).",
@@ -609,6 +704,7 @@ namespace OfficeTaskManagement.Services.Ai
                     new[] { new EpicSuggestionDto("Default Module", "Basic features logic") }
                 );
             }
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             var project = await _db.Projects.FindAsync(new object[] { projectId }, ct);
             if (project == null)
@@ -711,11 +807,11 @@ namespace OfficeTaskManagement.Services.Ai
         /// <inheritdoc/>
         public async Task<List<FeatureSuggestionDto>> SuggestFeaturesForEpicAsync(int projectId, string epicName, string epicDescription, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
             {
                 return new List<FeatureSuggestionDto> { new FeatureSuggestionDto("Core features", "Standard epic logic") };
             }
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             // RAG codebase query
             var query = $"Epic: {epicName} {epicDescription}";
@@ -779,11 +875,11 @@ namespace OfficeTaskManagement.Services.Ai
         /// <inheritdoc/>
         public async Task<List<UserStorySuggestionDto>> SuggestUserStoriesForFeatureAsync(int projectId, string epicName, string featureName, string featureDescription, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
             {
                 return new List<UserStorySuggestionDto> { new UserStorySuggestionDto("As a user...", "Basic user story", "Given/When/Then", "Medium") };
             }
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             var query = $"Feature: {featureName} {featureDescription}";
             var chunks = await _codebaseRetrieval.GetRelevantChunksAsync(query, projectId, topK: 3, ct);
@@ -860,14 +956,14 @@ namespace OfficeTaskManagement.Services.Ai
         /// <inheritdoc/>
         public async Task<TaskAndTestCaseSuggestionsDto> SuggestTasksAndTestCasesAsync(int projectId, string storyTitle, string storyDescription, bool suggestTests, CancellationToken ct = default)
         {
-            var apiKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(apiKey))
+            if (!IsApiAvailable())
             {
                 return new TaskAndTestCaseSuggestionsDto(
                     new[] { new TaskSuggestionDto("Implement story", "Main task", 4m, 8m, 16m, "Medium") },
                     new[] { new TestCaseSuggestionDto("Verify logic", "Execute feature", "Runs correctly") }
                 );
             }
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
 
             var query = $"Story: {storyTitle} {storyDescription}";
             var chunks = await _codebaseRetrieval.GetRelevantChunksAsync(query, projectId, topK: 3, ct);

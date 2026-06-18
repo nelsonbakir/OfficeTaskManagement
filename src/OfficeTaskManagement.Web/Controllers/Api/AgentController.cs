@@ -98,6 +98,8 @@ public class AgentController : ControllerBase
         // Cost: input ($0.075/1M), output ($0.30/1M)
         var costBdt = (inputTokens * 0.075m + outputTokens * 0.30m) / 1000000m * 115m;
 
+        var progress = _indexer.GetProgress(projectId);
+
         return Ok(new
         {
             projectId,
@@ -106,6 +108,8 @@ public class AgentController : ControllerBase
             chunkCount,
             lastIndexedAt = lastIndexed,
             needsSync,
+            indexingStatus = progress?.Status ?? (chunkCount > 0 ? "Completed" : "NotStarted"),
+            indexingError = progress?.ErrorMessage,
             inputTokens,
             outputTokens,
             estimatedCostBdt = Math.Round(costBdt, 2)

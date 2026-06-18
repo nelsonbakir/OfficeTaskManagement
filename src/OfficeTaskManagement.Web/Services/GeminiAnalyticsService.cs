@@ -27,6 +27,44 @@ namespace OfficeTaskManagement.Services
 
         private async Task<string> CallGeminiApiAsync(string prompt)
         {
+            var provider = _configuration["Gemini:Provider"] ?? "Gemini";
+            bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+
+            if (isOllama)
+            {
+                try
+                {
+                    var baseUrl = _configuration["Gemini:OllamaUrl"] ?? "http://localhost:11434";
+                    var model = _configuration["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+                    var ollamaUrl = $"{baseUrl.TrimEnd('/')}/api/generate";
+
+                    var ollamaBody = new
+                    {
+                        model = model,
+                        prompt = prompt,
+                        stream = false
+                    };
+
+                    var ollamaJsonContent = new StringContent(
+                        JsonSerializer.Serialize(ollamaBody), Encoding.UTF8, "application/json");
+
+                    var ollamaResponse = await _httpClient.PostAsync(ollamaUrl, ollamaJsonContent);
+                    if (!ollamaResponse.IsSuccessStatusCode)
+                    {
+                        return $"Error: Ollama API request failed with status {ollamaResponse.StatusCode}. {await ollamaResponse.Content.ReadAsStringAsync()}";
+                    }
+
+                    var ollamaResponseJson = await ollamaResponse.Content.ReadAsStringAsync();
+                    using var ollamaDoc = JsonDocument.Parse(ollamaResponseJson);
+                    return ollamaDoc.RootElement.GetProperty("response").GetString() ?? "No response generated.";
+                }
+                catch (Exception ex)
+                {
+                    return $"Error: Ollama API call failed. {ex.Message}";
+                }
+            }
+
             var apiKey = _configuration["Gemini:ApiKey"];
             if (string.IsNullOrEmpty(apiKey) || apiKey == "YOUR_GEMINI_API_KEY_HERE")
             {

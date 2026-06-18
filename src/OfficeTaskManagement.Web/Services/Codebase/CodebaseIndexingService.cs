@@ -7,6 +7,7 @@ using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services.Ai;
 using System.Security.Cryptography;
+using System.Collections.Concurrent;
 
 namespace OfficeTaskManagement.Services.Codebase;
 
@@ -20,6 +21,22 @@ public class CodebaseIndexingService : IHostedService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _config;
     private readonly ILogger<CodebaseIndexingService> _logger;
+
+    private readonly ConcurrentDictionary<int, IndexingProgress> _progressMap = new();
+
+    public class IndexingProgress
+    {
+        public int ProjectId { get; set; }
+        public string Status { get; set; } = "NotStarted"; // InProgress, Completed, Failed
+        public string? ErrorMessage { get; set; }
+        public int TotalFiles { get; set; }
+        public int ProcessedFiles { get; set; }
+    }
+
+    public IndexingProgress? GetProgress(int projectId)
+    {
+        return _progressMap.TryGetValue(projectId, out var progress) ? progress : null;
+    }
 
     // Skip directories
     private static readonly string[] SkipDirs =
@@ -53,121 +70,180 @@ public class CodebaseIndexingService : IHostedService
     /// </summary>
     public async Task IndexProjectAsync(int projectId, CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var db           = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var embeddingApi = scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>();
+        var progress = new IndexingProgress { ProjectId = projectId, Status = "InProgress" };
+        _progressMap[projectId] = progress;
 
-        var project = await db.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId, ct);
-        if (project == null)
+        try
         {
-            _logger.LogWarning("Project {ProjectId} not found for indexing.", projectId);
-            return;
-        }
+            using var scope = _scopeFactory.CreateScope();
+            var db           = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var embeddingApi = scope.ServiceProvider.GetRequiredService<IGeminiEmbeddingService>();
 
-        var tenantProvider = scope.ServiceProvider.GetService<OfficeTaskManagement.Services.ITenantProvider>();
-        if (tenantProvider != null)
-        {
-            tenantProvider.SetTenant(project.TenantId);
-        }
-
-        var repoRoot = project.RepositoryPath;
-        if (string.IsNullOrEmpty(repoRoot))
-        {
-            repoRoot = ".";
-        }
-
-        var actualPath = repoRoot;
-        if (!Path.IsPathRooted(actualPath))
-        {
-            actualPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), actualPath));
-        }
-
-        _logger.LogInformation("Starting codebase indexing for Project {ProjectId} ({ProjectName}) from: {Root}", 
-            projectId, project.Name, actualPath);
-
-        if (!Directory.Exists(actualPath))
-        {
-            _logger.LogWarning("Repository path '{Path}' does not exist for project {ProjectId}.", actualPath, projectId);
-            return;
-        }
-
-        var files = DiscoverFiles(actualPath).ToList();
-        _logger.LogInformation("Discovered {Count} files to consider for Project {ProjectId}", files.Count, projectId);
-
-        int indexed = 0, skipped = 0, failed = 0;
-
-        foreach (var filePath in files)
-        {
-            if (ct.IsCancellationRequested) break;
-            try
+            var project = await db.Projects.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Id == projectId, ct);
+            if (project == null)
             {
-                var fileHash = ComputeMd5(filePath);
-                var relative = GetRelativePath(actualPath, filePath);
+                _logger.LogWarning("Project {ProjectId} not found for indexing.", projectId);
+                progress.Status = "Failed";
+                progress.ErrorMessage = "Project not found.";
+                return;
+            }
 
-                // Skip if file hasn't changed since last indexing for this project
-                if (await db.CodeEmbeddings.AnyAsync(
-                    e => e.ProjectId == projectId && e.FilePath == relative && e.FileHash == fileHash, ct))
+            var tenantProvider = scope.ServiceProvider.GetService<OfficeTaskManagement.Services.ITenantProvider>();
+            if (tenantProvider != null)
+            {
+                tenantProvider.SetTenant(project.TenantId);
+            }
+
+            var repoRoot = project.RepositoryPath;
+            if (string.IsNullOrEmpty(repoRoot))
+            {
+                repoRoot = ".";
+            }
+
+            var actualPath = repoRoot;
+            if (!Path.IsPathRooted(actualPath))
+            {
+                actualPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), actualPath));
+            }
+
+            _logger.LogInformation("Starting codebase indexing for Project {ProjectId} ({ProjectName}) from: {Root}", 
+                projectId, project.Name, actualPath);
+
+            if (!Directory.Exists(actualPath))
+            {
+                _logger.LogWarning("Repository path '{Path}' does not exist for project {ProjectId}.", actualPath, projectId);
+                progress.Status = "Failed";
+                progress.ErrorMessage = "Repository directory does not exist.";
+                return;
+            }
+
+            var files = DiscoverFiles(actualPath).ToList();
+            _logger.LogInformation("Discovered {Count} files to consider for Project {ProjectId}", files.Count, projectId);
+            progress.TotalFiles = files.Count;
+
+            int indexed = 0, skipped = 0, failed = 0;
+            int consecutiveRateLimits = 0;
+            bool aborted = false;
+
+            foreach (var filePath in files)
+            {
+                if (ct.IsCancellationRequested || aborted) break;
+                try
                 {
-                    skipped++;
-                    continue;
-                }
+                    var fileHash = ComputeMd5(filePath);
+                    var relative = GetRelativePath(actualPath, filePath);
 
-                // Remove old chunks for this file under this project
-                var old = db.CodeEmbeddings.Where(e => e.ProjectId == projectId && e.FilePath == relative);
-                db.CodeEmbeddings.RemoveRange(old);
-
-                var content = await File.ReadAllTextAsync(filePath, ct);
-                if (string.IsNullOrWhiteSpace(content)) continue;
-
-                var ext    = Path.GetExtension(filePath);
-                var chunks = ChunkerRegistry.GetChunker(ext).Chunk(filePath, content).ToList();
-                if (chunks.Count == 0) continue;
-
-                // Batch-embed in groups of 100 to respect Gemini rate limits
-                foreach (var batch in chunks.Chunk(100))
-                {
-                    float[][] embeddings;
-                    try
+                    // Skip if file hasn't changed since last indexing for this project
+                    if (await db.CodeEmbeddings.AnyAsync(
+                        e => e.ProjectId == projectId && e.FilePath == relative && e.FileHash == fileHash, ct))
                     {
-                        embeddings = await embeddingApi.EmbedBatchAsync(
-                            batch.Select(c => c.Text).ToArray(), ct);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Embedding batch failed for {File} — skipping batch", relative);
-                        break;
+                        skipped++;
+                        progress.ProcessedFiles++;
+                        continue;
                     }
 
-                    for (int i = 0; i < batch.Length; i++)
+                    // Remove old chunks for this file under this project
+                    var old = db.CodeEmbeddings.Where(e => e.ProjectId == projectId && e.FilePath == relative);
+                    db.CodeEmbeddings.RemoveRange(old);
+
+                    var content = await File.ReadAllTextAsync(filePath, ct);
+                    if (string.IsNullOrWhiteSpace(content))
                     {
-                        db.CodeEmbeddings.Add(new CodeEmbedding
+                        progress.ProcessedFiles++;
+                        continue;
+                    }
+
+                    var ext    = Path.GetExtension(filePath);
+                    var chunks = ChunkerRegistry.GetChunker(ext).Chunk(filePath, content).ToList();
+                    if (chunks.Count == 0)
+                    {
+                        progress.ProcessedFiles++;
+                        continue;
+                    }
+
+                    // Batch-embed in groups of 20 to respect Gemini rate limits
+                    foreach (var batch in chunks.Chunk(20))
+                    {
+                        if (ct.IsCancellationRequested) break;
+                        float[][] embeddings;
+                        try
                         {
-                            TenantId  = project.TenantId,
-                            ProjectId = projectId,
-                            FilePath  = relative,
-                            ChunkType = batch[i].ChunkType,
-                            StartLine = batch[i].StartLine,
-                            ChunkText = batch[i].Text.Length <= 3000
-                                        ? batch[i].Text
-                                        : batch[i].Text[..3000],
-                            Embedding = new Pgvector.Vector(embeddings[i]),
-                            FileHash  = fileHash
-                        });
+                            embeddings = await embeddingApi.EmbedBatchAsync(
+                                batch.Select(c => c.Text).ToArray(), ct);
+                            
+                            consecutiveRateLimits = 0; // reset on success
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Embedding batch failed for {File} — skipping batch", relative);
+                            if (ex.Message.Contains("429") || (ex.InnerException != null && ex.InnerException.Message.Contains("429")))
+                            {
+                                consecutiveRateLimits++;
+                                if (consecutiveRateLimits >= 3)
+                                {
+                                    _logger.LogError("Indexing aborted for Project {ProjectId}: Gemini API rate limit or quota exceeded (429) consecutively.", projectId);
+                                    progress.Status = "Failed";
+                                    progress.ErrorMessage = "Gemini API rate limit or quota exceeded (429).";
+                                    aborted = true;
+                                    break;
+                                }
+                            }
+                            break; // break the batch loop for this file
+                        }
+
+                        for (int i = 0; i < batch.Length; i++)
+                        {
+                            db.CodeEmbeddings.Add(new CodeEmbedding
+                            {
+                                TenantId  = project.TenantId,
+                                ProjectId = projectId,
+                                FilePath  = relative,
+                                ChunkType = batch[i].ChunkType,
+                                StartLine = batch[i].StartLine,
+                                ChunkText = batch[i].Text.Length <= 3000
+                                            ? batch[i].Text
+                                            : batch[i].Text[..3000],
+                                Embedding = new Pgvector.Vector(embeddings[i]),
+                                FileHash  = fileHash
+                            });
+                        }
+                        await db.SaveChangesAsync(ct);
+                        
+                        // Space out requests to respect Gemini API rate limits
+                        await Task.Delay(1500, ct);
                     }
-                    await db.SaveChangesAsync(ct);
+                    
+                    if (aborted) break;
+
+                    indexed++;
+                    progress.ProcessedFiles++;
                 }
-                indexed++;
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to index {File}", filePath);
+                    failed++;
+                    progress.ProcessedFiles++;
+                }
             }
-            catch (Exception ex)
+
+            if (aborted)
             {
-                _logger.LogWarning(ex, "Failed to index {File}", filePath);
-                failed++;
+                _logger.LogWarning("Codebase indexing aborted for Project {ProjectId} due to rate limits.", projectId);
+            }
+            else
+            {
+                progress.Status = "Completed";
+                _logger.LogInformation(
+                    "Codebase indexing complete for Project {ProjectId}: {Indexed} indexed, {Skipped} unchanged, {Failed} failed",
+                    projectId, indexed, skipped, failed);
             }
         }
-
-        _logger.LogInformation(
-            "Codebase indexing complete for Project {ProjectId}: {Indexed} indexed, {Skipped} unchanged, {Failed} failed",
-            projectId, indexed, skipped, failed);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "IndexProjectAsync crashed for project {ProjectId}", projectId);
+            progress.Status = "Failed";
+            progress.ErrorMessage = ex.Message;
+        }
     }
 
     /// <summary>

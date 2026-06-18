@@ -212,7 +212,7 @@
 
                 const status = await res.json();
                 
-                if (status.chunkCount > 0 && !status.needsSync) {
+                if (status.indexingStatus === "Completed" || (status.chunkCount > 0 && !status.needsSync)) {
                     clearInterval(interval);
                     progressFill.style.width = '100%';
                     
@@ -222,8 +222,23 @@
                     loadingWrapper.style.display = 'none';
                     statsWrapper.style.display = 'block';
                     btnNext.disabled = false;
+                } else if (status.indexingStatus === "Failed") {
+                    clearInterval(interval);
+                    statusText.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Indexing failed: ${escapeHtml(status.indexingError || 'Gemini API quota exceeded')}</span>`;
+                    progressFill.style.background = '#dc3545';
+                    progressFill.style.width = '100%';
+
+                    // Allow the user to proceed anyway rather than being locked
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className = 'alert alert-warning mt-3';
+                    warningDiv.innerHTML = `
+                        <i class="fas fa-info-circle"></i> Indexing could not be completed (e.g. rate limits or quota exceeded). 
+                        You can still proceed with project onboarding, but semantic codebase RAG context search will be disabled.
+                    `;
+                    statusText.parentNode.appendChild(warningDiv);
+
+                    btnNext.disabled = false;
                 } else {
-                    // Simulating index progress chunks count
                     statusText.textContent = `Indexing in progress (${status.chunkCount} code chunks vectorized)...`;
                     progressFill.style.width = '85%';
                 }

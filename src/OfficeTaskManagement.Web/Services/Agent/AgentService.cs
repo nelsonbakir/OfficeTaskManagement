@@ -46,8 +46,11 @@ public class AgentService : IAgentService
     {
         var apiKey = _config["Gemini:ApiKey"];
         var model  = _config["Gemini:CopilotModel"] ?? "gemini-2.5-pro";
+        var provider = _config["Gemini:Provider"] ?? "Gemini";
+        bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
 
-        if (string.IsNullOrEmpty(apiKey))
+        if (!isOllama && string.IsNullOrEmpty(apiKey))
         {
             return new AgentChatResponse(
                 request.ConversationId,
@@ -243,9 +246,248 @@ public class AgentService : IAgentService
         return contents.ToArray();
     }
 
+    private async Task<string?> CallOllamaChatAsync(object body, CancellationToken ct)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(body);
+            using var doc = JsonDocument.Parse(json);
+
+            string systemInstruction = "";
+            if (doc.RootElement.TryGetProperty("system_instruction", out var siProp) &&
+                siProp.TryGetProperty("parts", out var partsProp) &&
+                partsProp.ValueKind == JsonValueKind.Array &&
+                partsProp.GetArrayLength() > 0)
+            {
+                systemInstruction = partsProp[0].GetProperty("text").GetString() ?? "";
+            }
+
+            var messages = new List<object>();
+            if (!string.IsNullOrEmpty(systemInstruction))
+            {
+                messages.Add(new { role = "system", content = systemInstruction });
+            }
+
+            if (doc.RootElement.TryGetProperty("contents", out var contentsProp) &&
+                contentsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var contentItem in contentsProp.EnumerateArray())
+                {
+                    var role = contentItem.GetProperty("role").GetString() ?? "user";
+                    var ollamaRole = role == "model" ? "assistant" : "user";
+
+                    if (contentItem.TryGetProperty("parts", out var partsArray) &&
+                        partsArray.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var part in partsArray.EnumerateArray())
+                        {
+                            if (part.TryGetProperty("text", out var textProp))
+                            {
+                                var text = textProp.GetString();
+                                if (!string.IsNullOrEmpty(text))
+                                {
+                                    messages.Add(new { role = ollamaRole, content = text });
+                                }
+                            }
+                            else if (part.TryGetProperty("functionCall", out var fcProp))
+                            {
+                                var name = fcProp.GetProperty("name").GetString() ?? "";
+                                var args = fcProp.GetProperty("args").Clone();
+                                messages.Add(new
+                                {
+                                    role = "assistant",
+                                    tool_calls = new[]
+                                    {
+                                        new
+                                        {
+                                            type = "function",
+                                            function = new
+                                            {
+                                                name = name,
+                                                arguments = args
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                            else if (part.TryGetProperty("functionResponse", out var frProp))
+                            {
+                                var responseObj = frProp.GetProperty("response").Clone();
+                                messages.Add(new
+                                {
+                                    role = "tool",
+                                    content = JsonSerializer.Serialize(responseObj)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            var ollamaTools = new List<object>();
+            if (doc.RootElement.TryGetProperty("tools", out var toolsProp) &&
+                toolsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var toolItem in toolsProp.EnumerateArray())
+                {
+                    if (toolItem.TryGetProperty("function_declarations", out var fdProp) &&
+                        fdProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var decl in fdProp.EnumerateArray())
+                        {
+                            ollamaTools.Add(new
+                            {
+                                type = "function",
+                                function = decl.Clone()
+                            });
+                        }
+                    }
+                }
+            }
+
+            var baseUrl = _config["Gemini:OllamaUrl"] ?? "http://localhost:11434";
+            var model = _config["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+            var url = $"{baseUrl.TrimEnd('/')}/api/chat";
+
+            var ollamaRequestBody = new Dictionary<string, object>
+            {
+                { "model", model },
+                { "messages", messages },
+                { "stream", false }
+            };
+
+            if (ollamaTools.Count > 0)
+            {
+                ollamaRequestBody.Add("tools", ollamaTools);
+            }
+
+            if (doc.RootElement.TryGetProperty("generation_config", out var genConfig))
+            {
+                var options = new Dictionary<string, object>();
+                if (genConfig.TryGetProperty("temperature", out var tempProp))
+                {
+                    options.Add("temperature", tempProp.GetDouble());
+                }
+                if (options.Count > 0)
+                {
+                    ollamaRequestBody.Add("options", options);
+                }
+            }
+
+            var jsonString = JsonSerializer.Serialize(ollamaRequestBody);
+            var httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync(url, httpContent, ct);
+            response.EnsureSuccessStatusCode();
+
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            using var respDoc = JsonDocument.Parse(responseBody);
+            var messageProp = respDoc.RootElement.GetProperty("message");
+            var content = messageProp.TryGetProperty("content", out var cProp) ? cProp.GetString() : null;
+
+            var geminiParts = new List<object>();
+            if (!string.IsNullOrEmpty(content))
+            {
+                geminiParts.Add(new { text = content });
+            }
+
+            if (messageProp.TryGetProperty("tool_calls", out var toolCallsProp) &&
+                toolCallsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var tc in toolCallsProp.EnumerateArray())
+                {
+                    if (tc.TryGetProperty("function", out var funcProp))
+                    {
+                        var name = funcProp.GetProperty("name").GetString() ?? "";
+                        object? argsObj = null;
+
+                        if (funcProp.TryGetProperty("arguments", out var argsProp))
+                        {
+                            if (argsProp.ValueKind == JsonValueKind.String)
+                            {
+                                var argsStr = argsProp.GetString();
+                                if (!string.IsNullOrEmpty(argsStr))
+                                {
+                                    argsObj = JsonSerializer.Deserialize<object>(argsStr);
+                                }
+                            }
+                            else if (argsProp.ValueKind == JsonValueKind.Object)
+                            {
+                                argsObj = argsProp.Clone();
+                            }
+                        }
+
+                        geminiParts.Add(new
+                        {
+                            functionCall = new
+                            {
+                                name = name,
+                                args = argsObj ?? new { }
+                            }
+                        });
+                    }
+                }
+            }
+
+            if (geminiParts.Count == 0)
+            {
+                geminiParts.Add(new { text = "" });
+            }
+
+            var geminiResponse = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = geminiParts.ToArray()
+                        }
+                    }
+                }
+            };
+
+            return JsonSerializer.Serialize(geminiResponse);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ollama copilot API call failed");
+            return null;
+        }
+    }
+
     private async Task<string?> CallGeminiAsync(
         string model, string apiKey, object body, CancellationToken ct)
     {
+        var provider = _config["Gemini:Provider"] ?? "Gemini";
+        bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+
+        if (isOllama)
+        {
+            try
+            {
+                var response = await CallOllamaChatAsync(body, ct);
+                if (response != null)
+                {
+                    return response;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Ollama chat failed. Checking for Gemini fallback.");
+            }
+
+            var backupKey = _config["Gemini:ApiKey"];
+            if (string.IsNullOrEmpty(backupKey))
+            {
+                _logger.LogError("Ollama failed and backup Gemini API key is not configured.");
+                return null;
+            }
+            apiKey = backupKey;
+            model = _config["Gemini:CopilotModel"] ?? "gemini-2.5-pro";
+        }
+
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         try
         {
