@@ -235,11 +235,8 @@ namespace OfficeTaskManagement.Services.Ai
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Ollama GenerateAcceptanceCriteriaAsync failed. Checking for Gemini fallback.");
-                    if (string.IsNullOrEmpty(_config["Gemini:ApiKey"]))
-                    {
-                        throw;
-                    }
+                    _logger.LogError(ex, "Ollama GenerateAcceptanceCriteriaAsync failed. Gemini fallback is disabled.");
+                    throw;
                 }
             }
 
@@ -551,17 +548,8 @@ namespace OfficeTaskManagement.Services.Ai
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Ollama CallGeminiApiAsync failed. Checking for Gemini fallback.");
-                    var backupKey = _config["Gemini:ApiKey"];
-                    if (!string.IsNullOrEmpty(backupKey))
-                    {
-                        _logger.LogInformation("Ollama failed. Falling back to Gemini API.");
-                        apiKey = backupKey;
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    _logger.LogError(ex, "Ollama CallGeminiApiAsync failed. Gemini fallback is disabled.");
+                    throw;
                 }
             }
 

@@ -84,21 +84,7 @@ namespace OfficeTaskManagement.Services.Ai
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ollama embedding failed for model: {Model} at {Url}", model, url);
-                var apiKey = _config["Gemini:ApiKey"];
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    _logger.LogWarning("Ollama failed. Falling back to Gemini embedding service.");
-                    try
-                    {
-                        var geminiService = new GeminiEmbeddingService(_http, _config, _geminiLogger);
-                        return await geminiService.EmbedAsync(text, ct);
-                    }
-                    catch (Exception geminiEx)
-                    {
-                        _logger.LogError(geminiEx, "Gemini fallback embedding also failed.");
-                    }
-                }
+                _logger.LogError(ex, "Ollama embedding failed for model: {Model} at {Url}. Gemini fallback is disabled.", model, url);
                 throw;
             }
         }
@@ -159,21 +145,7 @@ namespace OfficeTaskManagement.Services.Ai
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ollama batch embedding failed for model: {Model} at {Url}", model, url);
-                var apiKey = _config["Gemini:ApiKey"];
-                if (!string.IsNullOrEmpty(apiKey))
-                {
-                    _logger.LogWarning("Ollama failed. Falling back to Gemini embedding service.");
-                    try
-                    {
-                        var geminiService = new GeminiEmbeddingService(_http, _config, _geminiLogger);
-                        return await geminiService.EmbedBatchAsync(texts, ct);
-                    }
-                    catch (Exception geminiEx)
-                    {
-                        _logger.LogError(geminiEx, "Gemini fallback embedding also failed.");
-                    }
-                }
+                _logger.LogError(ex, "Ollama batch embedding failed for model: {Model} at {Url}. Gemini fallback is disabled.", model, url);
                 throw;
             }
         }

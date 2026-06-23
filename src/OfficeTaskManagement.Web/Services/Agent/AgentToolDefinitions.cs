@@ -24,7 +24,18 @@ public static class AgentToolDefinitions
                 CreateTaskTool(),
                 QueryResourceAvailabilityTool(),
                 GetSprintCapacityTool(),
-                UpdateEstimateTool()
+                UpdateEstimateTool(),
+                // KF-2: Read tools
+                ReadProjectTasksTool(),
+                ReadSprintListTool(),
+                ReadProjectStatusTool(),
+                // KF-2: Write tools
+                CreateProjectTool(),
+                AssignTaskTool(),
+                BulkCreateWbsTool(),
+                GetWorkPackageSummaryTool(),
+                // KF-5: PM Status Report
+                GenerateStatusReportTool()
             }
         }
     };
@@ -99,7 +110,9 @@ public static class AgentToolDefinitions
                 optimisticHours  = new { type = "number",  description = "Best-case hours (O)" },
                 mostLikelyHours  = new { type = "number",  description = "Most likely hours (M)" },
                 pessimisticHours = new { type = "number",  description = "Worst-case hours (P)" },
-                priority         = new { type = "string",  @enum = new[] { "Low", "Medium", "High", "Critical" } }
+                priority         = new { type = "string",  @enum = new[] { "Low", "Medium", "High", "Critical" } },
+                assigneeId       = new { type = "string",  description = "Optional: user ID to assign the task to" },
+                sprintId         = new { type = "integer", description = "Optional: sprint ID to place the task in" }
             },
             required = new[] { "userStoryId", "title" }
         }
@@ -152,6 +165,199 @@ public static class AgentToolDefinitions
                 pessimisticHours = new { type = "number" }
             },
             required = new[] { "taskId", "optimisticHours", "mostLikelyHours", "pessimisticHours" }
+        }
+    };
+
+    // ── KF-2 Read Tools ───────────────────────────────────────────────────────
+
+    private static object ReadProjectTasksTool() => new
+    {
+        name = "read_project_tasks",
+        description = "Returns a list of tasks for a project, optionally filtered by sprint, status, or assignee. Use this to answer questions about current work.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId  = new { type = "integer", description = "The project ID to read tasks from" },
+                sprintId   = new { type = "integer", description = "Optional: filter by sprint ID" },
+                status     = new { type = "string",  description = "Optional: filter by status", @enum = new[] { "New", "ToDo", "InProgress", "Done", "Blocked" } },
+                assigneeId = new { type = "string",  description = "Optional: filter by assignee user ID" },
+                limit      = new { type = "integer", description = "Maximum number of tasks to return (default 20)" }
+            },
+            required = new[] { "projectId" }
+        }
+    };
+
+    private static object ReadSprintListTool() => new
+    {
+        name = "read_sprint_list",
+        description = "Returns all sprints for a project with their dates and task counts.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer", description = "The project ID to list sprints for" }
+            },
+            required = new[] { "projectId" }
+        }
+    };
+
+    private static object ReadProjectStatusTool() => new
+    {
+        name = "read_project_status",
+        description = "Returns an overall health snapshot of a project: epic count, feature count, story count, task counts by status, sprint velocity, and budget summary.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer", description = "The project ID to get the status snapshot for" }
+            },
+            required = new[] { "projectId" }
+        }
+    };
+
+    // ── KF-2 Write Tools ──────────────────────────────────────────────────────
+
+    private static object CreateProjectTool() => new
+    {
+        name = "create_project",
+        description = "Creates a new Project. Use when user asks to start a new project.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                name        = new { type = "string", description = "Project name (required)" },
+                description = new { type = "string", description = "Optional project description" },
+                startDate   = new { type = "string", description = "Optional ISO 8601 start date (YYYY-MM-DD)" },
+                endDate     = new { type = "string", description = "Optional ISO 8601 end date (YYYY-MM-DD)" }
+            },
+            required = new[] { "name" }
+        }
+    };
+
+    private static object AssignTaskTool() => new
+    {
+        name = "assign_task",
+        description = "Assigns an existing task to a user and/or sprint.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                taskId         = new { type = "integer", description = "The task ID to assign" },
+                assigneeUserId = new { type = "string",  description = "Optional: user ID to assign the task to" },
+                sprintId       = new { type = "integer", description = "Optional: sprint ID to place the task in" }
+            },
+            required = new[] { "taskId" }
+        }
+    };
+
+    private static object BulkCreateWbsTool() => new
+    {
+        name = "bulk_create_wbs",
+        description = "Creates a full Work Breakdown Structure (WBS) from structured data. Creates N Epics, each with M Features, each with P User Stories, each with Q Tasks in a single batch. Use when the user provides meeting notes or a project description to decompose.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer", description = "The project ID to create the WBS under" },
+                wbs = new
+                {
+                    type = "array",
+                    description = "Array of epic objects defining the full WBS hierarchy",
+                    items = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            name        = new { type = "string" },
+                            description = new { type = "string" },
+                            features    = new
+                            {
+                                type  = "array",
+                                items = new
+                                {
+                                    type = "object",
+                                    properties = new
+                                    {
+                                        name        = new { type = "string" },
+                                        description = new { type = "string" },
+                                        stories     = new
+                                        {
+                                            type  = "array",
+                                            items = new
+                                            {
+                                                type = "object",
+                                                properties = new
+                                                {
+                                                    title              = new { type = "string" },
+                                                    description        = new { type = "string" },
+                                                    acceptanceCriteria = new { type = "string" },
+                                                    tasks              = new
+                                                    {
+                                                        type  = "array",
+                                                        items = new
+                                                        {
+                                                            type = "object",
+                                                            properties = new
+                                                            {
+                                                                title            = new { type = "string" },
+                                                                description      = new { type = "string" },
+                                                                optimisticHours  = new { type = "number" },
+                                                                mostLikelyHours  = new { type = "number" },
+                                                                pessimisticHours = new { type = "number" }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            required = new[] { "projectId", "wbs" }
+        }
+    };
+
+    private static object GetWorkPackageSummaryTool() => new
+    {
+        name = "get_work_package_summary",
+        description = "Returns the aggregated work package summary for a task: total PERT estimate, actual hours, stage breakdown, and time-in-status.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                taskId = new { type = "integer", description = "The parent task ID to summarise" }
+            },
+            required = new[] { "taskId" }
+        }
+    };
+
+    // KF-5: PM Status Report
+    private static object GenerateStatusReportTool() => new
+    {
+        name = "generate_status_report",
+        description = "Generates a comprehensive PMP-grade PM status report for a project. " +
+                      "Includes RAG status, sprint progress, risk register, resource utilization, and recommendations. " +
+                      "Use when the user requests a status report or types /report.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer", description = "The project ID to generate the report for" }
+            },
+            required = new[] { "projectId" }
         }
     };
 }

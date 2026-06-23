@@ -16,4 +16,11 @@ public interface IAgentService
 
     /// <summary>Deletes all turns in a conversation, resetting it to empty.</summary>
     Task ClearConversationAsync(string conversationId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Streams the AI Copilot response as text chunks using IAsyncEnumerable.
+    /// Runs the full agentic function-call loop first, then streams the final text response.
+    /// KF-1 (Streaming) — yields string chunks for NDJSON SSE delivery.
+    /// </summary>
+    IAsyncEnumerable<string> StreamChatAsync(AgentChatRequest request, CancellationToken ct = default);
 }

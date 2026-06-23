@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Models;
 using OfficeTaskManagement.Models.Enums;
+using OfficeTaskManagement.Services.Ai;
 using OfficeTaskManagement.Services.WorkflowEngine;
 
 namespace OfficeTaskManagement.Services.Agent;
@@ -17,16 +18,19 @@ public class AgentToolDispatcher
 {
     private readonly ApplicationDbContext _db;
     private readonly IWorkflowEngineService _workflowEngine;
+    private readonly PmReportService _pmReport;
     private readonly ILogger<AgentToolDispatcher> _logger;
 
     public AgentToolDispatcher(
         ApplicationDbContext db,
         IWorkflowEngineService workflowEngine,
+        PmReportService pmReport,
         ILogger<AgentToolDispatcher> logger)
     {
-        _db = db;
+        _db             = db;
         _workflowEngine = workflowEngine;
-        _logger = logger;
+        _pmReport       = pmReport;
+        _logger         = logger;
     }
 
     /// <summary>
@@ -51,6 +55,17 @@ public class AgentToolDispatcher
                 "query_resource_availability" => await QueryResourcesAsync(args, ct),
                 "get_sprint_capacity"         => await GetSprintCapacityAsync(args, ct),
                 "update_estimate"             => await UpdateEstimateAsync(args, userId, ct),
+                // KF-2 Read tools
+                "read_project_tasks"          => await ReadProjectTasksAsync(args, ct),
+                "read_sprint_list"            => await ReadSprintListAsync(args, ct),
+                "read_project_status"         => await ReadProjectStatusAsync(args, ct),
+                // KF-2 Write tools
+                "create_project"              => await CreateProjectAsync(args, userId, tenantId, ct),
+                "assign_task"                 => await AssignTaskAsync(args, ct),
+                "bulk_create_wbs"             => await BulkCreateWbsAsync(args, userId, tenantId, ct),
+                "get_work_package_summary"    => await GetWorkPackageSummaryAsync(args, ct),
+                // KF-5: PM Status Report
+                "generate_status_report"      => await GenerateStatusReportAsync(args, ct),
                 _                             => $"Unknown function: {functionName}. No action taken."
             };
         }
@@ -167,6 +182,13 @@ public class AgentToolDispatcher
             CreatedAt                 = DateTime.UtcNow,
             TenantId                  = tenantId
         };
+
+        // Optional: assignee and sprint from AI args (KF-2)
+        if (args.TryGetProperty("assigneeId", out var aidProp) && !string.IsNullOrEmpty(aidProp.GetString()))
+            task.AssigneeId = aidProp.GetString();
+        if (args.TryGetProperty("sprintId",   out var sidProp) && sidProp.ValueKind == JsonValueKind.Number)
+            task.SprintId = sidProp.GetInt32();
+
         _db.Tasks.Add(task);
         await _db.SaveChangesAsync(ct);
 
@@ -234,5 +256,316 @@ public class AgentToolDispatcher
 
         await _db.SaveChangesAsync(ct);
         return $"Task {taskId} estimate updated: O={o}h, M={m}h, P={p}h, PERT={pert:F1}h";
+    }
+
+    // ── read_project_tasks ─────────────────────────────────────────────────────
+    private async Task<string> ReadProjectTasksAsync(JsonElement args, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+        int? sprintId  = args.TryGetProperty("sprintId",   out var sv) && sv.ValueKind == JsonValueKind.Number ? sv.GetInt32()    : null;
+        string? status = args.TryGetProperty("status",     out var stv) ? stv.GetString() : null;
+        string? assigneeId = args.TryGetProperty("assigneeId", out var av) ? av.GetString() : null;
+        int limit      = args.TryGetProperty("limit",      out var lv)  && lv.ValueKind == JsonValueKind.Number ? lv.GetInt32() : 20;
+
+        var query = _db.Tasks
+            .Where(t => t.ProjectId == projectId)
+            .Include(t => t.Assignee)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (sprintId.HasValue)
+            query = query.Where(t => t.SprintId == sprintId.Value);
+
+        if (!string.IsNullOrEmpty(status) &&
+            Enum.TryParse<Models.Enums.TaskStatus>(status, out var parsedStatus))
+            query = query.Where(t => t.Status == parsedStatus);
+
+        if (!string.IsNullOrEmpty(assigneeId))
+            query = query.Where(t => t.AssigneeId == assigneeId);
+
+        var tasks = await query.Take(limit).ToListAsync(ct);
+
+        if (!tasks.Any())
+            return $"No tasks found for project {projectId} with the given filters.";
+
+        var sb = new System.Text.StringBuilder($"Project {projectId} tasks ({tasks.Count} returned):\n");
+        foreach (var t in tasks)
+        {
+            var assigneeName = t.Assignee?.FullName ?? t.AssigneeId ?? "Unassigned";
+            sb.AppendLine($"  - Task #{t.Id}: \"{t.Title}\" — Status: {t.Status}, Assignee: {assigneeName}, Est: {t.EstimatedHours:F0}h");
+        }
+        return sb.ToString();
+    }
+
+    // ── read_sprint_list ──────────────────────────────────────────────────────
+    private async Task<string> ReadSprintListAsync(JsonElement args, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+
+        var sprints = await _db.Sprints
+            .Where(s => s.ProjectId == projectId)
+            .OrderBy(s => s.StartDate)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        if (!sprints.Any())
+            return $"No sprints found for project {projectId}.";
+
+        var sb = new System.Text.StringBuilder($"Sprints for project {projectId}:\n");
+        foreach (var sprint in sprints)
+        {
+            var total = await _db.Tasks.CountAsync(t => t.SprintId == sprint.Id, ct);
+            var done  = await _db.Tasks.CountAsync(
+                t => t.SprintId == sprint.Id && t.Status == Models.Enums.TaskStatus.Done, ct);
+            var active = sprint.IsActive ? " [ACTIVE]" : "";
+            sb.AppendLine($"  - Sprint #{sprint.Id}: \"{sprint.Name}\"{active} | {sprint.StartDate:yyyy-MM-dd} → {sprint.EndDate:yyyy-MM-dd} | {done}/{total} tasks done");
+        }
+        return sb.ToString();
+    }
+
+    // ── read_project_status ────────────────────────────────────────────────────
+    private async Task<string> ReadProjectStatusAsync(JsonElement args, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+
+        var project = await _db.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId, ct);
+        if (project == null) return $"Project {projectId} not found.";
+
+        var epicCount    = await _db.Epics.CountAsync(e => e.ProjectId == projectId, ct);
+        var featureCount = await _db.Features.CountAsync(
+            f => _db.Epics.Where(e => e.ProjectId == projectId).Select(e => e.Id).Contains(f.EpicId), ct);
+        var storyCount   = await _db.UserStories.CountAsync(
+            s => _db.Features
+                .Where(f => _db.Epics.Where(e => e.ProjectId == projectId).Select(e => e.Id).Contains(f.EpicId))
+                .Select(f => f.Id).Contains(s.FeatureId), ct);
+
+        var tasksByStatus = await _db.Tasks
+            .Where(t => t.ProjectId == projectId)
+            .GroupBy(t => t.Status)
+            .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
+            .ToListAsync(ct);
+
+        var totalEst    = await _db.Tasks.Where(t => t.ProjectId == projectId)
+                            .SumAsync(t => (decimal?)t.EstimatedHours ?? 0, ct);
+        var totalActual = await _db.Tasks.Where(t => t.ProjectId == projectId)
+                            .SumAsync(t => (decimal?)t.ActualHours ?? 0, ct);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"## Project Health Snapshot: \"{project.Name}\" (ID={projectId})");
+        sb.AppendLine($"Strategic Status: {project.StrategicStatus}");
+        sb.AppendLine($"Epics: {epicCount} | Features: {featureCount} | User Stories: {storyCount}");
+        sb.AppendLine("Task counts by status:");
+        foreach (var g in tasksByStatus.OrderBy(g => g.Status))
+            sb.AppendLine($"  {g.Status}: {g.Count}");
+        sb.AppendLine($"Total Estimated: {totalEst:F0}h | Total Actual: {totalActual:F0}h");
+        if (project.ApprovedBudget.HasValue)
+            sb.AppendLine($"Approved Budget: {project.ApprovedBudget:N0} BDT");
+
+        return sb.ToString();
+    }
+
+    // ── create_project ──────────────────────────────────────────────────────────
+    private async Task<string> CreateProjectAsync(
+        JsonElement args, string userId, string tenantId, CancellationToken ct)
+    {
+        var name        = args.GetProperty("name").GetString() ?? "Unnamed Project";
+        var description = args.TryGetProperty("description", out var d)  ? d.GetString()  : null;
+        var startStr    = args.TryGetProperty("startDate",   out var sd) ? sd.GetString() : null;
+        var endStr      = args.TryGetProperty("endDate",     out var ed) ? ed.GetString() : null;
+
+        DateTime? startDate = DateTime.TryParse(startStr, out var sdt) ? sdt : null;
+        DateTime? endDate   = DateTime.TryParse(endStr,   out var edt) ? edt : null;
+
+        // Project model has no StartDate/EndDate; we store them in the description
+        // if present and note the request. The model fields that exist are captured below.
+        var descNote = description ?? string.Empty;
+        if (startDate.HasValue) descNote += $" | Planned start: {startDate.Value:yyyy-MM-dd}";
+        if (endDate.HasValue)   descNote += $" | Planned end: {endDate.Value:yyyy-MM-dd}";
+
+        var project = new Project
+        {
+            Name        = name,
+            Description = string.IsNullOrEmpty(descNote) ? null : descNote.Trim(' ', '|', ' '),
+            CreatedById = userId,
+            TenantId    = tenantId,
+            CreatedAt   = DateTime.UtcNow
+        };
+
+        _db.Projects.Add(project);
+        await _db.SaveChangesAsync(ct);
+
+        return $"Project created: ID={project.Id}, Name=\"{name}\".";
+    }
+
+    // ── assign_task ──────────────────────────────────────────────────────────────
+    private async Task<string> AssignTaskAsync(JsonElement args, CancellationToken ct)
+    {
+        var taskId = args.GetProperty("taskId").GetInt32();
+        var task   = await _db.Tasks.FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (task == null) return $"Task {taskId} not found.";
+
+        bool changed = false;
+        if (args.TryGetProperty("assigneeUserId", out var aProp) &&
+            !string.IsNullOrEmpty(aProp.GetString()))
+        {
+            task.AssigneeId = aProp.GetString();
+            changed = true;
+        }
+        if (args.TryGetProperty("sprintId", out var sProp) &&
+            sProp.ValueKind == JsonValueKind.Number)
+        {
+            task.SprintId = sProp.GetInt32();
+            changed = true;
+        }
+
+        if (!changed)
+            return $"Task {taskId}: no assignee or sprint changes specified.";
+
+        await _db.SaveChangesAsync(ct);
+        return $"Task {taskId} updated — AssigneeId: {task.AssigneeId ?? "(unchanged)"}, SprintId: {task.SprintId?.ToString() ?? "(unchanged)"}";
+    }
+
+    // ── bulk_create_wbs ────────────────────────────────────────────────────────
+    private async Task<string> BulkCreateWbsAsync(
+        JsonElement args, string userId, string tenantId, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+        var wbsArray  = args.GetProperty("wbs");
+
+        int epicCount = 0, featureCount = 0, storyCount = 0, taskCount = 0;
+
+        foreach (var epicEl in wbsArray.EnumerateArray())
+        {
+            var epicName = epicEl.TryGetProperty("name", out var en) ? en.GetString() ?? "Unnamed Epic" : "Unnamed Epic";
+            var epicDesc = epicEl.TryGetProperty("description", out var ed) ? ed.GetString() : null;
+
+            var epic = new Epic
+            {
+                ProjectId   = projectId,
+                Name        = epicName,
+                Description = epicDesc,
+                CreatedById = userId,
+                CreatedAt   = DateTime.UtcNow,
+                TenantId    = tenantId
+            };
+            _db.Epics.Add(epic);
+            await _db.SaveChangesAsync(ct); // flush to get epic.Id
+            epicCount++;
+
+            if (!epicEl.TryGetProperty("features", out var featuresEl) ||
+                featuresEl.ValueKind != JsonValueKind.Array) continue;
+
+            foreach (var featEl in featuresEl.EnumerateArray())
+            {
+                var featName = featEl.TryGetProperty("name", out var fn) ? fn.GetString() ?? "Unnamed Feature" : "Unnamed Feature";
+                var featDesc = featEl.TryGetProperty("description", out var fd) ? fd.GetString() : null;
+
+                var feature = new Feature
+                {
+                    EpicId      = epic.Id,
+                    Name        = featName,
+                    Description = featDesc,
+                    CreatedById = userId,
+                    CreatedAt   = DateTime.UtcNow,
+                    TenantId    = tenantId
+                };
+                _db.Features.Add(feature);
+                await _db.SaveChangesAsync(ct);
+                featureCount++;
+
+                if (!featEl.TryGetProperty("stories", out var storiesEl) ||
+                    storiesEl.ValueKind != JsonValueKind.Array) continue;
+
+                foreach (var storyEl in storiesEl.EnumerateArray())
+                {
+                    var storyTitle = storyEl.TryGetProperty("title",       out var st) ? st.GetString() ?? "Unnamed Story" : "Unnamed Story";
+                    var storyDesc  = storyEl.TryGetProperty("description", out var sd) ? sd.GetString() : null;
+                    var ac         = storyEl.TryGetProperty("acceptanceCriteria", out var acEl) ? acEl.GetString() : null;
+
+                    var story = new UserStory
+                    {
+                        FeatureId          = feature.Id,
+                        Title              = storyTitle,
+                        Description        = storyDesc,
+                        AcceptanceCriteria = ac,
+                        CreatedById        = userId,
+                        CreatedAt          = DateTime.UtcNow,
+                        TenantId           = tenantId
+                    };
+                    _db.UserStories.Add(story);
+                    await _db.SaveChangesAsync(ct);
+                    storyCount++;
+
+                    if (!storyEl.TryGetProperty("tasks", out var tasksEl) ||
+                        tasksEl.ValueKind != JsonValueKind.Array) continue;
+
+                    foreach (var taskEl in tasksEl.EnumerateArray())
+                    {
+                        var taskTitle = taskEl.TryGetProperty("title",       out var tt) ? tt.GetString() ?? "Unnamed Task" : "Unnamed Task";
+                        var taskDesc  = taskEl.TryGetProperty("description", out var tde) ? tde.GetString() : null;
+
+                        decimal o  = taskEl.TryGetProperty("optimisticHours",  out var ov)  ? (decimal)ov.GetDouble()  : 0;
+                        decimal m  = taskEl.TryGetProperty("mostLikelyHours",  out var mv)  ? (decimal)mv.GetDouble()  : 0;
+                        decimal pe = taskEl.TryGetProperty("pessimisticHours", out var pv)  ? (decimal)pv.GetDouble()  : 0;
+                        decimal pert = (o > 0 && m > 0 && pe > 0) ? _workflowEngine.CalculatePert(o, m, pe) : 0;
+
+                        var taskItem = new TaskItem
+                        {
+                            UserStoryId               = story.Id,
+                            ProjectId                 = projectId,
+                            Title                     = taskTitle,
+                            Description               = taskDesc,
+                            EstimatedOptimisticHours  = o  > 0 ? o  : null,
+                            EstimatedMostLikelyHours  = m  > 0 ? m  : null,
+                            EstimatedPessimisticHours = pe > 0 ? pe : null,
+                            PertEstimatedHours        = pert > 0 ? pert : null,
+                            EstimatedHours            = pert > 0 ? pert : (m > 0 ? m : 0m),
+                            Status                    = Models.Enums.TaskStatus.New,
+                            CreatedById               = userId,
+                            CreatedAt                 = DateTime.UtcNow,
+                            TenantId                  = tenantId
+                        };
+                        _db.Tasks.Add(taskItem);
+                        taskCount++;
+                    }
+                    await _db.SaveChangesAsync(ct);
+                }
+            }
+        }
+
+        return $"WBS created for project {projectId}: {epicCount} epic(s), {featureCount} feature(s), {storyCount} user stor(ies), {taskCount} task(s).";
+    }
+
+    // ── get_work_package_summary ────────────────────────────────────────────────
+    private async Task<string> GetWorkPackageSummaryAsync(JsonElement args, CancellationToken ct)
+    {
+        var taskId  = args.GetProperty("taskId").GetInt32();
+        var summary = await _workflowEngine.GetWorkPackageSummaryAsync(taskId);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"## Work Package Summary: \"{summary.ParentTaskTitle}\" (Task #{summary.ParentTaskId})");
+        sb.AppendLine($"Total PERT Estimate: {summary.TotalPertEstimatedHours:F1}h");
+        sb.AppendLine($"Total Actual Hours:  {summary.TotalActualHours:F1}h");
+        sb.AppendLine($"Effort Variance:     {summary.EffortVarianceHours:+0.0;-0.0}h ({summary.EffortVariancePercent:+0.0;-0.0}%)");
+
+        if (summary.Stages.Count > 0)
+        {
+            sb.AppendLine("\n### Stage Breakdown");
+            foreach (var stage in summary.Stages)
+            {
+                sb.AppendLine($"  [{stage.StageOrder}] {stage.StageName} ({stage.DefaultRoleTitle})");
+                sb.AppendLine($"      Assignee: {stage.AssigneeName ?? "(unassigned)"} | Status: {stage.Status}");
+                sb.AppendLine($"      PERT: {stage.PertHours:F1}h | Actual: {stage.ActualHours:F1}h | Time-in-status: {stage.TimeInStatusHours:F1}h");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    // ── generate_status_report ──────────────────────────────────────────────────
+    private async Task<string> GenerateStatusReportAsync(JsonElement args, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+        return await _pmReport.GenerateMarkdownReportAsync(projectId, ct);
     }
 }

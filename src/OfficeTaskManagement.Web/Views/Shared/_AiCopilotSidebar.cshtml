@@ -35,10 +35,11 @@
             <div class="copilot-msg__bubble">
                 <p>Hello! I'm your AI PM Copilot. I can help you:</p>
                 <ul>
-                    <li>Create Epics, Features, User Stories and Tasks</li>
-                    <li>Analyze resource availability and sprint capacity</li>
-                    <li>Suggest project breakdowns and priorities</li>
-                    <li>Update estimates based on actual progress</li>
+                    <li>Create full project plans from meeting notes (<strong>/plan</strong>)</li>
+                    <li>Generate PM status reports and risk analyses</li>
+                    <li>Smart sprint planning based on team capacity</li>
+                    <li>Analyze resource availability and PERT estimates</li>
+                    <li>Type <strong>/help</strong> for all commands or <strong>@@</strong> to mention any entity</li>
                 </ul>
                 <p>What would you like to do?</p>
             </div>
@@ -50,15 +51,36 @@
         <!-- Populated by copilot-sidebar.js -->
     </div>
 
+    <!-- Quick Actions -->
+    <div class="copilot-sidebar__quick-actions" aria-label="Quick actions">
+        <button type="button" class="copilot-quick-btn" data-command="/plan" title="Turn meeting notes into a project plan">
+            <span aria-hidden="true">🗺</span> Plan
+        </button>
+        <button type="button" class="copilot-quick-btn" data-command="/report" title="Generate PM Status Report">
+            <span aria-hidden="true">📋</span> Report
+        </button>
+        <button type="button" class="copilot-quick-btn" data-command="/risk" title="Analyze project risks">
+            <span aria-hidden="true">⚠</span> Risk
+        </button>
+        <button type="button" class="copilot-quick-btn" data-command="/sprint" title="AI Sprint Planning">
+            <span aria-hidden="true">🚀</span> Sprint
+        </button>
+        <button type="button" class="copilot-quick-btn" data-command="/standup" title="Generate standup digest">
+            <span aria-hidden="true">🌅</span> Standup
+        </button>
+    </div>
+
     <!-- Input area -->
     <div class="copilot-sidebar__input-area">
         <div class="copilot-sidebar__input-wrapper">
-            <textarea id="copilot-input"
-                      class="copilot-sidebar__input"
-                      placeholder="Ask me anything about this project..."
-                      rows="2"
-                      aria-label="Message to AI Copilot"
-                      maxlength="2000"></textarea>
+            <div class="copilot-sidebar__textarea-container">
+                <textarea id="copilot-input"
+                          class="copilot-sidebar__input"
+                          placeholder="Ask me anything about this project..."
+                          rows="2"
+                          aria-label="Message to AI Copilot"
+                          maxlength="2000"></textarea>
+            </div>
             <button type="button" id="copilot-send-btn"
                     class="copilot-sidebar__send-btn"
                     aria-label="Send message"

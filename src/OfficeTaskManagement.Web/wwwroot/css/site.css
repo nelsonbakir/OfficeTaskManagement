@@ -267,6 +267,7 @@ body {
 }
 .copilot-action-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
 .copilot-action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+a.copilot-action-btn { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 
 /* Input area */
 .copilot-sidebar__input-area {
@@ -277,8 +278,12 @@ body {
 .copilot-sidebar__input-wrapper {
     display: flex; gap: 0.5rem; align-items: flex-end;
 }
+.copilot-sidebar__textarea-container {
+    position: relative;
+    flex: 1;
+}
 .copilot-sidebar__input {
-    flex: 1; resize: none;
+    width: 100%; display: block; box-sizing: border-box; resize: none;
     background: #ffffff; border: 1px solid var(--border-color);
     border-radius: 8px; color: var(--text-primary);
     padding: 0.6rem 0.9rem; font-size: 0.875rem;
@@ -661,4 +666,42 @@ body {
     height: 14px;
     cursor: not-allowed;
     accent-color: var(--primary-color);
+}
+
+/* ── Copilot Quick Action Buttons ────────────────────────────────────────── */
+.copilot-sidebar__quick-actions {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-2, rgba(255,255,255,0.04));
+    border-top: 1px solid var(--border-color, rgba(255,255,255,0.08));
+    flex-wrap: wrap;
+}
+
+.copilot-quick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    border: 1px solid var(--border-color, rgba(255,255,255,0.15));
+    border-radius: 1rem;
+    background: transparent;
+    color: var(--text-secondary, #94a3b8);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.copilot-quick-btn:hover {
+    background: var(--accent-primary, #6366f1);
+    border-color: var(--accent-primary, #6366f1);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+}
+
+.copilot-quick-btn span {
+    font-size: 0.8rem;
 }

@@ -41,8 +41,11 @@ namespace OfficeTaskManagement.Tests.Services
                     It.IsAny<decimal>(), It.IsAny<decimal>(), It.IsAny<decimal>()))
                 .Returns<decimal, decimal, decimal>((o, m, p) => (o + 4 * m + p) / 6);
 
+            var pmReportLogger = NullLogger<OfficeTaskManagement.Services.Ai.PmReportService>.Instance;
+            var pmReport = new OfficeTaskManagement.Services.Ai.PmReportService(_db, pmReportLogger);
+
             _dispatcher = new AgentToolDispatcher(
-                _db, _workflowMock.Object,
+                _db, _workflowMock.Object, pmReport,
                 NullLogger<AgentToolDispatcher>.Instance);
         }
 

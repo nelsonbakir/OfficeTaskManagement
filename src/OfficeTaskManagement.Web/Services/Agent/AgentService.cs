@@ -195,6 +195,166 @@ public class AgentService : IAgentService
         await _conversationService.DeleteAsync(conversationId, ct);
     }
 
+    // ── StreamChatAsync — KF-1 Streaming ──────────────────────────────────────
+    // Runs the full agentic function-call loop first (non-streaming, handles tool calls),
+    // then streams the FINAL text response either via Gemini SSE or fallback chunking.
+    public async IAsyncEnumerable<string> StreamChatAsync(
+        AgentChatRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        // Phase 1 — Run the complete agentic loop to handle all function calls.
+        // We reuse ChatAsync internals so all tool dispatch + history persistence
+        // happen identically. Once ChatAsync returns we know the final answer text.
+        // NOTE: yield return is not allowed inside catch blocks (CS1631), so we
+        // capture the error message in a local variable and yield it after the try-catch.
+        AgentChatResponse? response = null;
+        string? phase1Error = null;
+        bool cancelled = false;
+        try
+        {
+            response = await ChatAsync(request, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            cancelled = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "StreamChatAsync: ChatAsync phase failed");
+            phase1Error = "⚠ An error occurred while processing your request.";
+        }
+
+        if (cancelled) yield break;
+        if (phase1Error != null) { yield return phase1Error; yield break; }
+
+        var finalText = response!.Message;
+        if (string.IsNullOrEmpty(finalText))
+        {
+            yield break;
+        }
+
+        // Phase 2 — Stream the final text response.
+        // Try to use Gemini streamGenerateContent SSE for the LAST turn so the client
+        // receives incremental tokens.  Fall back to chunked delivery if unavailable.
+        var apiKey  = _config["Gemini:ApiKey"];
+        var model   = _config["Gemini:CopilotModel"] ?? "gemini-2.5-pro";
+        var provider = _config["Gemini:Provider"] ?? "Gemini";
+        bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+
+        bool streamed = false;
+
+        if (!isOllama && !string.IsNullOrEmpty(apiKey))
+        {
+            // Build a single-turn request with just the confirmed final text as a
+            // "paraphrase / continue" prompt so we can stream the real tokens.
+            // For simplicity and to avoid double tool-call loops, we ask Gemini to
+            // stream the already-computed answer verbatim.
+            //
+            // TODO: For true latency savings, integrate Gemini SSE directly into the
+            //       agentic loop so the last model turn is natively streamed rather
+            //       than re-requested. That requires refactoring CallGeminiAsync to
+            //       return a Stream and plumbing IAsyncEnumerable through the loop.
+            var streamUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={apiKey}";
+
+            // We ask Gemini to repeat the answer — keeps the stream contract intact
+            // without re-running tool calls.
+            var singleTurnBody = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        role  = "user",
+                        parts = new[] { new { text = $"Please repeat the following PM assistant answer verbatim:\n\n{finalText}" } }
+                    }
+                },
+                generation_config = new { temperature = 0.0, max_output_tokens = 4096 }
+            };
+
+            // Collect SSE chunks outside try-catch so we can yield without CS1626 restriction.
+            // The list approach is safe because Gemini SSE lines are small text fragments.
+            var sseChunks = new List<string>();
+            bool sseSuccess = false;
+            bool sseCancelled = false;
+            try
+            {
+                var json  = JsonSerializer.Serialize(singleTurnBody);
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                using var httpReq = new HttpRequestMessage(HttpMethod.Post, streamUrl) { Content = content };
+                using var httpResp = await _http.SendAsync(httpReq, HttpCompletionOption.ResponseHeadersRead, ct);
+
+                if (httpResp.IsSuccessStatusCode)
+                {
+                    await using var sseStream = await httpResp.Content.ReadAsStreamAsync(ct);
+                    using var sseReader = new System.IO.StreamReader(sseStream);
+
+                    while (!sseReader.EndOfStream && !ct.IsCancellationRequested)
+                    {
+                        var line = await sseReader.ReadLineAsync(ct);
+                        if (line == null) break;
+                        if (!line.StartsWith("data: ")) continue;
+
+                        var dataStr = line["data: ".Length..].Trim();
+                        if (dataStr == "[DONE]") break;
+                        if (string.IsNullOrEmpty(dataStr)) continue;
+
+                        try
+                        {
+                            using var chunkDoc = JsonDocument.Parse(dataStr);
+                            var text = chunkDoc.RootElement
+                                .GetProperty("candidates")[0]
+                                .GetProperty("content")
+                                .GetProperty("parts")[0]
+                                .GetProperty("text")
+                                .GetString();
+
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                sseChunks.Add(text);
+                                sseSuccess = true;
+                            }
+                        }
+                        catch (JsonException)
+                        {
+                            // Malformed SSE chunk — skip gracefully
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                sseCancelled = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "StreamChatAsync: Gemini SSE stream failed, falling back to chunked delivery");
+            }
+
+            if (sseCancelled) yield break;
+
+            // Yield collected SSE chunks outside the catch block
+            foreach (var chunk in sseChunks)
+            {
+                yield return chunk;
+            }
+            streamed = sseSuccess;
+        }
+
+        // Phase 3 — Fallback: chunk the pre-computed response text (~50 chars per chunk)
+        // so the ReadableStream frontend pattern still works without true SSE.
+        if (!streamed)
+        {
+            const int chunkSize = 50;
+            for (int i = 0; i < finalText.Length && !ct.IsCancellationRequested; i += chunkSize)
+            {
+                var end   = Math.Min(i + chunkSize, finalText.Length);
+                yield return finalText[i..end];
+                await Task.Delay(10, ct); // small delay to simulate token flow
+            }
+        }
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
     // ── BUG 5 FIX: Wire ContextBuilderService for live PM context ─────────────
     private async Task<string> BuildSystemInstructionAsync(
@@ -626,17 +786,9 @@ public class AgentService : IAgentService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Ollama chat failed. Checking for Gemini fallback.");
+                _logger.LogError(ex, "Ollama chat failed. Gemini fallback is disabled.");
+                throw;
             }
-
-            var backupKey = _config["Gemini:ApiKey"];
-            if (string.IsNullOrEmpty(backupKey))
-            {
-                _logger.LogError("Ollama failed and backup Gemini API key is not configured.");
-                return null;
-            }
-            apiKey = backupKey;
-            model = _config["Gemini:CopilotModel"] ?? "gemini-2.5-pro";
         }
 
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";

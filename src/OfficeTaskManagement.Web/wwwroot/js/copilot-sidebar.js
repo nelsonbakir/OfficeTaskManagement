@@ -30,11 +30,12 @@
         const projectSelector = document.getElementById('copilot-project-selector');
 
         // ── Create Backdrop and Dropdown ──────────────────────────────────────────
-        const inputWrapper = document.querySelector('.copilot-sidebar__input-wrapper');
+        const textareaContainer = inputEl.parentElement;
+        const inputWrapper = inputEl.closest('.copilot-sidebar__input-wrapper');
         
         const backdropEl = document.createElement('div');
         backdropEl.className = 'copilot-sidebar__input-backdrop';
-        inputWrapper.insertBefore(backdropEl, inputEl);
+        textareaContainer.insertBefore(backdropEl, inputEl);
 
         const dropdownEl = document.createElement('div');
         dropdownEl.className = 'copilot-mention-dropdown';
@@ -118,6 +119,22 @@
         // Initialize project list context
         initProjectSelector();
 
+        // Wire quick-action buttons
+        document.querySelectorAll('.copilot-quick-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cmd = btn.dataset.command;
+                if (cmd) {
+                    inputEl.value = cmd + ' ';
+                    charCountEl.textContent = `${inputEl.value.length}/2000`;
+                    sendBtn.disabled = false;
+                    if (!isOpen) open();
+                    inputEl.focus();
+                    inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+                    onInput();
+                }
+            });
+        });
+
         // ── Open / Close ──────────────────────────────────────────────────────────
         toggleBtn.addEventListener('click', () => open());
         closeBtn.addEventListener('click',  () => close());
@@ -200,7 +217,7 @@
             updateBackdrop();
         });
 
-        // ── Send message ──────────────────────────────────────────────────────────
+        // ── Send message ──────────────────────────────────────────────────────
         async function sendMessage() {
             const text = inputEl.value.trim();
             if (!text || isSending) return;
@@ -209,19 +226,27 @@
                 handleSlashCommand(text);
                 inputEl.value = '';
                 charCountEl.textContent = '0/2000';
+                sendBtn.disabled = true;
+                updateBackdrop();
                 return;
             }
 
-            isSending = true;
-            sendBtn.disabled = true;
             appendMessage('user', text);
             inputEl.value = '';
             charCountEl.textContent = '0/2000';
+            sendBtn.disabled = true;
+            updateBackdrop();
+            await sendAiMessage(text);
+        }
 
+        async function sendAiMessage(text) {
+            isSending = true;
+            sendBtn.disabled = true;
             const typingEl = appendTypingIndicator();
 
             try {
-                const resp = await fetch('/api/agent/chat', {
+                // Try streaming endpoint first
+                const streamResp = await fetch('/api/agent/chat/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -229,7 +254,7 @@
                     },
                     body: JSON.stringify({
                         conversationId,
-                        userId: '',       // server fills from ClaimsPrincipal
+                        userId: '',
                         message: text,
                         entityType: entityType,
                         entityId: entityId ? parseInt(entityId) : null,
@@ -239,27 +264,73 @@
                 });
 
                 typingEl.remove();
-
-                if (!resp.ok) {
-                    const err = await resp.text();
-                    appendMessage('ai', `⚠ Error: ${err || 'AI service unavailable. Please try again.'}`);
-                    return;
-                }
-
-                const data = await resp.json();
-                appendMessage('ai', data.message ?? '(no response)');
-
                 mentions = [];
                 updateBackdrop();
 
-                if (data.actions?.length) {
-                    renderActions(data.actions);
+                if (!streamResp.ok) {
+                    const err = await streamResp.text();
+                    appendMessage('ai', `⚠ Error: ${err || 'AI service unavailable.'}`);
+                    return;
+                }
+
+                // Stream the response token by token
+                const aiMsgDiv = appendMessage('ai', '');
+                const bubble = aiMsgDiv.querySelector('.copilot-msg__bubble');
+                let fullText = '';
+
+                const reader = streamResp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let actions = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep incomplete last line
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue;
+                        try {
+                            const obj = JSON.parse(line);
+                            if (obj.done) break;
+                            if (obj.chunk) {
+                                fullText += obj.chunk;
+                                bubble.innerHTML = renderMarkdown(fullText);
+                                messagesEl.scrollTop = messagesEl.scrollHeight;
+                            }
+                            if (obj.actions) actions = obj.actions;
+                        } catch { /* skip malformed chunk */ }
+                    }
+                }
+
+                // Final render
+                bubble.innerHTML = renderMarkdown(fullText || '(no response)');
+                
+                if (fullText && (fullText.includes('# 📋 PM Status Report') || fullText.includes('PM Status Report'))) {
+                    const projectId = getActiveProjectContextId();
+                    if (projectId) {
+                        const downloadDiv = document.createElement('div');
+                        downloadDiv.className = 'copilot-msg__download-pdf';
+                        downloadDiv.style.marginTop = '0.5rem';
+                        downloadDiv.innerHTML = `
+                            <a href="/api/pmreport/download/${projectId}" class="copilot-action-btn pdf-download-btn" target="_blank" style="text-decoration:none;">
+                                📥 Download Report as PDF
+                            </a>`;
+                        bubble.appendChild(downloadDiv);
+                    }
+                }
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+
+                if (actions?.length) {
+                    renderActions(actions);
                 } else {
                     actionsEl.style.display = 'none';
                 }
             } catch (err) {
-                typingEl.remove();
-                appendMessage('ai', `⚠ Network error: ${err.message}. Please check your connection.`);
+                typingEl?.remove();
+                appendMessage('ai', `⚠ Network error: ${err.message}`);
             } finally {
                 isSending = false;
                 sendBtn.disabled = inputEl.value.length === 0;
@@ -269,53 +340,74 @@
         function handleSlashCommand(cmdText) {
             const parts = cmdText.split(' ');
             const cmd = parts[0].toLowerCase();
+            const args = parts.slice(1).join(' ');
             appendMessage('user', cmdText);
 
+            // Local-only commands (no AI call needed)
+            switch (cmd) {
+                case '/capacity':
+                    appendMessage('ai', '🔄 Redirecting to Capacity Planning Dashboard...');
+                    setTimeout(() => window.location.href = '/Capacity', 1000);
+                    return;
+                case '/pert':
+                    appendMessage('ai', `**PERT Three-Point Estimation**\n\nFormula: **(O + 4M + P) / 6**\n\n- **O** — Optimistic (best-case)\n- **M** — Most Likely (normal)\n- **P** — Pessimistic (worst-case)\n\nStandard Deviation: σ = (P − O) / 6\n\nOfficeTaskManagement automatically applies PERT to all AI estimates.`);
+                    return;
+                case '/reestimate':
+                    appendMessage('ai', `**Bulk Re-estimation**\n\n1. Go to the Tasks list page\n2. Select tasks with checkboxes\n3. Click **Re-estimate Selected Tasks with AI**\n4. Review and confirm`);
+                    return;
+            }
+
+            // AI-powered commands — send as a structured message to the backend
+            let aiMessage = '';
             switch (cmd) {
                 case '/help':
-                    appendMessage('ai', `<strong>Available AI Copilot Commands:</strong><br>
-                    <ul>
-                        <li><strong>/help</strong> — Lists all available commands and features.</li>
-                        <li><strong>/capacity</strong> — Navigate to the capacity planning analytics view.</li>
-                        <li><strong>/pert</strong> — Explains the PERT three-point estimate system.</li>
-                        <li><strong>/reestimate</strong> — Guidelines for using bulk re-estimation tools.</li>
-                    </ul><br>
-                    You can also type <strong>@</strong> in the input area to mention projects, epics, features, user stories, tasks, sprints, or users directly in your conversation context.`);
+                    aiMessage = 'List all your capabilities and available slash commands with examples for each.';
                     break;
-                case '/capacity':
-                    appendMessage('ai', `🔄 Redirecting you to the Capacity Planning Dashboard...`);
-                    setTimeout(() => {
-                        window.location.href = '/Capacity';
-                    }, 1000);
+                case '/plan':
+                    aiMessage = args
+                        ? `Parse these meeting notes and create a full project Work Breakdown Structure (Epics → Features → User Stories → Tasks). Use the bulk_create_wbs tool to create everything in the database. Meeting notes:\n\n${args}`
+                        : 'I want to create a project plan from meeting notes. Please ask me to paste my meeting notes and then generate a full WBS with Epics, Features, User Stories, and Tasks.';
                     break;
-                case '/pert':
-                    appendMessage('ai', `<strong>PERT Three-Point Estimation System</strong><br><br>
-                    PERT calculates the expected duration of tasks using three estimates:<br>
-                    <ul>
-                        <li><strong>O</strong>: Optimistic Estimate (best-case duration)</li>
-                        <li><strong>M</strong>: Most Likely Estimate (average/normal duration)</li>
-                        <li><strong>P</strong>: Pessimistic Estimate (worst-case duration)</li>
-                    </ul><br>
-                    Formula:<br>
-                    \\[ \\mu = \\frac{O + 4M + P}{6} \\]<br>
-                    Standard Deviation (uncertainty):<br>
-                    \\[ \\sigma = \\frac{P - O}{6} \\]<br><br>
-                    OfficeTaskManagement automatically applies this formula to all estimations generated by the AI or saved by you, ensuring risk-adjusted capacity planning.`);
+                case '/report':
+                    aiMessage = args
+                        ? `Generate a comprehensive PMP-grade status report for project: ${args}. Include executive summary (RAG status), sprint progress, risks, resource utilization, and recommendations.`
+                        : 'Generate a comprehensive PMP-grade status report for the active project. Read project status, sprint capacity, and task data using read_project_status and read_sprint_list tools. Include executive summary (RAG: 🟢/🟡/🔴), sprint velocity, risks, and next steps.';
                     break;
-                case '/reestimate':
-                    appendMessage('ai', `<strong>Bulk AI Re-estimation Guidelines</strong><br><br>
-                    To re-estimate tasks with AI:<br>
-                    <ol>
-                        <li>Navigate to the Tasks list page.</li>
-                        <li>Select multiple tasks using the check-boxes in the task table.</li>
-                        <li>Click the <strong>"Re-estimate Selected Tasks with AI"</strong> button on the task toolbar.</li>
-                        <li>Review the AI estimations and click confirm to save them.</li>
-                    </ol>`);
+                case '/risk':
+                    aiMessage = args
+                        ? `Analyze all risks for project: ${args}. Use read_project_status and read_project_tasks to find: stale tasks (>5 days In Progress), overloaded resources, tasks with no estimates, and sprint overloads. Present as a risk register table.`
+                        : 'Analyze the active project for risks. Use read_project_status and read_project_tasks to find: stale tasks (In Progress >5 days), missing estimates, sprint overloads, and resource bottlenecks. Present as a prioritized risk register.';
+                    break;
+                case '/sprint':
+                    aiMessage = args
+                        ? `Plan sprint ${args} intelligently: use get_sprint_capacity and read_project_tasks to see available backlog, then recommend which tasks to assign. Explain your reasoning based on team capacity and task priorities.`
+                        : 'Help me plan the current sprint. Use get_sprint_capacity to check available hours, then use read_project_tasks to find unassigned backlog items. Recommend the best tasks to pull into the sprint based on priority and PERT estimates.';
+                    break;
+                case '/standup':
+                    aiMessage = 'Generate a daily standup digest using read_project_tasks filtered to my assigned tasks. Format: **Yesterday** (Done tasks), **Today** (In Progress/ToDo tasks), **Blockers** (any blocked or stale tasks).';
+                    break;
+                case '/testcases':
+                    aiMessage = args
+                        ? `Generate comprehensive BDD test cases for user story: ${args}. Include happy path, edge cases, and failure scenarios in Given/When/Then format.`
+                        : 'I want to generate test cases. Please tell me which user story you want test cases for (provide the story title or @mention it).';
+                    break;
+                case '/estimate':
+                    aiMessage = args
+                        ? `Give me a PERT three-point estimate (Optimistic, Most Likely, Pessimistic hours) for this task: "${args}". Consider complexity, risks, and typical development patterns. Provide rationale.`
+                        : 'What task or feature would you like me to estimate? Provide a description and I will give you a PERT three-point estimate.';
+                    break;
+                case '/read':
+                    aiMessage = args
+                        ? `Read and summarize: ${args}. Use read_project_tasks, read_sprint_list, or read_project_status as needed.`
+                        : 'What would you like me to read? You can say: tasks in sprint 5, project status, backlog items, etc.';
                     break;
                 default:
-                    appendMessage('ai', `⚠ Unknown command: <strong>${cmd}</strong>. Type <strong>/help</strong> to see the list of available commands.`);
-                    break;
+                    appendMessage('ai', `⚠ Unknown command: **${cmd}**. Type **/help** to see all available commands.`);
+                    return;
             }
+
+            // Send to AI backend
+            sendAiMessage(aiMessage);
         }
 
         // ── Render helpers ────────────────────────────────────────────────────────
@@ -655,10 +747,18 @@
         }
 
         const commands = [
-            { name: '/help', desc: 'Display AI Copilot capabilities and available tools', icon: '❓' },
-            { name: '/capacity', desc: 'Query resource availability and capacity metrics', icon: '🏃' },
-            { name: '/pert', desc: 'Show the PERT estimation formula explanation', icon: '📊' },
-            { name: '/reestimate', desc: 'Get guidelines for bulk AI re-estimation of tasks', icon: '🔄' }
+            { name: '/help',       desc: 'Display all available commands and copilot capabilities', icon: '❓' },
+            { name: '/plan',       desc: 'Paste meeting notes or description → AI generates full project WBS', icon: '🗺' },
+            { name: '/report',     desc: 'Generate a PMP-grade status report for the active project', icon: '📋' },
+            { name: '/risk',       desc: 'Analyze and list all risks for the active project', icon: '⚠' },
+            { name: '/sprint',     desc: 'AI-driven smart sprint planning — assign tasks by capacity', icon: '🚀' },
+            { name: '/standup',    desc: 'Generate today\'s daily standup digest for your tasks', icon: '🌅' },
+            { name: '/testcases',  desc: 'Generate BDD test cases for a user story', icon: '🧪' },
+            { name: '/estimate',   desc: 'Get a PERT three-point estimate for any task description', icon: '📊' },
+            { name: '/read',       desc: 'Read and summarize tasks, sprints, or project status', icon: '🔍' },
+            { name: '/capacity',   desc: 'Navigate to the capacity planning view', icon: '🏃' },
+            { name: '/pert',       desc: 'Show the PERT estimation formula', icon: '📐' },
+            { name: '/reestimate', desc: 'Guidelines for bulk AI re-estimation', icon: '🔄' },
         ];
 
         function renderCommandDropdown(query) {

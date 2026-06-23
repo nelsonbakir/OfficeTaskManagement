@@ -127,8 +127,12 @@ builder.Services.AddHostedService(sp =>
 // ── Phase 5: AI Accuracy + Background Jobs ────────────────────────────────
 // Nightly job: back-fills ActualHours on AiEstimationLogs for completed tasks
 builder.Services.AddHostedService<OfficeTaskManagement.Services.Ai.AiAccuracyUpdateService>();
-// ─────────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
+
+// KF-4: Risk Radar — proactive risk signal scanner (runs every 30 min)
+builder.Services.AddHostedService<OfficeTaskManagement.Services.Ai.RiskRadarService>();
+
+// KF-5: PM Status Report generator
+builder.Services.AddScoped<OfficeTaskManagement.Services.Ai.PmReportService>();
 
 // ── Phase 4: Multi-turn AI Copilot Services ───────────────────────────────────
 builder.Services.AddHttpClient<OfficeTaskManagement.Services.Agent.AgentService>(client => {
