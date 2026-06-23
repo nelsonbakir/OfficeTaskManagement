@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using OfficeTaskManagement.Models;
 
 namespace OfficeTaskManagement.Models.Ai
 {
@@ -8,7 +9,7 @@ namespace OfficeTaskManagement.Models.Ai
     /// Used for cost monitoring (token usage) and quality analysis
     /// (compare AI estimates vs actual hours after task completion).
     /// </summary>
-    public class AiEstimationLog
+    public class AiEstimationLog : IMustHaveTenant
     {
         [Key]
         public int Id { get; set; }

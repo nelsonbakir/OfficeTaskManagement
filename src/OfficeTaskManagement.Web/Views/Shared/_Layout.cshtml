@@ -24,6 +24,10 @@
     {
         <meta name="ai-entity-id" content="@ViewData["AiEntityId"]" />
     }
+    @if (ViewData["AiProjectId"] != null)
+    {
+        <meta name="ai-project-id" content="@ViewData["AiProjectId"]" />
+    }
 </head>
 <body>
     <!-- Sidebar Navigation -->

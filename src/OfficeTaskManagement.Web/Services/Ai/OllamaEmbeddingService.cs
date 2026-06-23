@@ -47,12 +47,21 @@ namespace OfficeTaskManagement.Services.Ai
                 input = text
             };
 
-            var jsonContent = new StringContent(
-                JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            var timeoutSec = 600;
+            if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+            {
+                timeoutSec = parsedTimeout;
+            }
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
 
             try
             {
-                var response = await _http.PostAsync(url, jsonContent, ct);
+                using var jsonContent = new StringContent(
+                    JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+                var response = await _http.PostAsync(url, jsonContent, cts.Token);
                 response.EnsureSuccessStatusCode();
 
                 var jsonString = await response.Content.ReadAsStringAsync(ct);
@@ -68,6 +77,10 @@ namespace OfficeTaskManagement.Services.Ai
                 }
 
                 return Array.Empty<float>();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -108,12 +121,21 @@ namespace OfficeTaskManagement.Services.Ai
                 input = texts
             };
 
-            var jsonContent = new StringContent(
-                JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            var timeoutSec = 600;
+            if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+            {
+                timeoutSec = parsedTimeout;
+            }
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
 
             try
             {
-                var response = await _http.PostAsync(url, jsonContent, ct);
+                using var jsonContent = new StringContent(
+                    JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+                var response = await _http.PostAsync(url, jsonContent, cts.Token);
                 response.EnsureSuccessStatusCode();
 
                 var jsonString = await response.Content.ReadAsStringAsync(ct);
@@ -130,6 +152,10 @@ namespace OfficeTaskManagement.Services.Ai
                 }
 
                 return results.ToArray();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

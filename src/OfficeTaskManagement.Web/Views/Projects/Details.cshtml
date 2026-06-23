@@ -4,6 +4,9 @@
 
 @{ 
     ViewData["Title"] = Model.Name;
+    ViewData["AiEntityType"] = "Project";
+    ViewData["AiEntityId"] = Model.Id;
+    ViewData["AiProjectId"] = Model.Id;
     var sprints = Model.Sprints ?? new List<OfficeTaskManagement.Models.Sprint>();
     var tasks = sprints.SelectMany(s => s.Tasks).ToList();
 }

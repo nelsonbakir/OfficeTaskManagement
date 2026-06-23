@@ -1010,7 +1010,7 @@ namespace OfficeTaskManagement.Controllers
         [HasPermission(Permissions.StrategicView)]
         public async Task<IActionResult> AiAccuracy()
         {
-            var tenantId = User.FindFirstValue("TenantId") ?? string.Empty;
+            var tenantId = _context.CurrentTenantId;
 
             var logs = await _context.AiEstimationLogs
                 .Where(l => l.TenantId == tenantId && l.ActualHours.HasValue && l.AiPertHours.HasValue)

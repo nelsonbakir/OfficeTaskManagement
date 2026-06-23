@@ -4,6 +4,9 @@
 
 @{
     ViewData["Title"] = "Feature Details";
+    ViewData["AiEntityType"] = "Feature";
+    ViewData["AiEntityId"] = Model.Id;
+    ViewData["AiProjectId"] = Model.Epic?.ProjectId;
 }
 
 <style>

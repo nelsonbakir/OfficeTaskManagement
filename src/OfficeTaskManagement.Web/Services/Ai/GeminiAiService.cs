@@ -498,21 +498,37 @@ namespace OfficeTaskManagement.Services.Ai
                 body.Add("format", "json");
             }
 
-            var jsonContent = new StringContent(
-                JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            var timeoutSec = 600;
+            if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+            {
+                timeoutSec = parsedTimeout;
+            }
 
-            var response = await _http.PostAsync(url, jsonContent, ct);
-            response.EnsureSuccessStatusCode();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
 
-            var responseJson = await response.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(responseJson);
-            var root = doc.RootElement;
+            try
+            {
+                using var jsonContent = new StringContent(
+                    JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
-            var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
-            int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
-            int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
+                var response = await _http.PostAsync(url, jsonContent, cts.Token);
+                response.EnsureSuccessStatusCode();
 
-            return (text, inputTokens, outputTokens);
+                var responseJson = await response.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
+                int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
+                int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
+
+                return (text, inputTokens, outputTokens);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
         }
 
         /// <summary>
@@ -523,7 +539,7 @@ namespace OfficeTaskManagement.Services.Ai
         /// </summary>
         private async Task<(string JsonText, int InputTokens, int OutputTokens)> CallGeminiApiAsync(
             string promptText, object responseSchema, string apiKey, CancellationToken ct,
-            int maxRetries = 3)
+            int maxRetries = 5)
         {
             var provider = _config["Gemini:Provider"] ?? "Gemini";
             if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
@@ -570,15 +586,16 @@ namespace OfficeTaskManagement.Services.Ai
             {
                 if (attempt > 0)
                 {
-                    var delayMs = (int)Math.Pow(2, attempt) * 1000; // 2s, 4s, 8s
-                    _logger.LogWarning("Gemini 429 rate limit. Retry {Attempt}/{Max} after {Delay}ms", attempt, maxRetries, delayMs);
+                    var delayMs = (int)Math.Pow(2, attempt) * 1000; // 2s, 4s, 8s, 16s, 32s
+                    _logger.LogWarning("Gemini rate limit or transient error. Retry {Attempt}/{Max} after {Delay}ms", attempt, maxRetries, delayMs);
                     await Task.Delay(delayMs, ct);
                 }
 
                 response = await _http.PostAsync(url,
                     new StringContent(json, Encoding.UTF8, "application/json"), ct);
 
-                if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests)
+                if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests &&
+                    response.StatusCode != System.Net.HttpStatusCode.ServiceUnavailable)
                     break;
             }
 

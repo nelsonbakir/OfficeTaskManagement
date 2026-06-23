@@ -21,6 +21,7 @@ public class AgentService : IAgentService
     private readonly AgentToolDispatcher _dispatcher;
     private readonly ContextBuilderService _contextBuilder;
     private readonly ILogger<AgentService> _logger;
+    private readonly MentionContextResolver _mentionResolver;
 
     private const int MaxFunctionCallRounds = 5; // prevent infinite agentic loops
 
@@ -30,7 +31,8 @@ public class AgentService : IAgentService
         AgentConversationService conversationService,
         AgentToolDispatcher dispatcher,
         ContextBuilderService contextBuilder,
-        ILogger<AgentService> logger)
+        ILogger<AgentService> logger,
+        MentionContextResolver mentionResolver)
     {
         _http = http;
         _config = config;
@@ -38,6 +40,7 @@ public class AgentService : IAgentService
         _dispatcher = dispatcher;
         _contextBuilder = contextBuilder;
         _logger = logger;
+        _mentionResolver = mentionResolver;
     }
 
     // ── ChatAsync — multi-turn agentic loop ────────────────────────────────────
@@ -93,12 +96,17 @@ public class AgentService : IAgentService
         string? finalText = null;
         var suggestedActions = new List<AgentAction>();
         int rounds = 0;
+        bool apiFailed = false;
 
         while (rounds < MaxFunctionCallRounds)
         {
             rounds++;
             var responseJson = await CallGeminiAsync(model, apiKey, currentBody, ct);
-            if (responseJson == null) break;
+            if (responseJson == null)
+            {
+                apiFailed = true;
+                break;
+            }
 
             using var doc = JsonDocument.Parse(responseJson);
             var candidates = doc.RootElement
@@ -157,10 +165,20 @@ public class AgentService : IAgentService
             };
         }
 
-        finalText ??= "I processed your request. " +
-                      (suggestedActions.Any()
-                          ? $"{suggestedActions.Count} action(s) were completed."
-                          : "How else can I help?");
+        if (finalText == null)
+        {
+            if (apiFailed)
+            {
+                finalText = "⚠ Encountered an issue communicating with the AI service. Please check your Ollama configuration or Gemini API key / rate limits.";
+            }
+            else
+            {
+                finalText = "I processed your request. " +
+                            (suggestedActions.Any()
+                                ? $"{suggestedActions.Count} action(s) were completed."
+                                : "How else can I help?");
+            }
+        }
 
         // 6. Persist the model's reply
         await _conversationService.AppendTurnAsync(request.ConversationId, "model", finalText, ct);
@@ -188,6 +206,7 @@ public class AgentService : IAgentService
         sb.AppendLine("Weekend is Friday+Saturday in Bangladesh. Currency is BDT.");
         sb.AppendLine("When creating items, always use the provided tools — never just describe what to do.");
         sb.AppendLine("Keep responses concise. Use markdown formatting.");
+        sb.AppendLine("When referring to any existing Project, Epic, Feature, UserStory, Task, Sprint, or User, ALWAYS format it as @Type:Id:Name (e.g. @Epic:12:Authentication, @User:abc-123-xyz:John Doe, @Task:45:Setup DB). This allows the UI to render clickable links for the user.");
 
         // Inject live entity context from DB when an entity page is active
         if (!string.IsNullOrEmpty(request.EntityType) && request.EntityId.HasValue)
@@ -242,6 +261,50 @@ public class AgentService : IAgentService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "ContextBuilder failed for copilot — proceeding without live context");
+            }
+        }
+        else if (request.ProjectContextId.HasValue)
+        {
+            sb.AppendLine($"\nCurrent active project context: Project ID={request.ProjectContextId.Value}");
+            try
+            {
+                var estRequest = new OfficeTaskManagement.Models.Ai.EstimationRequest(
+                    EntityType:  "Project",
+                    Title:       $"Project #{request.ProjectContextId.Value}",
+                    Description: null,
+                    ProjectId:   request.ProjectContextId.Value,
+                    EpicId:      null,
+                    FeatureId:   null,
+                    UserStoryId: null
+                );
+
+                var ctx = await _contextBuilder.BuildContextAsync(estRequest, ct);
+
+                if (!string.IsNullOrEmpty(ctx.ParentContext))
+                    sb.AppendLine($"\n### Project Context\n{ctx.ParentContext}");
+
+                if (!string.IsNullOrEmpty(ctx.SiblingList))
+                    sb.AppendLine($"\n### Epics in this Project\n{ctx.SiblingList}");
+
+                if (!string.IsNullOrEmpty(ctx.HistoryStats))
+                    sb.AppendLine($"\n### Historical Stats\n{ctx.HistoryStats}");
+
+                if (ctx.HourlyRateBDT > 0)
+                    sb.AppendLine($"\nAverage hourly rate: {ctx.HourlyRateBDT} BDT/hr");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ContextBuilder failed for copilot project context — proceeding without context");
+            }
+        }
+
+        if (request.Mentions != null && request.Mentions.Length > 0)
+        {
+            sb.AppendLine("\n## Referenced Items (@mentions)");
+            var resolved = await _mentionResolver.ResolveAsync(request.Mentions, ct);
+            foreach (var block in resolved)
+            {
+                sb.AppendLine(block);
             }
         }
 
@@ -445,8 +508,18 @@ public class AgentService : IAgentService
             }
 
             var jsonString = JsonSerializer.Serialize(ollamaRequestBody);
-            var httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
-            var response = await _http.PostAsync(url, httpContent, ct);
+
+            var timeoutSec = 600;
+            if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+            {
+                timeoutSec = parsedTimeout;
+            }
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+            using var httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync(url, httpContent, cts.Token);
             response.EnsureSuccessStatusCode();
 
             var responseBody = await response.Content.ReadAsStringAsync(ct);
@@ -519,6 +592,10 @@ public class AgentService : IAgentService
 
             return JsonSerializer.Serialize(geminiResponse);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ollama copilot API call failed");
@@ -543,6 +620,10 @@ public class AgentService : IAgentService
                     return response;
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Ollama chat failed. Checking for Gemini fallback.");
@@ -561,11 +642,33 @@ public class AgentService : IAgentService
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         try
         {
-            var json    = JsonSerializer.Serialize(body);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var resp    = await _http.PostAsync(url, content, ct);
-            resp.EnsureSuccessStatusCode();
+            var json = JsonSerializer.Serialize(body);
+            HttpResponseMessage? resp = null;
+            int maxRetries = 5;
+
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                if (attempt > 0)
+                {
+                    var delayMs = (int)Math.Pow(2, attempt) * 1000; // 2s, 4s, 8s, 16s, 32s
+                    _logger.LogWarning("Gemini copilot rate limit or transient error. Retry {Attempt}/{Max} after {Delay}ms", attempt, maxRetries, delayMs);
+                    await Task.Delay(delayMs, ct);
+                }
+
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                resp = await _http.PostAsync(url, content, ct);
+
+                if (resp.StatusCode != System.Net.HttpStatusCode.TooManyRequests &&
+                    resp.StatusCode != System.Net.HttpStatusCode.ServiceUnavailable)
+                    break;
+            }
+
+            resp!.EnsureSuccessStatusCode();
             return await resp.Content.ReadAsStringAsync(ct);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

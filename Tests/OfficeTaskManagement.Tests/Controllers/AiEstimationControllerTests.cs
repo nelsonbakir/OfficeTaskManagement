@@ -25,14 +25,31 @@ namespace OfficeTaskManagement.Tests.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly ApplicationDbContext _logDb;
+        private readonly FakeTenantProvider _tenantProvider;
         private readonly Mock<IGeminiAiService> _aiMock;
         private readonly Mock<IWorkflowEngineService> _workflowMock;
         private readonly AiEstimationLogService _logService;
 
         public AiEstimationControllerTests()
         {
-            _db = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
-            _logDb = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            _tenantProvider = new FakeTenantProvider();
+            _tenantProvider.SetTenant("tenant-1");
+
+            var rawDb = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            var connection = rawDb.Database.GetDbConnection();
+            var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(connection, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+                .Options;
+            _db = new ApplicationDbContext(dbOptions, _tenantProvider);
+
+            var rawLogDb = PostgresTestDb.CreateContextAsync().GetAwaiter().GetResult();
+            var logConnection = rawLogDb.Database.GetDbConnection();
+            var logDbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseNpgsql(logConnection, x => { x.MigrationsAssembly("OfficeTaskManagement"); x.UseVector(); })
+                .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+                .Options;
+            _logDb = new ApplicationDbContext(logDbOptions, _tenantProvider);
 
             _aiMock       = new Mock<IGeminiAiService>();
             _workflowMock = new Mock<IWorkflowEngineService>();
@@ -62,6 +79,7 @@ namespace OfficeTaskManagement.Tests.Controllers
 
         private AiEstimationController CreateController(string userId = "user-1", string tenantId = "tenant-1")
         {
+            _tenantProvider.SetTenant(tenantId);
             var controller = new AiEstimationController(
                 _aiMock.Object, _db, _logService, _workflowMock.Object);
 
@@ -231,6 +249,13 @@ namespace OfficeTaskManagement.Tests.Controllers
             var ok = Assert.IsType<OkObjectResult>(result.Result);
             var value = Assert.IsType<ChildItemSuggestions>(ok.Value);
             Assert.Equal(2, value.Items.Length);
+        }
+
+        private class FakeTenantProvider : OfficeTaskManagement.Services.ITenantProvider
+        {
+            private string _tenantId = "test-tenant";
+            public string TenantId => _tenantId;
+            public void SetTenant(string tenantId) => _tenantId = tenantId;
         }
     }
 }

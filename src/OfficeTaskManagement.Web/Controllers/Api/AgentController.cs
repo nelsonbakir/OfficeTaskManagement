@@ -23,17 +23,20 @@ public class AgentController : ControllerBase
     private readonly CodebaseIndexingService _indexer;
     private readonly IAgentService _agent;
     private readonly ApplicationDbContext _db;
+    private readonly MentionSearchService _mentionSearch;
 
     public AgentController(
         IConfiguration config,
         CodebaseIndexingService indexer,
         IAgentService agent,
-        ApplicationDbContext db)
+        ApplicationDbContext db,
+        MentionSearchService mentionSearch)
     {
         _config  = config;
         _indexer = indexer;
         _agent   = agent;
         _db      = db;
+        _mentionSearch = mentionSearch;
     }
 
     // POST /api/agent/index-project/{projectId}
@@ -62,7 +65,7 @@ public class AgentController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetIndexStatusAsync(int projectId, CancellationToken ct)
     {
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tenantId = _db.CurrentTenantId;
         var project = await _db.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId, ct);
         if (project == null)
             return NotFound("Project not found.");
@@ -138,6 +141,25 @@ public class AgentController : ControllerBase
         return false;
     }
 
+    // GET /api/agent/mention-search
+    // Autocomplete searching for mentioned entities.
+    [HttpGet("mention-search")]
+    [Authorize]
+    public async Task<IActionResult> MentionSearchAsync(
+        [FromQuery] string q,
+        [FromQuery] string? types,
+        [FromQuery] int? projectId,
+        CancellationToken ct)
+    {
+        var tenantId = _db.CurrentTenantId;
+        string[]? typesArray = string.IsNullOrEmpty(types) 
+            ? null 
+            : types.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
+        var results = await _mentionSearch.SearchAsync(q, typesArray, projectId, User, tenantId, ct);
+        return Ok(results);
+    }
+
     // POST /api/agent/chat
     // Multi-turn AI copilot chat endpoint.
     [HttpPost("chat")]
@@ -145,14 +167,21 @@ public class AgentController : ControllerBase
     public async Task<ActionResult<AgentChatResponse>> ChatAsync(
         [FromBody] AgentChatRequest request, CancellationToken ct)
     {
-        var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        try
+        {
+            var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var tenantId = _db.CurrentTenantId;
 
-        // Enrich request with server-side resolved identity — client cannot spoof these
-        var enriched = request with { UserId = userId, TenantId = tenantId };
+            // Enrich request with server-side resolved identity — client cannot spoof these
+            var enriched = request with { UserId = userId, TenantId = tenantId };
 
-        var response = await _agent.ChatAsync(enriched, ct);
-        return Ok(response);
+            var response = await _agent.ChatAsync(enriched, ct);
+            return Ok(response);
+        }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(499, "Request was canceled.");
+        }
     }
 
     // DELETE /api/agent/conversation/{id}
@@ -164,5 +193,19 @@ public class AgentController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
         await _agent.ClearConversationAsync(id, userId, ct);
         return NoContent();
+    }
+
+    // GET /api/agent/user-projects
+    // Lists all active projects for the current tenant.
+    [HttpGet("user-projects")]
+    [Authorize]
+    public async Task<IActionResult> GetUserProjectsAsync(CancellationToken ct)
+    {
+        var projects = await _db.Projects
+            .AsNoTracking()
+            .OrderBy(p => p.Name)
+            .Select(p => new { id = p.Id, name = p.Name })
+            .ToListAsync(ct);
+        return Ok(projects);
     }
 }

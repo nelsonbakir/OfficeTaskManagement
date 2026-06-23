@@ -39,7 +39,7 @@ public class AiEstimationController : ControllerBase
         [FromBody] EstimationRequest request, CancellationToken ct)
     {
         var result = await _ai.EstimateAsync(request, ct);
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tenantId = _db.CurrentTenantId;
         await _log.LogAsync(
             request.EntityType,
             null,
@@ -87,7 +87,7 @@ public class AiEstimationController : ControllerBase
             return BadRequest("No items to create.");
 
         var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tenantId = _db.CurrentTenantId;
         var now      = DateTimeOffset.UtcNow.UtcDateTime;
         var createdIds = new List<int>();
 
@@ -201,7 +201,7 @@ public class AiEstimationController : ControllerBase
         if (taskIds == null || taskIds.Length == 0)
             return BadRequest("No task IDs provided.");
 
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tenantId = _db.CurrentTenantId;
         var tasks = await _db.Tasks
             .Where(t => taskIds.Contains(t.Id) && t.TenantId == tenantId)
             .ToListAsync(ct);
@@ -239,7 +239,7 @@ public class AiEstimationController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<IEnumerable<object>>> UsageStatsAsync(CancellationToken ct)
     {
-        var tenantId = User.FindFirstValue("TenantId") ?? "";
+        var tenantId = _db.CurrentTenantId;
 
         // Materialize in memory to avoid EF Core GroupBy translation limitations
         var rawLogs = await _db.AiEstimationLogs

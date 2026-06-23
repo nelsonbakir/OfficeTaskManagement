@@ -79,12 +79,11 @@ builder.Services.AddScoped<OfficeTaskManagement.Services.Onboarding.IOnboardingO
 builder.Services.AddScoped<OfficeTaskManagement.Services.Onboarding.OnboardingSessionService>();
 // ─────────────────────────────────────────────────────────────────────────
 
-// ── AI Agent Services (Phase 1) ───────────────────────────────────────────────
 // GeminiAiService: core estimation with typed HttpClient
 builder.Services.AddHttpClient<GeminiAiService>(client => {
     client.Timeout = TimeSpan.FromMinutes(10);
 });
-builder.Services.AddScoped<IGeminiAiService, GeminiAiService>();
+builder.Services.AddScoped<IGeminiAiService>(sp => sp.GetRequiredService<GeminiAiService>());
 
 // Dynamic Embedding Service Registration based on config provider (Gemini, Ollama, LocalMock)
 var provider = builder.Configuration["Gemini:Provider"] 
@@ -96,7 +95,7 @@ if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
     builder.Services.AddHttpClient<OllamaEmbeddingService>(client => {
         client.Timeout = TimeSpan.FromMinutes(10);
     });
-    builder.Services.AddScoped<IGeminiEmbeddingService, OllamaEmbeddingService>();
+    builder.Services.AddScoped<IGeminiEmbeddingService>(sp => sp.GetRequiredService<OllamaEmbeddingService>());
 }
 else if (string.Equals(provider, "LocalMock", StringComparison.OrdinalIgnoreCase))
 {
@@ -105,7 +104,7 @@ else if (string.Equals(provider, "LocalMock", StringComparison.OrdinalIgnoreCase
 else
 {
     builder.Services.AddHttpClient<GeminiEmbeddingService>();
-    builder.Services.AddScoped<IGeminiEmbeddingService, GeminiEmbeddingService>();
+    builder.Services.AddScoped<IGeminiEmbeddingService>(sp => sp.GetRequiredService<GeminiEmbeddingService>());
 }
 
 // Supporting AI services
@@ -135,10 +134,12 @@ builder.Services.AddHostedService<OfficeTaskManagement.Services.Ai.AiAccuracyUpd
 builder.Services.AddHttpClient<OfficeTaskManagement.Services.Agent.AgentService>(client => {
     client.Timeout = TimeSpan.FromMinutes(10);
 });
-builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.IAgentService,
-                            OfficeTaskManagement.Services.Agent.AgentService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.IAgentService>(sp =>
+    sp.GetRequiredService<OfficeTaskManagement.Services.Agent.AgentService>());
 builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.AgentConversationService>();
 builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.AgentToolDispatcher>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.MentionSearchService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Agent.MentionContextResolver>();
 // ─────────────────────────────────────────────────────────────────────────────
 
 // In-process caching for heatmap and utilization data (15-min sliding window)

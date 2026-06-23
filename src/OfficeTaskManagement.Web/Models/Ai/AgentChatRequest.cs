@@ -19,7 +19,9 @@ namespace OfficeTaskManagement.Models.Ai
         string Message,
         string? EntityType,     // Current page context (e.g., "Epic")
         int? EntityId,          // Current page entity ID
-        string TenantId = ""   // Server-side overwritten from ClaimsPrincipal — client sends empty
+        string TenantId = "",   // Server-side overwritten from ClaimsPrincipal — client sends empty
+        MentionReference[]? Mentions = null,
+        int? ProjectContextId = null
     );
 
     /// <summary>

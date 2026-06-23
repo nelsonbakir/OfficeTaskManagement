@@ -4,6 +4,9 @@
 
 @{
     ViewData["Title"] = "User Story Details";
+    ViewData["AiEntityType"] = "UserStory";
+    ViewData["AiEntityId"] = Model.Id;
+    ViewData["AiProjectId"] = Model.Feature?.Epic?.ProjectId;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
