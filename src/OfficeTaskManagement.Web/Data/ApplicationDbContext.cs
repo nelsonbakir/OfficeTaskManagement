@@ -74,11 +74,27 @@ namespace OfficeTaskManagement.Data
         public DbSet<AiEstimationLog>     AiEstimationLogs   { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
+        // ── Onboarding Wizard Checkpoint ─────────────────────────────────────
+        public DbSet<OnboardingCheckpoint> OnboardingCheckpoints { get; set; }
+        // ────────────────────────────────────────────────────────────────────
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
             // Configure Delete Behaviors to avoid multiple cascade paths
+
+            // ── OnboardingCheckpoint — one per project ───────────────────────
+            builder.Entity<OnboardingCheckpoint>()
+                .HasOne(c => c.Project)
+                .WithMany()
+                .HasForeignKey(c => c.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<OnboardingCheckpoint>()
+                .HasIndex(c => new { c.ProjectId, c.TenantId })
+                .IsUnique();
+            // ────────────────────────────────────────────────────────────────
 
             builder.Entity<Epic>()
                 .HasOne(e => e.Project)

@@ -59,7 +59,7 @@ public class AgentService : IAgentService
         }
 
         // 1. Load conversation history
-        var tenantId = ""; // will be enriched by controller
+        var tenantId = request.TenantId;  // BUG 2 FIX: use real tenant from ClaimsPrincipal
         var conversation = await _conversationService.GetOrCreateAsync(
             request.ConversationId, request.UserId, tenantId,
             request.EntityType, request.EntityId, ct);
@@ -178,6 +178,7 @@ public class AgentService : IAgentService
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+    // ── BUG 5 FIX: Wire ContextBuilderService for live PM context ─────────────
     private async Task<string> BuildSystemInstructionAsync(
         AgentChatRequest request, CancellationToken ct)
     {
@@ -188,9 +189,60 @@ public class AgentService : IAgentService
         sb.AppendLine("When creating items, always use the provided tools — never just describe what to do.");
         sb.AppendLine("Keep responses concise. Use markdown formatting.");
 
+        // Inject live entity context from DB when an entity page is active
         if (!string.IsNullOrEmpty(request.EntityType) && request.EntityId.HasValue)
         {
             sb.AppendLine($"\nCurrent context: {request.EntityType} ID={request.EntityId}");
+
+            try
+            {
+                // Build EstimationRequest using positional constructor, resolving the
+                // correct parent ID field based on the active entity type.
+                int? projectId   = null, epicId = null, featureId = null, userStoryId = null;
+                switch (request.EntityType)
+                {
+                    case "Project":   projectId   = request.EntityId; break;
+                    case "Epic":      epicId      = request.EntityId; break;
+                    case "Feature":   featureId   = request.EntityId; break;
+                    case "UserStory": userStoryId = request.EntityId; break;
+                    case "Task":      userStoryId = request.EntityId; break;
+                }
+
+                var estRequest = new OfficeTaskManagement.Models.Ai.EstimationRequest(
+                    EntityType:  request.EntityType ?? "Project",
+                    Title:       $"{request.EntityType} #{request.EntityId}",
+                    Description: null,
+                    ProjectId:   projectId,
+                    EpicId:      epicId,
+                    FeatureId:   featureId,
+                    UserStoryId: userStoryId
+                );
+
+                var ctx = await _contextBuilder.BuildContextAsync(estRequest, ct);
+
+                if (!string.IsNullOrEmpty(ctx.ParentContext))
+                    sb.AppendLine($"\n### Parent\n{ctx.ParentContext}");
+
+                if (!string.IsNullOrEmpty(ctx.SiblingList))
+                    sb.AppendLine($"\n### Siblings\n{ctx.SiblingList}");
+
+                if (!string.IsNullOrEmpty(ctx.HistoryStats))
+                    sb.AppendLine($"\n### Historical Stats\n{ctx.HistoryStats}");
+
+                if (ctx.HourlyRateBDT > 0)
+                    sb.AppendLine($"\nAverage hourly rate: {ctx.HourlyRateBDT} BDT/hr");
+
+                if (ctx.CodeChunks?.Count > 0)      // IReadOnlyList — use .Count not .Length
+                {
+                    sb.AppendLine("\n### Relevant Codebase Sections");
+                    foreach (var chunk in ctx.CodeChunks)
+                        sb.AppendLine($"```\n{chunk}\n```");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ContextBuilder failed for copilot — proceeding without live context");
+            }
         }
 
         return sb.ToString();
@@ -220,6 +272,9 @@ public class AgentService : IAgentService
         return contents.ToArray();
     }
 
+    // ── BUG 3 FIX: Preserve original JsonElement parts verbatim ───────────────
+    // The Gemini API requires functionCall parts to be echoed back exactly as returned.
+    // Projecting them to { text: "" } loses the function call, breaking multi-round loops.
     private static object[] BuildContentsWithFunctionResponses(
         object[] previousContents,
         JsonElement modelParts,
@@ -227,16 +282,31 @@ public class AgentService : IAgentService
     {
         var contents = previousContents.ToList();
 
-        // Add the model turn that contained the function call
+        // Reconstruct the model turn faithfully — include both text AND functionCall parts
+        var reconstructedParts = modelParts.EnumerateArray().Select(p =>
+        {
+            if (p.TryGetProperty("functionCall", out var fc))
+            {
+                return (object)new
+                {
+                    functionCall = new
+                    {
+                        name = fc.GetProperty("name").GetString(),
+                        args = fc.GetProperty("args").Clone()
+                    }
+                };
+            }
+            // text part
+            return (object)new { text = p.TryGetProperty("text", out var t) ? (t.GetString() ?? "") : "" };
+        }).ToArray();
+
         contents.Add(new
         {
             role  = "model",
-            parts = modelParts.EnumerateArray()
-                              .Select(p => (object)new { text = p.TryGetProperty("text", out var t) ? t.GetString() : "" })
-                              .ToArray()
+            parts = reconstructedParts
         });
 
-        // Add function responses
+        // Append function response(s) as a user turn
         contents.Add(new
         {
             role  = "user",

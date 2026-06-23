@@ -73,6 +73,12 @@ builder.Services.AddScoped<KanbanGovernanceService>();
 // P3-2: Lag Scheduling — promotes stage sub-tasks to ToDo when PlannedStartDate elapses
 builder.Services.AddHostedService<LagSchedulingService>();
 
+// ── Onboarding Wizard Services ────────────────────────────────────────────
+builder.Services.AddScoped<OfficeTaskManagement.Services.Onboarding.IOnboardingOrchestrationService,
+                            OfficeTaskManagement.Services.Onboarding.OnboardingOrchestrationService>();
+builder.Services.AddScoped<OfficeTaskManagement.Services.Onboarding.OnboardingSessionService>();
+// ─────────────────────────────────────────────────────────────────────────
+
 // ── AI Agent Services (Phase 1) ───────────────────────────────────────────────
 // GeminiAiService: core estimation with typed HttpClient
 builder.Services.AddHttpClient<GeminiAiService>(client => {

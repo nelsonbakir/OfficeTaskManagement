@@ -18,7 +18,8 @@ namespace OfficeTaskManagement.Models.Ai
         string UserId,
         string Message,
         string? EntityType,     // Current page context (e.g., "Epic")
-        int? EntityId           // Current page entity ID
+        int? EntityId,          // Current page entity ID
+        string TenantId = ""   // Server-side overwritten from ClaimsPrincipal — client sends empty
     );
 
     /// <summary>

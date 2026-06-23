@@ -145,9 +145,11 @@ public class AgentController : ControllerBase
     public async Task<ActionResult<AgentChatResponse>> ChatAsync(
         [FromBody] AgentChatRequest request, CancellationToken ct)
     {
-        // Enrich request with authenticated user ID
         var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        var enriched = request with { UserId = userId };
+        var tenantId = User.FindFirstValue("TenantId") ?? "";
+
+        // Enrich request with server-side resolved identity — client cannot spoof these
+        var enriched = request with { UserId = userId, TenantId = tenantId };
 
         var response = await _agent.ChatAsync(enriched, ct);
         return Ok(response);

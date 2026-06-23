@@ -1,71 +1,125 @@
-/* Onboarding Wizard Premium Glassmorphism Theme */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+/* ==========================================================================
+   Onboarding Wizard — Extended from existing modern-theme.css tokens
+   Principle: Inherit all app-level variables, only add wizard-local styles.
+   ========================================================================== */
 
-.onboard-container {
-    font-family: 'Outfit', sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-    border-radius: 16px;
-    padding: 2.5rem;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    margin-bottom: 3rem;
+/* ── Local wizard tokens (override-safe) ────────────────────────────────── */
+:root {
+    --ow-track-empty:   #E1DFDD;         /* matches --border-color */
+    --ow-track-fill:    var(--primary-color);
+    --ow-step-active:   var(--primary-color);
+    --ow-step-done:     var(--success-color);
+    --ow-step-pending:  #A19F9D;
+    --ow-card-bg:       #ffffff;
+    --ow-card-border:   var(--border-color);
+    --ow-shadow-sm:     0 2px 8px rgba(0,0,0,.06);
+    --ow-shadow-md:     0 4px 20px rgba(0,0,0,.08);
+    --ow-radius:        8px;
+    --ow-radius-lg:     12px;
+    --ow-transition:    0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --ow-status-ai:     #EFF6FF;         /* blue-50 tint */
+    --ow-status-ai-txt: var(--primary-color);
+    --ow-status-saved:  #F0FDF4;         /* green-50 tint */
+    --ow-status-saved-txt: var(--success-color);
+    --ow-status-skip:   #F3F2F1;         /* --light-bg */
+    --ow-status-skip-txt: var(--text-secondary);
 }
 
-/* Wizard Header & Title */
+/* ── Container ───────────────────────────────────────────────────────────── */
+.onboard-container {
+    background: var(--light-bg);
+    border-radius: var(--ow-radius-lg);
+    padding: 2rem 2.5rem 3rem;
+    margin-bottom: 3rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
 .onboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--ow-card-border);
 }
 
 .onboard-title {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    color: #1a253c;
-    background: linear-gradient(90deg, #0f5132 0%, #0d6efd 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.6rem;
+    margin: 0;
+}
+
+.onboard-title i {
+    color: var(--primary-color);
+    font-size: 1.4rem;
 }
 
 .onboard-subtitle {
-    color: #5c687e;
-    font-size: 1rem;
-    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
 }
 
-/* Navigation Steps (Horizontal) */
+/* ── Checkpoint save indicator ───────────────────────────────────────────── */
+.ow-checkpoint-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    background: var(--ow-status-saved);
+    color: var(--ow-status-saved-txt);
+    border: 1px solid rgba(16,124,16,.18);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity var(--ow-transition), transform var(--ow-transition);
+}
+
+.ow-checkpoint-badge.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Step Progress Rail ──────────────────────────────────────────────────── */
 .wizard-steps {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     position: relative;
-    margin-bottom: 3rem;
-    padding: 0 1rem;
+    margin-bottom: 2.5rem;
+    padding: 0 2rem;
 }
 
+/* Static track behind everything */
 .wizard-steps::before {
     content: '';
     position: absolute;
-    top: 24px;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: #e2e8f0;
+    top: 22px;
+    left: 2rem;
+    right: 2rem;
+    height: 3px;
+    background: var(--ow-track-empty);
+    border-radius: 3px;
     z-index: 1;
 }
 
+/* Animated fill */
 .wizard-step-progress {
     position: absolute;
-    top: 24px;
-    left: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #198754 0%, #0d6efd 100%);
+    top: 22px;
+    left: 2rem;
+    height: 3px;
+    background: var(--ow-track-fill);
+    border-radius: 3px;
     z-index: 2;
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     width: 0%;
+    transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .wizard-step-node {
@@ -74,311 +128,657 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    cursor: pointer;
+    cursor: default;
+    gap: 0.5rem;
 }
 
+/* Step circle */
 .wizard-step-circle {
-    width: 50px;
-    height: 50px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
-    background: #ffffff;
-    border: 3px solid #cbd5e1;
+    background: #fff;
+    border: 2px solid var(--ow-track-empty);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: #64748b;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-    transition: all 0.3s ease;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--ow-step-pending);
+    transition: all var(--ow-transition);
+    box-shadow: var(--ow-shadow-sm);
 }
 
+/* Active step */
 .wizard-step-node.active .wizard-step-circle {
-    border-color: #0d6efd;
-    background: #0d6efd;
-    color: #ffffff;
-    transform: scale(1.1);
-    box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);
+    border-color: var(--ow-step-active);
+    background: var(--ow-step-active);
+    color: #fff;
+    transform: scale(1.12);
+    box-shadow: 0 0 0 4px rgba(0,120,212,.16), var(--ow-shadow-sm);
 }
 
-.wizard-step-node.completed .wizard-step-circle {
-    border-color: #198754;
-    background: #198754;
-    color: #ffffff;
+/* Pulse ring animation on active */
+.wizard-step-node.active .wizard-step-circle::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,120,212,.3);
+    animation: ow-pulse-ring 1.8s ease-out infinite;
 }
+
+@keyframes ow-pulse-ring {
+    0%   { transform: scale(0.9); opacity: 1; }
+    70%  { transform: scale(1.15); opacity: 0; }
+    100% { transform: scale(0.9); opacity: 0; }
+}
+
+/* Completed step */
+.wizard-step-node.completed .wizard-step-circle {
+    border-color: var(--ow-step-done);
+    background: var(--ow-step-done);
+    color: #fff;
+}
+
+/* Checkmark swap for completed */
+.wizard-step-node.completed .wizard-step-circle::before {
+    content: '\f00c';
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 0.85rem;
+}
+
+.wizard-step-node.completed .ow-step-num { display: none; }
 
 .wizard-step-label {
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: #64748b;
-    transition: color 0.3s ease;
+    color: var(--ow-step-pending);
+    text-align: center;
+    max-width: 64px;
+    line-height: 1.2;
+    transition: color var(--ow-transition);
 }
 
 .wizard-step-node.active .wizard-step-label {
-    color: #1a253c;
+    color: var(--primary-color);
     font-weight: 700;
 }
 
 .wizard-step-node.completed .wizard-step-label {
-    color: #198754;
+    color: var(--ow-step-done);
 }
 
-/* Wizard Panels */
+/* ── Panels / Step content ────────────────────────────────────────────────── */
+.wizard-panels {
+    position: relative;
+    min-height: 300px;
+}
+
 .wizard-panel {
     display: none;
-    animation: fadeInSlide 0.5s ease forwards;
 }
 
 .wizard-panel.active {
     display: block;
+    animation: ow-slide-up 0.3s var(--ow-transition) both;
 }
 
-@keyframes fadeInSlide {
-    from {
-        opacity: 0;
-        transform: translateY(15px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+@keyframes ow-slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Glassmorphic Cards */
+/* ── Cards ───────────────────────────────────────────────────────────────── */
 .glass-card {
-    background: rgba(255, 255, 255, 0.65);
-    border-radius: 12px;
-    padding: 1.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-    margin-bottom: 1.5rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: var(--ow-card-bg);
+    border: 1px solid var(--ow-card-border);
+    border-radius: var(--ow-radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+    box-shadow: var(--ow-shadow-sm);
+    transition: box-shadow var(--ow-transition);
 }
 
 .glass-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(31, 38, 135, 0.04);
+    box-shadow: var(--ow-shadow-md);
 }
 
-/* Loading & Progress States */
-.onboard-loading-wrapper {
-    display: flex;
-    flex-direction: column;
+.glass-card h3, .glass-card h4 {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.glass-card h3 { font-size: 1.05rem; }
+.glass-card h4 { font-size: 0.95rem; }
+
+.glass-card p.text-muted {
+    font-size: 0.875rem;
+    color: var(--text-secondary) !important;
+}
+
+/* ── Status badges ───────────────────────────────────────────────────────── */
+.ow-status-badge {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 4rem 2rem;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    transition: all var(--ow-transition);
 }
 
-.onboard-spinner {
-    width: 60px;
-    height: 60px;
-    border: 5px solid rgba(13, 110, 253, 0.15);
-    border-top-color: #0d6efd;
+.ow-status-badge.ai-loading {
+    background: var(--ow-status-ai);
+    color: var(--ow-status-ai-txt);
+    border: 1px solid rgba(0,120,212,.2);
+}
+
+.ow-status-badge.ai-loading .ow-badge-dot {
+    width: 6px; height: 6px;
     border-radius: 50%;
-    animation: spin 1s infinite linear;
-    margin-bottom: 1.5rem;
+    background: var(--primary-color);
+    animation: ow-dot-pulse 1.2s ease-in-out infinite;
 }
 
-.onboard-progress-bar {
-    width: 100%;
-    max-width: 400px;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 10px;
+@keyframes ow-dot-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .5; transform: scale(0.7); }
+}
+
+.ow-status-badge.ai-done {
+    background: var(--ow-status-ai);
+    color: var(--ow-status-ai-txt);
+    border: 1px solid rgba(0,120,212,.2);
+}
+
+.ow-status-badge.saved {
+    background: var(--ow-status-saved);
+    color: var(--ow-status-saved-txt);
+    border: 1px solid rgba(16,124,16,.2);
+}
+
+.ow-status-badge.skipped {
+    background: var(--ow-status-skip);
+    color: var(--ow-status-skip-txt);
+    border: 1px solid var(--ow-card-border);
+}
+
+/* ── Parallel loading grid (Step 3 / 4 / 5) ─────────────────────────────── */
+.ow-parallel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.ow-epic-slot {
+    border: 1px solid var(--ow-card-border);
+    border-radius: var(--ow-radius);
+    background: var(--ow-card-bg);
     overflow: hidden;
-    margin-top: 1rem;
+    box-shadow: var(--ow-shadow-sm);
+    transition: border-color var(--ow-transition);
 }
 
-.onboard-progress-fill {
-    width: 0%;
+.ow-epic-slot.loading  { border-color: rgba(0,120,212,.3); }
+.ow-epic-slot.done     { border-color: rgba(16,124,16,.3); }
+.ow-epic-slot.error    { border-color: rgba(232,17,35,.3); }
+.ow-epic-slot.skipped  { border-color: var(--ow-card-border); opacity: .7; }
+
+.ow-epic-slot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--light-bg);
+    border-bottom: 1px solid var(--ow-card-border);
+    gap: 0.5rem;
+}
+
+.ow-epic-slot-header h5 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ow-epic-slot-body {
+    padding: 0.75rem 1rem;
+}
+
+/* Mini progress bar inside each slot */
+.ow-slot-progress {
+    height: 3px;
+    background: var(--ow-track-empty);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.ow-slot-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #0d6efd 0%, #0f5132 100%);
-    transition: width 0.3s ease;
+    background: var(--primary-color);
+    width: 0%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.ow-epic-slot.done .ow-slot-progress-fill {
+    width: 100%;
+    background: var(--success-color);
 }
 
-/* Tree Editor / List Styling */
+.ow-slot-loading-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ── Item list cards ─────────────────────────────────────────────────────── */
 .onboard-list-item {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.8);
-    border: 1px solid #e2e8f0;
-    margin-bottom: 0.75rem;
-    transition: all 0.2s ease;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: var(--ow-radius);
+    background: var(--ow-card-bg);
+    border: 1px solid var(--ow-card-border);
+    margin-bottom: 0.625rem;
+    transition: all var(--ow-transition);
+    animation: ow-item-enter 0.25s ease both;
+}
+
+@keyframes ow-item-enter {
+    from { opacity: 0; transform: translateX(-6px); }
+    to   { opacity: 1; transform: translateX(0); }
 }
 
 .onboard-list-item:hover {
-    background: #fdfdfd;
-    border-color: #cbd5e1;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px rgba(0,120,212,.12), var(--ow-shadow-sm);
+}
+
+.onboard-list-item.is-skipped {
+    opacity: .55;
+    background: var(--light-bg);
 }
 
 .item-checkbox {
-    margin-top: 0.25rem;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.15rem;
+    height: 1.15rem;
     cursor: pointer;
+    accent-color: var(--primary-color);
+    margin-top: 0.15rem;
+    flex-shrink: 0;
 }
 
-.item-content {
-    flex-grow: 1;
-}
+.item-content { flex: 1; min-width: 0; }
 
 .item-title-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 0.5rem;
 }
 
 .item-title {
-    font-size: 1.05rem;
+    font-size: 0.925rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
     margin: 0;
+    line-height: 1.3;
 }
 
 .item-desc {
-    font-size: 0.9rem;
-    color: #64748b;
-    margin: 0.25rem 0 0 0;
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+    margin: 0.2rem 0 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-/* Edit / Delete Buttons */
+.item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+    flex-wrap: wrap;
+}
+
+/* Edit / delete action buttons */
 .item-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity var(--ow-transition);
+}
+
+.onboard-list-item:hover .item-actions {
+    opacity: 1;
 }
 
 .btn-icon-action {
     background: none;
     border: none;
-    color: #94a3b8;
+    color: var(--text-secondary);
     cursor: pointer;
-    font-size: 0.95rem;
-    padding: 0.25rem;
-    transition: color 0.2s;
+    font-size: 0.85rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: 4px;
+    transition: background var(--ow-transition), color var(--ow-transition);
+    line-height: 1;
 }
 
 .btn-icon-action:hover {
-    color: #475569;
+    background: var(--light-bg);
+    color: var(--text-primary);
 }
 
 .btn-icon-delete:hover {
-    color: #ef4444;
+    background: rgba(232,17,35,.08);
+    color: var(--danger-color);
 }
 
-/* Accordion Accordance */
-.accordion-toggle {
-    cursor: pointer;
+/* ── Loading & progress states ───────────────────────────────────────────── */
+.onboard-loading-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3.5rem 2rem;
+    gap: 1rem;
 }
 
-.accordion-arrow {
-    transition: transform 0.3s ease;
+/* Fluent-style ring spinner using --primary-color */
+.onboard-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(0,120,212,.15);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: ow-spin 0.9s linear infinite;
 }
 
-.collapsed .accordion-arrow {
-    transform: rotate(-90deg);
+@keyframes ow-spin { to { transform: rotate(360deg); } }
+
+.onboard-progress-bar {
+    width: 100%;
+    max-width: 360px;
+    height: 6px;
+    background: var(--ow-track-empty);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
-/* Bottom Navigation Controls */
+.onboard-progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.35s ease;
+}
+
+/* ── Skeleton shimmer (replaces spinner on item rows) ────────────────────── */
+.ow-skeleton {
+    background: linear-gradient(90deg, var(--light-bg) 25%, #e8e6e4 50%, var(--light-bg) 75%);
+    background-size: 200% 100%;
+    animation: ow-shimmer 1.4s infinite;
+    border-radius: 4px;
+}
+
+@keyframes ow-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.ow-skeleton-line {
+    height: 14px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+
+.ow-skeleton-line.wide  { width: 75%; }
+.ow-skeleton-line.half  { width: 45%; }
+.ow-skeleton-line.slim  { width: 55%; height: 10px; }
+
+/* ── Footer navigation ───────────────────────────────────────────────────── */
 .wizard-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 2.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(226, 232, 240, 0.8);
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--ow-card-border);
+    gap: 1rem;
 }
 
-/* Badges */
-.badge-tech {
-    background: #e0f2fe;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
+.wizard-footer-center {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
 }
 
-.badge-coverage {
-    background: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fde68a;
-}
-
-.badge-coverage.passed {
-    background: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-}
-
-/* Floating Actions Panel */
-.floating-add-btn {
-    border: 1px dashed #94a3b8;
-    background: rgba(255, 255, 255, 0.4);
-    color: #475569;
-    border-radius: 8px;
-    width: 100%;
-    padding: 0.75rem;
+/* ── Step-specific: Step 1 indexing panel ────────────────────────────────── */
+#indexing-status-text {
+    font-size: 0.9rem;
     font-weight: 500;
-    transition: all 0.2s;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.ow-index-complete-check {
+    font-size: 1.75rem;
+    color: var(--success-color);
+    animation: ow-check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes ow-check-pop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Accordion for nested items ─────────────────────────────────────────── */
+.ow-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    border-radius: var(--ow-radius);
+    background: var(--light-bg);
+    border: 1px solid var(--ow-card-border);
+    margin-bottom: 0.5rem;
+    transition: background var(--ow-transition);
+    user-select: none;
+}
+
+.ow-accordion-header:hover {
+    background: rgba(0,120,212,.04);
+    border-color: rgba(0,120,212,.2);
+}
+
+.ow-accordion-arrow {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    transition: transform var(--ow-transition);
+    margin-left: auto;
+}
+
+.ow-accordion-header.collapsed .ow-accordion-arrow {
+    transform: rotate(-90deg);
+}
+
+.ow-accordion-body {
+    padding-left: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ── PERT hours display in Step 5 ────────────────────────────────────────── */
+.ow-pert-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr) auto;
+    gap: 0.5rem;
+    align-items: center;
     margin-top: 0.5rem;
+}
+
+.ow-pert-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.ow-pert-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.ow-pert-val {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    background: var(--ow-status-ai);
+    border: 1px solid rgba(0,120,212,.15);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    text-align: center;
+    min-width: 50px;
+}
+
+/* ── Final review tree ───────────────────────────────────────────────────── */
+.ow-tree-epic   { margin-bottom: 0.75rem; }
+.ow-tree-feat   { margin-left: 1.25rem; margin-bottom: 0.4rem; }
+.ow-tree-story  { margin-left: 2.5rem; margin-bottom: 0.3rem; }
+.ow-tree-task   { margin-left: 3.75rem; margin-bottom: 0.2rem; font-size: 0.82rem; }
+
+.ow-tree-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+}
+
+.ow-tree-epic   .ow-tree-dot { background: var(--primary-color); }
+.ow-tree-feat   .ow-tree-dot { background: #6264A7; }  /* Teams purple — distinct */
+.ow-tree-story  .ow-tree-dot { background: var(--warning-color); }
+.ow-tree-task   .ow-tree-dot { background: var(--success-color); }
+
+/* ── Floating add button ─────────────────────────────────────────────────── */
+.floating-add-btn {
+    border: 1.5px dashed var(--ow-step-pending);
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--ow-radius);
+    width: 100%;
+    padding: 0.6rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all var(--ow-transition);
+    margin-top: 0.5rem;
+    cursor: pointer;
 }
 
 .floating-add-btn:hover {
-    background: rgba(255, 255, 255, 0.8);
-    border-color: #475569;
-    color: #1e293b;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(0,120,212,.04);
 }
 
-/* Hours Inputs Group */
-.hours-est-group {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-}
-
-.hours-est-group input {
-    text-align: center;
+/* ── Badge variants ──────────────────────────────────────────────────────── */
+.badge-tech {
+    background: var(--ow-status-ai);
+    color: var(--ow-status-ai-txt);
+    border: 1px solid rgba(0,120,212,.15);
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.78rem;
     font-weight: 600;
 }
 
-/* AI Codebase Analysis Premium Styles */
-.tech-stack-desc {
-    background: rgba(3, 105, 161, 0.08);
-    color: #0369a1;
-    border: 1px solid rgba(3, 105, 161, 0.15);
-    border-radius: 8px;
-    padding: 0.8rem 1rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
+.badge-coverage {
+    background: rgba(255,185,0,.12);
+    color: #8A6400;
+    border: 1px solid rgba(255,185,0,.3);
+    border-radius: 4px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.78rem;
+    font-weight: 600;
 }
 
-.project-summary-desc {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: #475569;
+.badge-coverage.passed {
+    background: var(--ow-status-saved);
+    color: var(--ow-status-saved-txt);
+    border: 1px solid rgba(16,124,16,.2);
 }
 
-.test-overview-desc {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    padding: 0.8rem 1rem;
-    border-radius: 8px;
+/* ── Priority chips ──────────────────────────────────────────────────────── */
+.ow-priority {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
 }
-.test-overview-desc.warning {
-    background: rgba(217, 119, 6, 0.08);
-    color: #d97706;
-    border: 1px solid rgba(217, 119, 6, 0.15);
+
+.ow-priority-critical { background: rgba(232,17,35,.1); color: var(--danger-color); }
+.ow-priority-high     { background: rgba(255,185,0,.15); color: #8A6400; }
+.ow-priority-medium   { background: rgba(0,120,212,.1);  color: var(--primary-color); }
+.ow-priority-low      { background: var(--light-bg); color: var(--text-secondary); }
+
+/* ── Skip button styling ─────────────────────────────────────────────────── */
+.btn-ow-skip {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--ow-card-border);
+    border-radius: var(--ow-radius);
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: all var(--ow-transition);
 }
-.test-overview-desc.passed {
-    background: rgba(6, 95, 70, 0.08);
-    color: #065f46;
-    border: 1px solid rgba(6, 95, 70, 0.15);
+
+.btn-ow-skip:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-primary);
+}
+
+/* ── Summary bar shown in footer ─────────────────────────────────────────── */
+.ow-summary-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ow-summary-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.ow-summary-stat strong {
+    color: var(--text-primary);
+    font-weight: 700;
 }

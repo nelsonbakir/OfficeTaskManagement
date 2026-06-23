@@ -1,264 +1,365 @@
 @model OfficeTaskManagement.Models.Project
 @{
-    ViewData["Title"] = "Codebase Onboarding Wizard";
+    ViewData["Title"] = $"Onboarding — {Model.Name}";
+    var hasRepo = !string.IsNullOrEmpty(Model.RepositoryUrl);
 }
 
 <link rel="stylesheet" href="~/css/onboard-wizard.css" />
 
 <div class="onboard-container mt-4">
-    <!-- Header -->
+
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <div class="onboard-header">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h1 class="onboard-title"><i class="fas fa-sparkles"></i> Codebase Onboarding Wizard</h1>
-                <p class="onboard-subtitle">Onboarding project: <strong>@Model.Name</strong></p>
-            </div>
-            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-times"></i> Cancel Onboarding
+        <div>
+            <h1 class="onboard-title">
+                <i class="fas fa-wand-magic-sparkles"></i>
+                Codebase Onboarding
+            </h1>
+            <p class="onboard-subtitle">
+                Project: <strong>@Model.Name</strong>
+                @if (hasRepo)
+                {
+                    <span class="ms-2 badge badge-tech" style="vertical-align:middle">
+                        <i class="fas fa-code-branch" style="font-size:.7rem"></i> @Model.RepositoryUrl
+                    </span>
+                }
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <!-- Checkpoint saved flash indicator -->
+            <span id="ow-checkpoint-badge" class="ow-checkpoint-badge">
+                <i class="fas fa-check-circle"></i> Progress saved
+            </span>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times"></i> Exit
             </a>
         </div>
     </div>
 
-    <!-- Stepper Navigation -->
+    <!-- ── Step progress rail ──────────────────────────────────────────────── -->
     <div class="wizard-steps">
         <div class="wizard-step-progress" id="step-progress-bar"></div>
+
         <div class="wizard-step-node active" data-step="1">
-            <div class="wizard-step-circle">1</div>
-            <span class="wizard-step-label">Clone & Index</span>
+            <div class="wizard-step-circle"><span class="ow-step-num">1</span></div>
+            <span class="wizard-step-label">Clone &amp;&nbsp;Index</span>
         </div>
         <div class="wizard-step-node" data-step="2">
-            <div class="wizard-step-circle">2</div>
+            <div class="wizard-step-circle"><span class="ow-step-num">2</span></div>
             <span class="wizard-step-label">Epics</span>
         </div>
         <div class="wizard-step-node" data-step="3">
-            <div class="wizard-step-circle">3</div>
+            <div class="wizard-step-circle"><span class="ow-step-num">3</span></div>
             <span class="wizard-step-label">Features</span>
         </div>
         <div class="wizard-step-node" data-step="4">
-            <div class="wizard-step-circle">4</div>
-            <span class="wizard-step-label">User Stories</span>
+            <div class="wizard-step-circle"><span class="ow-step-num">4</span></div>
+            <span class="wizard-step-label">Stories</span>
         </div>
         <div class="wizard-step-node" data-step="5">
-            <div class="wizard-step-circle">5</div>
-            <span class="wizard-step-label">Tasks & Tests</span>
+            <div class="wizard-step-circle"><span class="ow-step-num">5</span></div>
+            <span class="wizard-step-label">Tasks &amp;&nbsp;Tests</span>
         </div>
         <div class="wizard-step-node" data-step="6">
-            <div class="wizard-step-circle">6</div>
+            <div class="wizard-step-circle"><span class="ow-step-num">6</span></div>
             <span class="wizard-step-label">Review</span>
         </div>
     </div>
 
-    <!-- Antiforgery Token for fetch requests -->
+    <!-- CSRF token for fetch requests -->
     @Html.AntiForgeryToken()
 
-    <!-- STEP PANELS -->
-    <div class="wizard-panels" id="wizard-panels-container" data-project-id="@Model.Id" data-has-repo-url="@(!string.IsNullOrEmpty(Model.RepositoryUrl) ? "true" : "false")" data-repo-url="@Model.RepositoryUrl">
-        
-        <!-- Tab 1: Clone & Index -->
-        <div class="wizard-panel active" id="panel-1">
+    <!-- ── Step panels ──────────────────────────────────────────────────────── -->
+    <div class="wizard-panels" id="wizard-panels-container"
+         data-project-id="@Model.Id"
+         data-has-repo-url="@(hasRepo ? "true" : "false")"
+         data-repo-url="@Model.RepositoryUrl">
+
+        <!-- ── STEP 1: Clone & Index ───────────────────────────────────────── -->
+        <div class="wizard-panel active" data-step="1" id="panel-1">
             <div class="glass-card">
-                <h3><i class="fas fa-sync-alt"></i> Codebase Indexing Pipeline</h3>
-                <p class="text-muted">The system is setting up your workspace files and running Gemini embedding indexer over the codebase.</p>
-                
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-bolt" style="color:var(--primary-color)"></i>
+                    <h3 style="margin:0">Codebase Indexing Pipeline</h3>
+                </div>
+                <p class="text-muted" style="margin-bottom:1.5rem">
+                    @if (hasRepo)
+                    {
+                        <span>Cloning <strong>@Model.RepositoryUrl</strong> and running Gemini embedding vectoriser over the source files.</span>
+                    }
+                    else
+                    {
+                        <span>Running Gemini embedding vectoriser over the existing source files.</span>
+                    }
+                </p>
+
                 <div class="onboard-loading-wrapper" id="indexing-loading">
                     <div class="onboard-spinner"></div>
-                    <h5 id="indexing-status-text">Checking repository...</h5>
+                    <h5 id="indexing-status-text">Preparing indexing pipeline…</h5>
                     <div class="onboard-progress-bar">
-                        <div class="onboard-progress-fill" id="indexing-progress-fill" style="width: 0%;"></div>
+                        <div class="onboard-progress-fill" id="indexing-progress-fill"></div>
                     </div>
                 </div>
 
                 <div id="indexing-stats" style="display:none;" class="mt-3">
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> Indexing Pipeline Complete!
-                    </div>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>Repository Path:</span>
-                            <strong id="stat-repo-path">N/A</strong>
+                    <ul class="list-group list-group-flush" style="border-radius:var(--ow-radius);overflow:hidden">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-folder-open me-2" style="color:var(--text-secondary)"></i>Repository Path</span>
+                            <strong id="stat-repo-path" class="text-truncate ms-3" style="max-width:320px">—</strong>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <span>Code Chunks Vectorized:</span>
-                            <strong id="stat-chunks-count">0</strong>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-database me-2" style="color:var(--text-secondary)"></i>Code Chunks Vectorised</span>
+                            <strong id="stat-chunks-count">—</strong>
                         </li>
                     </ul>
                 </div>
             </div>
+
+            <!-- Step 1 context tip -->
+            <div class="glass-card" style="background:rgba(0,120,212,.04);border-color:rgba(0,120,212,.15)">
+                <div class="d-flex gap-2">
+                    <i class="fas fa-lightbulb" style="color:var(--primary-color);margin-top:.15rem"></i>
+                    <div>
+                        <strong style="font-size:.875rem">What happens here?</strong>
+                        <p class="text-muted" style="font-size:.82rem;margin:.25rem 0 0">
+                            Gemini reads your source files and builds a semantic vector index. This lets the AI answer
+                            deep architectural questions about your codebase in later steps — automatically generating epics,
+                            features, stories, and implementation tasks without any manual input.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Tab 2: Epics -->
-        <div class="wizard-panel" id="panel-2">
-            <div class="glass-card mb-4" id="overview-card" style="display: none;">
-                <h4><i class="fas fa-analytics"></i> AI Codebase Analysis</h4>
-                <div class="row mt-3">
-                    <div class="col-md-6 border-end">
-                        <h6>Technology Stack & Architecture</h6>
-                        <div class="tech-stack-desc mb-3" id="onboard-badge-tech">N/A</div>
-                        <p id="onboard-overview-summary" class="project-summary-desc">No description available.</p>
+        <!-- ── STEP 2: Epics ───────────────────────────────────────────────── -->
+        <div class="wizard-panel" data-step="2" id="panel-2">
+
+            <!-- AI analysis summary card (shown after analysis) -->
+            <div class="glass-card mb-3" id="overview-card" style="display:none">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="fas fa-brain" style="color:var(--primary-color)"></i>
+                    <h4 style="margin:0">AI Codebase Analysis</h4>
+                    <span class="ow-status-badge saved ms-auto"><i class="fas fa-check me-1"></i>Complete</span>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 border-end pe-4">
+                        <h6 style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary)">Technology Stack</h6>
+                        <div class="badge-tech mb-2" id="onboard-badge-tech">Analysing…</div>
+                        <p id="onboard-overview-summary" class="project-summary-desc"></p>
                     </div>
                     <div class="col-md-6 ps-4">
-                        <h6>QA & Test Coverage Overview</h6>
-                        <span class="badge badge-coverage mb-2" id="onboard-badge-coverage">N/A</span>
-                        <p id="onboard-overview-tests" class="test-overview-desc">No scan results.</p>
+                        <h6 style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary)">QA &amp; Test Coverage</h6>
+                        <span class="badge-coverage mb-2" id="onboard-badge-coverage">Checking…</span>
+                        <p id="onboard-overview-tests" class="test-overview-desc"></p>
                     </div>
                 </div>
             </div>
 
             <div class="glass-card">
-                <div class="d-flex justify-content-between align-items: center; mb-3">
-                    <h3>Confirm Suggested Epics</h3>
-                    <button class="btn btn-sm btn-outline-primary" id="btn-add-epic"><i class="fas fa-plus"></i> Add Custom Epic</button>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-layer-group" style="color:var(--primary-color)"></i>
+                    <h3 style="margin:0">Review Suggested Epics</h3>
                 </div>
-                <p class="text-muted">Select and edit the high-level system modules proposed by the copilot.</p>
-
-                <div id="epics-list-container" class="mt-3">
-                    <!-- Dynamic -->
-                </div>
+                <p class="text-muted" style="margin-bottom:1.25rem;font-size:.875rem">
+                    The AI has identified the high-level system modules (Epics) in your codebase. Review each one — check those you want to include, edit names, or remove suggestions that don't apply.
+                </p>
+                <div id="epics-list-container"></div>
             </div>
         </div>
 
-        <!-- Tab 3: Features -->
-        <div class="wizard-panel" id="panel-3">
+        <!-- ── STEP 3: Features ────────────────────────────────────────────── -->
+        <div class="wizard-panel" data-step="3" id="panel-3">
             <div class="glass-card">
-                <h3>Discover Features per Epic</h3>
-                <p class="text-muted">For each confirmed Epic, the copilot reads code files to discover specific structural features.</p>
-                
-                <div id="features-epics-accordion" class="mt-4">
-                    <!-- Dynamic nested list -->
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-puzzle-piece" style="color:#6264A7"></i>
+                    <h3 style="margin:0">Discover Features per Epic</h3>
+                    <span class="ow-status-badge ai-loading ms-auto" id="step3-overall-badge">
+                        <span class="ow-badge-dot"></span> Analysing in parallel…
+                    </span>
                 </div>
+                <p class="text-muted" style="margin-bottom:1.25rem;font-size:.875rem">
+                    All epics are being analysed <strong>simultaneously</strong> — results appear as each epic completes.
+                    You can start reviewing the first epic's features while others are still loading.
+                </p>
+
+                <!-- Parallel loading grid -->
+                <div class="ow-parallel-grid mb-4" id="features-parallel-grid"></div>
+
+                <!-- Consolidated review list (populated after all complete) -->
+                <div id="features-list-area"></div>
             </div>
         </div>
 
-        <!-- Tab 4: User Stories -->
-        <div class="wizard-panel" id="panel-4">
+        <!-- ── STEP 4: User Stories ────────────────────────────────────────── -->
+        <div class="wizard-panel" data-step="4" id="panel-4">
             <div class="glass-card">
-                <h3>Formulate User Stories & Acceptance Criteria</h3>
-                <p class="text-muted">Confirm user story titles, descriptions, priorities, and Given/When/Then acceptance criteria proposed by the copilot.</p>
-                
-                <div id="stories-features-accordion" class="mt-4">
-                    <!-- Dynamic user story list -->
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-book" style="color:var(--warning-color)"></i>
+                    <h3 style="margin:0">Generate User Stories</h3>
+                    <span class="ow-status-badge ai-loading ms-auto" id="step4-overall-badge">
+                        <span class="ow-badge-dot"></span> Analysing in parallel…
+                    </span>
                 </div>
+                <p class="text-muted" style="margin-bottom:1.25rem;font-size:.875rem">
+                    Each feature is analysed in parallel. Review story titles, descriptions, acceptance criteria, and priorities.
+                </p>
+
+                <div class="ow-parallel-grid mb-4" id="stories-parallel-grid"></div>
+                <div id="stories-list-area"></div>
             </div>
         </div>
 
-        <!-- Tab 5: Tasks & Test Cases -->
-        <div class="wizard-panel" id="panel-5">
+        <!-- ── STEP 5: Tasks & Test Cases ──────────────────────────────────── -->
+        <div class="wizard-panel" data-step="5" id="panel-5">
             <div class="glass-card">
-                <h3>Generate Implementation Tasks & Test Cases</h3>
-                <p class="text-muted">Review calculated PERT hours (Optimistic, Most Likely, Pessimistic) and QA Test Cases. If tests are absent or incomplete in the codebase, the copilot automatically appends testing tasks and comprehensive test procedures.</p>
-
-                <div id="tasks-stories-accordion" class="mt-4">
-                    <!-- Dynamic Tasks/Tests list -->
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="fas fa-tasks" style="color:var(--success-color)"></i>
+                    <h3 style="margin:0">Tasks &amp; Test Cases</h3>
+                    <span class="ow-status-badge ai-loading ms-auto" id="step5-overall-badge">
+                        <span class="ow-badge-dot"></span> Generating in parallel…
+                    </span>
                 </div>
+                <p class="text-muted" style="margin-bottom:1.25rem;font-size:.875rem">
+                    Implementation tasks with <strong>PERT estimation</strong> (Optimistic / Most Likely / Pessimistic / PERT)
+                    and QA test cases are generated per story simultaneously. Large projects are paginated — max 20 stories per page.
+                </p>
+
+                <div class="ow-parallel-grid mb-4" id="tasks-parallel-grid"></div>
+                <div id="tasks-list-area"></div>
             </div>
         </div>
 
-        <!-- Tab 6: Review & Finalize -->
-        <div class="wizard-panel" id="panel-6">
+        <!-- ── STEP 6: Review & Finalize ───────────────────────────────────── -->
+        <div class="wizard-panel" data-step="6" id="panel-6">
             <div class="glass-card">
-                <h3>Final Project Structure Review</h3>
-                <p class="text-muted">Review the complete discovered project hierarchy before finalizing onboarding.</p>
-                
-                <div id="final-tree-container" class="border rounded p-4 bg-white" style="max-height: 500px; overflow-y: auto;">
-                    <!-- Final Tree Display -->
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="fas fa-check-double" style="color:var(--success-color)"></i>
+                    <h3 style="margin:0">Final Review</h3>
                 </div>
 
-                <div class="alert alert-info mt-4">
-                    <i class="fas fa-info-circle"></i> Clicking <strong>"Confirm & Initiate Project"</strong> will save this entire tree structure to the database, apply RACI and PERT values, set the project status to <strong>Active</strong>, and redirect you to the Project Dashboard.
+                <!-- Summary counters -->
+                <div id="review-counters" class="mb-4"></div>
+
+                <p class="text-muted" style="font-size:.875rem;margin-bottom:1.25rem">
+                    Expand sections below to review the full structure. Once you click <strong>Confirm &amp; Initiate Project</strong>,
+                    the entire tree is persisted, PERT values are applied, and the project status is set to <strong>Active</strong>.
+                </p>
+
+                <!-- Collapsible review tree -->
+                <div id="review-tree-area"></div>
+
+                <div class="alert alert-info mt-4" style="font-size:.875rem;border-radius:var(--ow-radius)">
+                    <i class="fas fa-info-circle me-2"></i>
+                    All confirmed epics, features, stories, tasks, and test cases are already saved in the database from previous steps.
+                    This final confirmation only activates the project.
                 </div>
             </div>
         </div>
 
-    </div>
+    </div><!-- /wizard-panels-container -->
 
-    <!-- FOOTER CONTROLS -->
+    <!-- ── Footer controls ──────────────────────────────────────────────────── -->
     <div class="wizard-footer">
         <button class="btn btn-outline-secondary" id="btn-wizard-prev" disabled>
-            <i class="fas fa-chevron-left"></i> Previous Step
+            <i class="fas fa-chevron-left"></i> Previous
         </button>
+
+        <!-- Live summary bar (center) -->
+        <div class="ow-summary-bar" id="ow-summary-bar"></div>
+
         <button class="btn btn-primary" id="btn-wizard-next">
+            <span class="spinner-border spinner-border-sm me-1" id="btn-next-spinner" style="display:none" aria-hidden="true"></span>
             Next Step <i class="fas fa-chevron-right"></i>
         </button>
     </div>
-</div>
 
-<!-- EDIT MODAL (REUSABLE FOR ALL NODES) -->
-<div class="modal fade" id="wizardEditModal" tabindex="-1" aria-labelledby="wizardEditModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="wizardEditModalLabel">Edit Item</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="wizard-edit-form">
-            <input type="hidden" id="edit-item-type" />
-            <input type="hidden" id="edit-epic-idx" />
-            <input type="hidden" id="edit-feat-idx" />
-            <input type="hidden" id="edit-story-idx" />
-            <input type="hidden" id="edit-task-idx" />
-            <input type="hidden" id="edit-tc-idx" />
+</div><!-- /onboard-container -->
 
-            <div class="mb-3">
-                <label for="edit-title" class="form-label font-weight-bold" id="lbl-edit-title">Title</label>
-                <input type="text" class="form-control" id="edit-title" required />
+<!-- ── Edit Modal ───────────────────────────────────────────────────────────── -->
+<div class="modal fade" id="wizardEditModal" tabindex="-1"
+     aria-labelledby="wizardEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="border-bottom:1px solid var(--border-color)">
+                <h5 class="modal-title" id="wizardEditModalLabel">Edit Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            
-            <div class="mb-3" id="edit-desc-group">
-                <label for="edit-desc" class="form-label font-weight-bold">Description</label>
-                <textarea class="form-control" id="edit-desc" rows="4"></textarea>
-            </div>
+            <div class="modal-body">
+                <form id="wizard-edit-form" autocomplete="off">
+                    <!-- Title field (always visible) -->
+                    <div class="mb-3">
+                        <label for="edit-title" class="form-label fw-semibold" id="lbl-edit-title">Title</label>
+                        <input type="text" class="form-control" id="edit-title" required />
+                    </div>
 
-            <div class="mb-3" id="edit-ac-group" style="display:none;">
-                <label for="edit-ac" class="form-label font-weight-bold">Acceptance Criteria</label>
-                <textarea class="form-control" id="edit-ac" rows="4"></textarea>
-            </div>
+                    <!-- Description (epic, feature, story, task) -->
+                    <div class="mb-3" id="edit-desc-group">
+                        <label for="edit-desc" class="form-label fw-semibold">Description</label>
+                        <textarea class="form-control" id="edit-desc" rows="3"></textarea>
+                    </div>
 
-            <div class="mb-3" id="edit-priority-group" style="display:none;">
-                <label for="edit-priority" class="form-label font-weight-bold">Priority</label>
-                <select class="form-select" id="edit-priority">
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                </select>
-            </div>
+                    <!-- Story-only: Acceptance Criteria -->
+                    <div class="mb-3" id="edit-ac-group" style="display:none">
+                        <label for="edit-ac" class="form-label fw-semibold">Acceptance Criteria</label>
+                        <textarea class="form-control" id="edit-ac" rows="3"
+                                  placeholder="Given… When… Then…"></textarea>
+                    </div>
 
-            <div class="row" id="edit-hours-group" style="display:none;">
-                <div class="col-md-4">
-                    <label for="edit-opt-hours" class="form-label small">Optimistic (h)</label>
-                    <input type="number" step="0.5" class="form-control" id="edit-opt-hours" />
-                </div>
-                <div class="col-md-4">
-                    <label for="edit-ml-hours" class="form-label small">Most Likely (h)</label>
-                    <input type="number" step="0.5" class="form-control" id="edit-ml-hours" />
-                </div>
-                <div class="col-md-4">
-                    <label for="edit-pess-hours" class="form-label small">Pessimistic (h)</label>
-                    <input type="number" step="0.5" class="form-control" id="edit-pess-hours" />
-                </div>
-            </div>
+                    <!-- Story / Task: Priority -->
+                    <div class="mb-3" id="edit-priority-group" style="display:none">
+                        <label for="edit-priority" class="form-label fw-semibold">Priority</label>
+                        <select class="form-select" id="edit-priority">
+                            <option value="Low">Low</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
 
-            <div class="mb-3" id="edit-tc-group" style="display:none;">
-                <div class="mb-2">
-                    <label for="edit-tc-steps" class="form-label font-weight-bold">Steps</label>
-                    <textarea class="form-control" id="edit-tc-steps" rows="3"></textarea>
-                </div>
-                <div>
-                    <label for="edit-tc-result" class="form-label font-weight-bold">Expected Result</label>
-                    <input type="text" class="form-control" id="edit-tc-result" />
-                </div>
+                    <!-- Task: PERT Hours -->
+                    <div class="row g-2" id="edit-opt-hours-group" style="display:none">
+                        <div class="col-4">
+                            <label for="edit-opt-hours" class="form-label small fw-semibold">Optimistic (h)</label>
+                            <input type="number" step="0.5" min="0" class="form-control text-center" id="edit-opt-hours" />
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-0" id="edit-ml-hours-group" style="display:none">
+                        <div class="col-4">
+                            <label for="edit-ml-hours" class="form-label small fw-semibold">Most Likely (h)</label>
+                            <input type="number" step="0.5" min="0" class="form-control text-center" id="edit-ml-hours" />
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-0 mb-3" id="edit-pess-hours-group" style="display:none">
+                        <div class="col-4">
+                            <label for="edit-pess-hours" class="form-label small fw-semibold">Pessimistic (h)</label>
+                            <input type="number" step="0.5" min="0" class="form-control text-center" id="edit-pess-hours" />
+                        </div>
+                    </div>
+
+                    <!-- Test Case fields -->
+                    <div class="mb-3" id="edit-tc-steps-group" style="display:none">
+                        <label for="edit-tc-steps" class="form-label fw-semibold">Steps</label>
+                        <textarea class="form-control" id="edit-tc-steps" rows="3"
+                                  placeholder="Step 1: …&#10;Step 2: …"></textarea>
+                    </div>
+                    <div class="mb-3" id="edit-tc-result-group" style="display:none">
+                        <label for="edit-tc-result" class="form-label fw-semibold">Expected Result</label>
+                        <input type="text" class="form-control" id="edit-tc-result"
+                               placeholder="System should…" />
+                    </div>
+                </form>
             </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="btn-save-edit-item">Save Changes</button>
-      </div>
+            <div class="modal-footer" style="border-top:1px solid var(--border-color)">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-save-edit-item">
+                    <i class="fas fa-save me-1"></i> Save Changes
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
 </div>
 
 @section Scripts {
-    <script src="~/js/onboard-wizard.js" defer></script>
+    <!-- ES Module entry point -->
+    <script type="module" src="~/js/onboard-wizard.js"></script>
 }

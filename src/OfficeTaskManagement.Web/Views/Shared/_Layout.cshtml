@@ -599,6 +599,10 @@
             }
         });
     </script>
+    @* Hidden antiforgery token — always present so copilot-sidebar.js fetch calls succeed on
+       every page, not just pages that happen to contain a <form> with AntiForgeryToken(). *@
+    <form id="af-token-form" style="display:none">@Html.AntiForgeryToken()</form>
+
     @* AI Copilot Sidebar — always present, hidden by default *@
     @await Html.PartialAsync("_AiCopilotSidebar")
 
