@@ -76,6 +76,8 @@ namespace OfficeTaskManagement.Controllers
                 .Include(e => e.Project)
                 .Include(e => e.Attachments)
                     .ThenInclude(a => a.UploadedBy)
+                .Include(e => e.Features)
+                    .ThenInclude(f => f.Tasks)
                 .AsQueryable();
 
             var canSeeAll = await permSvc.HasPermissionAsync(User, Permissions.StrategicView) || await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);

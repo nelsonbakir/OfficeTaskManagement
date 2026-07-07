@@ -48,7 +48,7 @@ namespace OfficeTaskManagement.Services.Onboarding
         {
             var epic    = await RequireAsync(_db.Epics.IgnoreQueryFilters(), e => e.Id == epicId, ct);
             var project = await RequireAsync(_db.Projects.IgnoreQueryFilters(), p => p.Id == epic.ProjectId, ct);
-            var userId  = string.Empty; // analysis-only; no save
+            string? userId = null; // analysis-only; set null to avoid FK violation
 
             var featuresDto = await _ai.SuggestFeaturesForEpicAsync(project.Id, epic.Name, epic.Description ?? "", ct);
 
@@ -57,6 +57,25 @@ namespace OfficeTaskManagement.Services.Onboarding
             {
                 var existing = await _db.Features.IgnoreQueryFilters()
                     .Where(f => f.EpicId == epicId).ToListAsync(ct);
+                var featureIds = existing.Select(f => f.Id).ToList();
+
+                var storiesToDelete = await _db.UserStories.IgnoreQueryFilters()
+                    .Where(s => featureIds.Contains(s.FeatureId)).ToListAsync(ct);
+                var storyIds = storiesToDelete.Select(s => s.Id).ToList();
+
+                var tasksToDelete = await _db.Tasks.IgnoreQueryFilters()
+                    .Where(t => (t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value)) || (t.FeatureId.HasValue && featureIds.Contains(t.FeatureId.Value))).ToListAsync(ct);
+                _db.Tasks.RemoveRange(tasksToDelete);
+
+                var testCasesToDelete = await _db.TestCases.IgnoreQueryFilters()
+                    .Where(tc => storyIds.Contains(tc.UserStoryId)).ToListAsync(ct);
+                _db.TestCases.RemoveRange(testCasesToDelete);
+
+                await _db.SaveChangesAsync(ct);
+
+                _db.UserStories.RemoveRange(storiesToDelete);
+                await _db.SaveChangesAsync(ct);
+
                 _db.Features.RemoveRange(existing);
                 await _db.SaveChangesAsync(ct);
 
@@ -67,7 +86,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     var feat = new Feature
                     {
                         EpicId      = epic.Id,
-                        Name        = f.Name,
+                        Name        = Truncate(f.Name, 200),
                         Description = f.Description,
                         CreatedById = userId,
                         CreatedAt   = now,
@@ -95,7 +114,7 @@ namespace OfficeTaskManagement.Services.Onboarding
             var feat    = await RequireAsync(_db.Features.IgnoreQueryFilters(), f => f.Id == featureId, ct);
             var epic    = await RequireAsync(_db.Epics.IgnoreQueryFilters(), e => e.Id == feat.EpicId, ct);
             var project = await RequireAsync(_db.Projects.IgnoreQueryFilters(), p => p.Id == epic.ProjectId, ct);
-            var userId  = string.Empty;
+            string? userId = null;
 
             var storiesDto = await _ai.SuggestUserStoriesForFeatureAsync(project.Id, epic.Name, feat.Name, feat.Description ?? "", ct);
 
@@ -104,6 +123,18 @@ namespace OfficeTaskManagement.Services.Onboarding
             {
                 var existing = await _db.UserStories.IgnoreQueryFilters()
                     .Where(s => s.FeatureId == featureId).ToListAsync(ct);
+                var storyIds = existing.Select(s => s.Id).ToList();
+
+                var tasksToDelete = await _db.Tasks.IgnoreQueryFilters()
+                    .Where(t => t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value)).ToListAsync(ct);
+                _db.Tasks.RemoveRange(tasksToDelete);
+
+                var testCasesToDelete = await _db.TestCases.IgnoreQueryFilters()
+                    .Where(tc => storyIds.Contains(tc.UserStoryId)).ToListAsync(ct);
+                _db.TestCases.RemoveRange(testCasesToDelete);
+
+                await _db.SaveChangesAsync(ct);
+
                 _db.UserStories.RemoveRange(existing);
                 await _db.SaveChangesAsync(ct);
 
@@ -114,7 +145,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     var story = new UserStory
                     {
                         FeatureId          = feat.Id,
-                        Title              = s.Title,
+                        Title              = Truncate(s.Title, 200),
                         Description        = s.Description,
                         AcceptanceCriteria = s.AcceptanceCriteria,
                         Priority           = ParsePriority(s.Priority),
@@ -145,7 +176,7 @@ namespace OfficeTaskManagement.Services.Onboarding
             var feat    = await RequireAsync(_db.Features.IgnoreQueryFilters(), f => f.Id == story.FeatureId, ct);
             var epic    = await RequireAsync(_db.Epics.IgnoreQueryFilters(), e => e.Id == feat.EpicId, ct);
             var project = await RequireAsync(_db.Projects.IgnoreQueryFilters(), p => p.Id == epic.ProjectId, ct);
-            var userId  = string.Empty;
+            string? userId = null;
 
             var resultDto = await _ai.SuggestTasksAndTestCasesAsync(project.Id, story.Title, story.Description ?? "", true, ct);
 
@@ -172,7 +203,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                         ProjectId                = project.Id,
                         EpicId                   = epic.Id,
                         FeatureId                = feat.Id,
-                        Title                    = t.Title,
+                        Title                    = Truncate(t.Title, 200),
                         Description              = t.Description,
                         Priority                 = ParsePriority(t.Priority),
                         EstimatedOptimisticHours  = t.OptimisticHours  > 0 ? t.OptimisticHours  : null,
@@ -195,7 +226,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     var tc = new TestCase
                     {
                         UserStoryId    = story.Id,
-                        Title          = tcDto.Title,
+                        Title          = Truncate(tcDto.Title, 200),
                         Steps          = tcDto.Steps,
                         ExpectedResult = tcDto.ExpectedResult,
                         IsAutomated    = false,
@@ -231,7 +262,35 @@ namespace OfficeTaskManagement.Services.Onboarding
                     .Where(e => e.ProjectId == project.Id).ToListAsync(ct);
 
                 var requestedIds = request.Epics.Where(e => e.Id.HasValue).Select(e => e.Id!.Value).ToHashSet();
-                _db.Epics.RemoveRange(existing.Where(e => !requestedIds.Contains(e.Id)));
+                var epicsToDeletes = existing.Where(e => !requestedIds.Contains(e.Id)).ToList();
+                var epicIdsToDelete = epicsToDeletes.Select(e => e.Id).ToList();
+
+                var featuresToDelete = await _db.Features.IgnoreQueryFilters()
+                    .Where(f => epicIdsToDelete.Contains(f.EpicId)).ToListAsync(ct);
+                var featureIdsToDelete = featuresToDelete.Select(f => f.Id).ToList();
+
+                var storiesToDelete = await _db.UserStories.IgnoreQueryFilters()
+                    .Where(s => featureIdsToDelete.Contains(s.FeatureId)).ToListAsync(ct);
+                var storyIdsToDelete = storiesToDelete.Select(s => s.Id).ToList();
+
+                var tasksToDelete = await _db.Tasks.IgnoreQueryFilters()
+                    .Where(t => (t.UserStoryId.HasValue && storyIdsToDelete.Contains(t.UserStoryId.Value)) || (t.EpicId.HasValue && epicIdsToDelete.Contains(t.EpicId.Value))).ToListAsync(ct);
+                _db.Tasks.RemoveRange(tasksToDelete);
+
+                var testCasesToDelete = await _db.TestCases.IgnoreQueryFilters()
+                    .Where(tc => storyIdsToDelete.Contains(tc.UserStoryId)).ToListAsync(ct);
+                _db.TestCases.RemoveRange(testCasesToDelete);
+
+                await _db.SaveChangesAsync(ct);
+
+                _db.UserStories.RemoveRange(storiesToDelete);
+                await _db.SaveChangesAsync(ct);
+
+                _db.Features.RemoveRange(featuresToDelete);
+                await _db.SaveChangesAsync(ct);
+
+                _db.Epics.RemoveRange(epicsToDeletes);
+                await _db.SaveChangesAsync(ct);
 
                 var saved = new List<object>();
                 foreach (var reqEpic in request.Epics)
@@ -240,7 +299,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     if (reqEpic.Id.HasValue)
                     {
                         epic = existing.First(e => e.Id == reqEpic.Id.Value);
-                        epic.Name = reqEpic.Name;
+                        epic.Name = Truncate(reqEpic.Name, 200);
                         epic.Description = reqEpic.Description;
                     }
                     else
@@ -248,7 +307,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                         epic = new Epic
                         {
                             ProjectId   = project.Id,
-                            Name        = reqEpic.Name,
+                            Name        = Truncate(reqEpic.Name, 200),
                             Description = reqEpic.Description,
                             CreatedById = userId,
                             CreatedAt   = now,
@@ -278,7 +337,28 @@ namespace OfficeTaskManagement.Services.Onboarding
             {
                 var existing     = await _db.Features.IgnoreQueryFilters().Where(f => f.EpicId == epic.Id).ToListAsync(ct);
                 var requestedIds = request.Features.Where(f => f.Id.HasValue).Select(f => f.Id!.Value).ToHashSet();
-                _db.Features.RemoveRange(existing.Where(f => !requestedIds.Contains(f.Id)));
+                var featuresToDelete = existing.Where(f => !requestedIds.Contains(f.Id)).ToList();
+                var featureIdsToDelete = featuresToDelete.Select(f => f.Id).ToList();
+
+                var storiesToDelete = await _db.UserStories.IgnoreQueryFilters()
+                    .Where(s => featureIdsToDelete.Contains(s.FeatureId)).ToListAsync(ct);
+                var storyIdsToDelete = storiesToDelete.Select(s => s.Id).ToList();
+
+                var tasksToDelete = await _db.Tasks.IgnoreQueryFilters()
+                    .Where(t => (t.UserStoryId.HasValue && storyIdsToDelete.Contains(t.UserStoryId.Value)) || (t.FeatureId.HasValue && featureIdsToDelete.Contains(t.FeatureId.Value))).ToListAsync(ct);
+                _db.Tasks.RemoveRange(tasksToDelete);
+
+                var testCasesToDelete = await _db.TestCases.IgnoreQueryFilters()
+                    .Where(tc => storyIdsToDelete.Contains(tc.UserStoryId)).ToListAsync(ct);
+                _db.TestCases.RemoveRange(testCasesToDelete);
+
+                await _db.SaveChangesAsync(ct);
+
+                _db.UserStories.RemoveRange(storiesToDelete);
+                await _db.SaveChangesAsync(ct);
+
+                _db.Features.RemoveRange(featuresToDelete);
+                await _db.SaveChangesAsync(ct);
 
                 var saved = new List<object>();
                 foreach (var reqFeat in request.Features)
@@ -287,7 +367,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     if (reqFeat.Id.HasValue)
                     {
                         feat = existing.First(f => f.Id == reqFeat.Id.Value);
-                        feat.Name = reqFeat.Name;
+                        feat.Name = Truncate(reqFeat.Name, 200);
                         feat.Description = reqFeat.Description;
                     }
                     else
@@ -295,7 +375,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                         feat = new Feature
                         {
                             EpicId      = epic.Id,
-                            Name        = reqFeat.Name,
+                            Name        = Truncate(reqFeat.Name, 200),
                             Description = reqFeat.Description,
                             CreatedById = userId,
                             CreatedAt   = now,
@@ -325,7 +405,21 @@ namespace OfficeTaskManagement.Services.Onboarding
             {
                 var existing     = await _db.UserStories.IgnoreQueryFilters().Where(s => s.FeatureId == feat.Id).ToListAsync(ct);
                 var requestedIds = request.Stories.Where(s => s.Id.HasValue).Select(s => s.Id!.Value).ToHashSet();
-                _db.UserStories.RemoveRange(existing.Where(s => !requestedIds.Contains(s.Id)));
+                var storiesToDelete = existing.Where(s => !requestedIds.Contains(s.Id)).ToList();
+                var storyIdsToDelete = storiesToDelete.Select(s => s.Id).ToList();
+
+                var tasksToDelete = await _db.Tasks.IgnoreQueryFilters()
+                    .Where(t => t.UserStoryId.HasValue && storyIdsToDelete.Contains(t.UserStoryId.Value)).ToListAsync(ct);
+                _db.Tasks.RemoveRange(tasksToDelete);
+
+                var testCasesToDelete = await _db.TestCases.IgnoreQueryFilters()
+                    .Where(tc => storyIdsToDelete.Contains(tc.UserStoryId)).ToListAsync(ct);
+                _db.TestCases.RemoveRange(testCasesToDelete);
+
+                await _db.SaveChangesAsync(ct);
+
+                _db.UserStories.RemoveRange(storiesToDelete);
+                await _db.SaveChangesAsync(ct);
 
                 var saved = new List<object>();
                 foreach (var reqStory in request.Stories)
@@ -334,7 +428,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     if (reqStory.Id.HasValue)
                     {
                         story = existing.First(s => s.Id == reqStory.Id.Value);
-                        story.Title = reqStory.Title;
+                        story.Title = Truncate(reqStory.Title, 200);
                         story.Description = reqStory.Description;
                         story.AcceptanceCriteria = reqStory.AcceptanceCriteria;
                         story.Priority = ParsePriority(reqStory.Priority);
@@ -344,7 +438,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                         story = new UserStory
                         {
                             FeatureId          = feat.Id,
-                            Title              = reqStory.Title,
+                            Title              = Truncate(reqStory.Title, 200),
                             Description        = reqStory.Description,
                             AcceptanceCriteria = reqStory.AcceptanceCriteria,
                             Priority           = ParsePriority(reqStory.Priority),
@@ -388,7 +482,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     if (reqTask.Id.HasValue)
                     {
                         task = existingTasks.First(t => t.Id == reqTask.Id.Value);
-                        task.Title = reqTask.Title;
+                        task.Title = Truncate(reqTask.Title, 200);
                         task.Description = reqTask.Description;
                         task.Priority = ParsePriority(reqTask.Priority);
                         task.EstimatedOptimisticHours  = reqTask.OptimisticHours  > 0 ? reqTask.OptimisticHours  : null;
@@ -405,7 +499,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                             ProjectId                = project.Id,
                             EpicId                   = epic.Id,
                             FeatureId                = feat.Id,
-                            Title                    = reqTask.Title,
+                            Title                    = Truncate(reqTask.Title, 200),
                             Description              = reqTask.Description,
                             Priority                 = ParsePriority(reqTask.Priority),
                             EstimatedOptimisticHours  = reqTask.OptimisticHours  > 0 ? reqTask.OptimisticHours  : null,
@@ -436,7 +530,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                     if (reqTest.Id.HasValue)
                     {
                         tc = existingTests.First(t => t.Id == reqTest.Id.Value);
-                        tc.Title = reqTest.Title;
+                        tc.Title = Truncate(reqTest.Title, 200);
                         tc.Steps = reqTest.Steps;
                         tc.ExpectedResult = reqTest.ExpectedResult;
                     }
@@ -445,7 +539,7 @@ namespace OfficeTaskManagement.Services.Onboarding
                         tc = new TestCase
                         {
                             UserStoryId    = story.Id,
-                            Title          = reqTest.Title,
+                            Title          = Truncate(reqTest.Title, 200),
                             Steps          = reqTest.Steps,
                             ExpectedResult = reqTest.ExpectedResult,
                             IsAutomated    = false,
@@ -487,6 +581,12 @@ namespace OfficeTaskManagement.Services.Onboarding
 
         private static TaskPriority ParsePriority(string? value) =>
             Enum.TryParse<TaskPriority>(value, true, out var p) ? p : TaskPriority.Medium;
+
+        private static string Truncate(string? value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value)) return string.Empty;
+            return value.Length > maxLength ? value.Substring(0, maxLength) : value;
+        }
 
         private static object MapFeature(Feature f) => new
         {

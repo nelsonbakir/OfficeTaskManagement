@@ -782,3 +782,24 @@
     color: var(--text-primary);
     font-weight: 700;
 }
+
+/* ── Floating regeneration button ────────────────────────────────────────── */
+.floating-regen-btn {
+    border: 1.5px dashed #d97706;
+    background: transparent;
+    color: #d97706;
+    border-radius: var(--ow-radius);
+    width: 100%;
+    padding: 0.6rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all var(--ow-transition);
+    margin-top: 0.5rem;
+    cursor: pointer;
+}
+
+.floating-regen-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.04);
+}

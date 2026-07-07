@@ -12,6 +12,9 @@ export const WizardState = (() => {
 
     // The main tree that grows as the user confirms each level
     let _epics        = [];   // [{id, name, description, selected, features:[…]}]
+    let _indexStatus  = null;
+    let _isAnalyzing  = false;
+    const _activeControllers = new Set();
 
     // Codebase analysis summary (set after Step 2 AI call)
     let _analysisResult = {
@@ -123,6 +126,13 @@ export const WizardState = (() => {
         get epics()          { return _epics; },
         get analysisResult() { return _analysisResult; },
         get projectId()      { return _projectId; },
+        get indexStatus()    { return _indexStatus; },
+        get isAnalyzing()    { return _isAnalyzing; },
+        setIndexStatus(status) { _indexStatus = status; },
+        setAnalyzing(val)    { _isAnalyzing = val; },
+        registerController(c) { _activeControllers.add(c); },
+        unregisterController(c) { _activeControllers.delete(c); },
+        abortAll() { _activeControllers.forEach(c => c.abort()); _activeControllers.clear(); },
         setEpics, setEpicFeatures, setFeatureStories, setStoryTasksTests,
         setAnalysisResult, getSummary,
     };
@@ -135,17 +145,36 @@ export function getAntiForgeryToken() {
 
 // ── Shared fetch helper (throws on non-OK) ────────────────────────────────
 export async function apiFetch(url, options = {}) {
-    const res = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            'RequestVerificationToken': getAntiForgeryToken(),
-            ...(options.headers ?? {})
+    const timeout = options.timeout ?? 300000; // 5 minutes default
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    WizardState.registerController(controller);
+
+    try {
+        const res = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+            keepalive: true, // Allow request to outlive the page
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': getAntiForgeryToken(),
+                ...(options.headers ?? {})
+            }
+        });
+        clearTimeout(id);
+        WizardState.unregisterController(controller);
+        if (!res.ok) {
+            const text = await res.text().catch(() => res.statusText);
+            throw new Error(text || `HTTP ${res.status}`);
         }
-    });
-    if (!res.ok) {
-        const text = await res.text().catch(() => res.statusText);
-        throw new Error(text || `HTTP ${res.status}`);
+        return res.json();
+    } catch (err) {
+        clearTimeout(id);
+        WizardState.unregisterController(controller);
+        if (err.name === 'AbortError') {
+            throw new Error('Request timed out after 5 minutes.');
+        }
+        throw err;
     }
-    return res.json();
 }

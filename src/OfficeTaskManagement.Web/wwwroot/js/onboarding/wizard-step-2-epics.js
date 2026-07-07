@@ -1,13 +1,15 @@
 /**
  * wizard-step-2-epics.js — Epic review & confirmation (Step 2)
  * Calls AI analysis, then lets user review/edit individual epics.
- * No "Accept All" — every item must be reviewed (per product decision).
  */
 import { WizardState, apiFetch } from './wizard-state.js';
-import { renderEpicItem, skeletonRows, openEditModal, statusBadgeHtml, updateSummaryBar } from './wizard-ui.js';
+import { renderEpicItem, skeletonRows, openEditModal, updateSummaryBar } from './wizard-ui.js';
 
 const container = () => document.getElementById('epics-list-container');
 const overviewCard = () => document.getElementById('overview-card');
+
+let _originalEpicsBackup = null;
+let _draftEpics = null;
 
 export async function runStep2() {
     const el = container();
@@ -15,11 +17,15 @@ export async function runStep2() {
 
     // If epics already loaded from checkpoint, just render them
     if (WizardState.epics.length > 0) {
-        renderEpics(WizardState.epics);
+        renderEpics(WizardState.epics, false);
         showOverviewCard();
         return;
     }
 
+    await fetchEpics(el);
+}
+
+async function fetchEpics(el) {
     el.innerHTML = skeletonRows(4);
 
     try {
@@ -29,13 +35,18 @@ export async function runStep2() {
         const epics = (analysis.suggestedEpics ?? []).map(e => ({
             id: null, name: e.name, description: e.description, selected: true, features: []
         }));
-        WizardState.setEpics(epics);
-
-        showOverviewCard();
-        renderEpics(epics);
+        
+        if (_originalEpicsBackup !== null) {
+            _draftEpics = epics;
+            renderEpics(_draftEpics, true);
+        } else {
+            WizardState.setEpics(epics);
+            showOverviewCard();
+            renderEpics(epics, false);
+        }
     } catch (err) {
         el.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> AI analysis failed: ${err.message}. <button class="btn btn-sm btn-outline-danger ms-2" id="btn-retry-epics">Retry</button></div>`;
-        document.getElementById('btn-retry-epics')?.addEventListener('click', runStep2);
+        document.getElementById('btn-retry-epics')?.addEventListener('click', () => fetchEpics(el));
     }
 }
 
@@ -58,29 +69,84 @@ export async function saveStep2() {
     updateSummaryBar();
 }
 
-function renderEpics(epics) {
+function renderEpics(epics, isDraft = false) {
     const el = container();
     if (!el) return;
     el.innerHTML = '';
 
+    if (isDraft) {
+        const banner = document.createElement('div');
+        banner.className = 'alert alert-warning d-flex align-items-center justify-content-between mb-3';
+        banner.style.borderRadius = 'var(--ow-radius)';
+        banner.innerHTML = `
+            <div>
+                <strong style="color:#d97706"><i class="fas fa-magic"></i> AI Suggested Draft Epics</strong>
+                <p class="mb-0 text-muted small" style="margin-top:0.25rem">Review the suggestions below. You can edit them before accepting, or discard them to keep your original epics.</p>
+            </div>
+            <div class="d-flex gap-2 ms-3">
+                <button class="btn btn-sm btn-success text-white" id="btn-accept-regen-epics">Accept &amp; Replace</button>
+                <button class="btn btn-sm btn-outline-secondary" id="btn-cancel-regen-epics">Keep Original</button>
+            </div>`;
+        el.appendChild(banner);
+
+        setTimeout(() => {
+            document.getElementById('btn-accept-regen-epics')?.addEventListener('click', () => {
+                WizardState.setEpics(_draftEpics);
+                _originalEpicsBackup = null;
+                _draftEpics = null;
+                renderEpics(WizardState.epics, false);
+            });
+            document.getElementById('btn-cancel-regen-epics')?.addEventListener('click', () => {
+                WizardState.epics = _originalEpicsBackup;
+                _originalEpicsBackup = null;
+                _draftEpics = null;
+                renderEpics(WizardState.epics, false);
+            });
+        }, 50);
+    }
+
     epics.forEach((epic, idx) => {
         el.appendChild(renderEpicItem(epic, idx, {
-            onEdit:   (i)    => editEpic(i),
-            onDelete: (i)    => removeEpic(i, el)
+            onEdit:   (i)    => editEpic(epic, epics, isDraft),
+            onDelete: (i)    => { epics.splice(i, 1); renderEpics(epics, isDraft); }
         }));
     });
 
-    // "Add custom epic" button
+    if (isDraft) return;
+
+    // Action buttons container for Add / Regenerate
+    const btnRow = document.createElement('div');
+    btnRow.className = 'row g-2 mt-2';
+
+    const colAdd = document.createElement('div');
+    colAdd.className = 'col-md-6';
     const addBtn = document.createElement('button');
     addBtn.className = 'floating-add-btn';
+    addBtn.style.marginTop = '0';
     addBtn.innerHTML = '<i class="fas fa-plus"></i> Add Custom Epic';
     addBtn.addEventListener('click', () => {
         const newEpic = { id: null, name: 'New Epic', description: '', selected: true, features: [] };
         WizardState.epics.push(newEpic);
-        editEpic(WizardState.epics.length - 1, true);
-        renderEpics(WizardState.epics);
+        editEpic(newEpic, WizardState.epics, false, true);
     });
-    el.appendChild(addBtn);
+    colAdd.appendChild(addBtn);
+    btnRow.appendChild(colAdd);
+
+    const colRegen = document.createElement('div');
+    colRegen.className = 'col-md-6';
+    const regenBtn = document.createElement('button');
+    regenBtn.className = 'floating-regen-btn';
+    regenBtn.style.marginTop = '0';
+    regenBtn.innerHTML = '<i class="fas fa-redo"></i> Regenerate Epics';
+    regenBtn.addEventListener('click', async () => {
+        if (!confirm("Are you sure you want to regenerate Epics? Any custom changes or selections for this step will be lost.")) return;
+        _originalEpicsBackup = JSON.parse(JSON.stringify(WizardState.epics));
+        await fetchEpics(el);
+    });
+    colRegen.appendChild(regenBtn);
+    btnRow.appendChild(colRegen);
+
+    el.appendChild(btnRow);
 
     // Skip-all link
     if (!el.nextElementSibling?.classList?.contains('ow-skip-hint')) {
@@ -91,20 +157,15 @@ function renderEpics(epics) {
     }
 }
 
-function editEpic(idx, isNew = false) {
-    const epic = WizardState.epics[idx];
+function editEpic(epic, epicsList, isDraft, isNew = false) {
     openEditModal({
         type: 'epic', data: epic,
         onSave: updated => {
-            WizardState.epics[idx] = { ...epic, name: updated.name, description: updated.description };
-            renderEpics(WizardState.epics);
+            epic.name = updated.name;
+            epic.description = updated.description;
+            renderEpics(epicsList, isDraft);
         }
     });
-}
-
-function removeEpic(idx, el) {
-    WizardState.epics.splice(idx, 1);
-    renderEpics(WizardState.epics);
 }
 
 function showOverviewCard() {

@@ -632,6 +632,7 @@ namespace OfficeTaskManagement.Services.Ai
                 var root = doc.RootElement;
 
                 var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
+                if (isJson) text = CleanMarkdownJson(text);
                 int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
                 int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
 
@@ -691,6 +692,7 @@ namespace OfficeTaskManagement.Services.Ai
                         msgProp.TryGetProperty("content", out var contentProp))
                     {
                         text = contentProp.GetString() ?? "";
+                        if (isJson) text = CleanMarkdownJson(text);
                     }
                 }
 
@@ -753,6 +755,7 @@ namespace OfficeTaskManagement.Services.Ai
                 var root = doc.RootElement;
 
                 var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
+                if (isJson) text = CleanMarkdownJson(text);
                 int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
                 int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
 
@@ -849,6 +852,7 @@ namespace OfficeTaskManagement.Services.Ai
                 .GetProperty("parts")[0]
                 .GetProperty("text")
                 .GetString() ?? "{}";
+            text = CleanMarkdownJson(text);
 
             // Extract token usage for cost monitoring
             int inputTokens = 0, outputTokens = 0;
@@ -1119,6 +1123,10 @@ namespace OfficeTaskManagement.Services.Ai
                     ))
                     .ToList();
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "SuggestFeaturesForEpic failed for Epic {EpicName}", epicName);
@@ -1196,6 +1204,10 @@ namespace OfficeTaskManagement.Services.Ai
                         GetString(s, "priority", "Medium")
                     ))
                     .ToList();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -1311,6 +1323,10 @@ namespace OfficeTaskManagement.Services.Ai
                     .ToArray();
 
                 return new TaskAndTestCaseSuggestionsDto(tasks, testCases);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -1434,5 +1450,29 @@ namespace OfficeTaskManagement.Services.Ai
                     .Select(v => v.GetString()!)
                     .ToArray()
                : Array.Empty<string>();
+
+        private static string CleanMarkdownJson(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "{}";
+            text = text.Trim();
+            if (text.StartsWith("```"))
+            {
+                int firstNewline = text.IndexOf('\n');
+                if (firstNewline != -1)
+                {
+                    text = text.Substring(firstNewline + 1);
+                }
+                else
+                {
+                    text = text.Substring(3);
+                }
+                if (text.EndsWith("```"))
+                {
+                    text = text.Substring(0, text.Length - 3);
+                }
+                text = text.Trim();
+            }
+            return text;
+        }
     }
 }

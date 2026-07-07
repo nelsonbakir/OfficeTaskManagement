@@ -88,11 +88,15 @@ import { runStep6 }                     from './onboarding/wizard-step-6-review.
                         }))
                     }))
                 })));
+            }
 
-                // Resume at the checkpoint step
-                const resumeStep = Math.max(1, Math.min(TOTAL_STEPS, data.lastCompletedStep ?? 0));
-                WizardState.setStep(resumeStep);
-                await transitionToStep(resumeStep);
+            // Resume at the checkpoint step
+            const resumeStep = Math.max(1, Math.min(TOTAL_STEPS, data.lastCompletedStep ?? 0));
+            if (resumeStep > 1 || (data.lastCompletedStep ?? 0) >= 1) {
+                // If they completed Step 1 (indexing), resume at Step 2 (Epics).
+                const activeStep = resumeStep === 1 ? 2 : resumeStep;
+                WizardState.setStep(activeStep);
+                await transitionToStep(activeStep);
             } else {
                 WizardState.setStep(1);
                 await transitionToStep(1);
@@ -194,6 +198,108 @@ import { runStep6 }                     from './onboarding/wizard-step-6-review.
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 5000);
     }
+
+    // ── Navigation Interception & Background/Cancel Consent ───────────────────
+    function showNavigationConfirmModal(targetUrl) {
+        const modalId = 'ow-nav-confirm-modal';
+        let modal = document.getElementById(modalId);
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'ow-custom-modal-backdrop';
+            modal.innerHTML = `
+                <div class="ow-custom-modal">
+                    <div class="ow-custom-modal-header">
+                        <h5><i class="fas fa-exclamation-triangle text-warning me-2"></i>Active Analysis Running</h5>
+                    </div>
+                    <div class="ow-custom-modal-body">
+                        <p>There are background AI analysis tasks still running. Would you like to cancel the analysis, or allow them to continue running in the background?</p>
+                    </div>
+                    <div class="ow-custom-modal-footer">
+                        <button class="btn btn-sm btn-outline-secondary" id="btn-nav-stay">Stay on Page</button>
+                        <button class="btn btn-sm btn-danger" id="btn-nav-cancel">Cancel Analysis & Leave</button>
+                        <button class="btn btn-sm btn-primary" id="btn-nav-bg">Continue in Background</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            
+            if (!document.getElementById('ow-modal-styles')) {
+                const styles = document.createElement('style');
+                styles.id = 'ow-modal-styles';
+                styles.textContent = `
+                    .ow-custom-modal-backdrop {
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                        background: rgba(0,0,0,0.6); display: flex; align-items: center;
+                        justify-content: center; z-index: 10000; backdrop-filter: blur(4px);
+                    }
+                    .ow-custom-modal {
+                        background: var(--card-bg, #1e293b);
+                        border: 1px solid var(--border-color, #334155);
+                        border-radius: 12px; max-width: 480px; width: 90%;
+                        box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+                        overflow: hidden; animation: ow-modal-fade 0.2s ease-out;
+                    }
+                    .ow-custom-modal-header {
+                        padding: 1.2rem 1.5rem 0.8rem;
+                        border-bottom: 1px solid var(--border-color, #334155);
+                    }
+                    .ow-custom-modal-header h5 { margin: 0; font-weight: 700; color: #fff; }
+                    .ow-custom-modal-body {
+                        padding: 1.5rem; color: var(--text-secondary, #94a3b8); font-size: 0.9rem; line-height: 1.5;
+                    }
+                    .ow-custom-modal-footer {
+                        padding: 1rem 1.5rem 1.2rem; display: flex; gap: 0.5rem; justify-content: flex-end;
+                        border-top: 1px solid var(--border-color, #334155);
+                    }
+                    @keyframes ow-modal-fade {
+                        from { opacity: 0; transform: scale(0.95); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(styles);
+            }
+        }
+        
+        modal.style.display = 'flex';
+        
+        const hide = () => { modal.style.display = 'none'; };
+        
+        document.getElementById('btn-nav-stay').onclick = () => { hide(); };
+        
+        document.getElementById('btn-nav-cancel').onclick = () => {
+            hide();
+            WizardState.abortAll();
+            window.location.href = targetUrl;
+        };
+        
+        document.getElementById('btn-nav-bg').onclick = () => {
+            hide();
+            window.location.href = targetUrl;
+        };
+    }
+
+    // Intercept clicks on links that navigate away from the page
+    document.addEventListener('click', (e) => {
+        const anchor = e.target.closest('a');
+        if (anchor && anchor.href && !anchor.href.startsWith('javascript:') && !anchor.getAttribute('target')) {
+            const url = new URL(anchor.href, window.location.origin);
+            if (url.origin === window.location.origin && url.pathname !== window.location.pathname) {
+                if (WizardState.isAnalyzing) {
+                    e.preventDefault();
+                    showNavigationConfirmModal(anchor.href);
+                }
+            }
+        }
+    });
+
+    // Fallback block for direct tab closure / reload / browser back button
+    window.addEventListener('beforeunload', (e) => {
+        if (WizardState.isAnalyzing) {
+            e.preventDefault();
+            e.returnValue = 'Background analysis is running. If you leave, it can continue in the background unless you choose to stay.';
+            return e.returnValue;
+        }
+    });
 
     // ── Boot ──────────────────────────────────────────────────────────────────
     loadInitialState();
