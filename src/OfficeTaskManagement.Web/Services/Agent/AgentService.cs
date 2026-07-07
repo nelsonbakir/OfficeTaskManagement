@@ -22,6 +22,7 @@ public class AgentService : IAgentService
     private readonly ContextBuilderService _contextBuilder;
     private readonly ILogger<AgentService> _logger;
     private readonly MentionContextResolver _mentionResolver;
+    private readonly OfficeTaskManagement.Services.Ai.AiQueuedJobService _queuedJobService;
 
     private const int MaxFunctionCallRounds = 5; // prevent infinite agentic loops
 
@@ -32,7 +33,8 @@ public class AgentService : IAgentService
         AgentToolDispatcher dispatcher,
         ContextBuilderService contextBuilder,
         ILogger<AgentService> logger,
-        MentionContextResolver mentionResolver)
+        MentionContextResolver mentionResolver,
+        OfficeTaskManagement.Services.Ai.AiQueuedJobService queuedJobService)
     {
         _http = http;
         _config = config;
@@ -41,6 +43,7 @@ public class AgentService : IAgentService
         _contextBuilder = contextBuilder;
         _logger = logger;
         _mentionResolver = mentionResolver;
+        _queuedJobService = queuedJobService;
     }
 
     // ── ChatAsync — multi-turn agentic loop ────────────────────────────────────
@@ -52,8 +55,10 @@ public class AgentService : IAgentService
         var provider = _config["Gemini:Provider"] ?? "Gemini";
         bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+        bool isOpenVINO = string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase);
 
-        if (!isOllama && string.IsNullOrEmpty(apiKey))
+        if (!isOllama && !isOpenVINO && string.IsNullOrEmpty(apiKey))
         {
             return new AgentChatResponse(
                 request.ConversationId,
@@ -63,9 +68,14 @@ public class AgentService : IAgentService
 
         // 1. Load conversation history
         var tenantId = request.TenantId;  // BUG 2 FIX: use real tenant from ClaimsPrincipal
+
+        // Scope the conversation to Project if ProjectContextId is provided, so that it appears in the project selector lists.
+        var entityType = request.ProjectContextId.HasValue ? "Project" : request.EntityType;
+        var entityId = request.ProjectContextId ?? request.EntityId;
+
         var conversation = await _conversationService.GetOrCreateAsync(
             request.ConversationId, request.UserId, tenantId,
-            request.EntityType, request.EntityId, ct);
+            entityType, entityId, ct);
 
         var history = await _conversationService.GetTurnsAsync(request.ConversationId, ct);
 
@@ -87,7 +97,11 @@ public class AgentService : IAgentService
             generation_config = new
             {
                 temperature = 0.3,
-                max_output_tokens = 2048
+                max_output_tokens = 2048,
+                thinking_config = new
+                {
+                    thinking_budget = 2048
+                }
             }
         };
 
@@ -161,7 +175,15 @@ public class AgentService : IAgentService
                 contents = BuildContentsWithFunctionResponses(contents, candidates, functionResponses),
                 tools = AgentToolDefinitions.GetTools(),
                 tool_config = new { function_calling_config = new { mode = "AUTO" } },
-                generation_config = new { temperature = 0.3, max_output_tokens = 2048 }
+                generation_config = new
+                {
+                    temperature = 0.3,
+                    max_output_tokens = 2048,
+                    thinking_config = new
+                    {
+                        thinking_budget = 2048
+                    }
+                }
             };
         }
 
@@ -169,7 +191,33 @@ public class AgentService : IAgentService
         {
             if (apiFailed)
             {
-                finalText = "⚠ Encountered an issue communicating with the AI service. Please check your Ollama configuration or Gemini API key / rate limits.";
+                if (string.Equals(provider, "Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var payloadJson = JsonSerializer.Serialize(request);
+                        await _queuedJobService.AddJobAsync(
+                            tenantId: request.TenantId,
+                            userId: request.UserId,
+                            jobType: "Chat",
+                            payloadJson: payloadJson,
+                            errorMessage: "Gemini API call failed (rate limit or connection issue)",
+                            projectId: request.ProjectContextId,
+                            entityType: request.EntityType,
+                            entityId: request.EntityId
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to queue failed chat job");
+                    }
+
+                    finalText = "⚠️ Gemini API call failed due to cloud connectivity or rate limits. This message request has been saved as a **queued failed job** so you can resume it later.";
+                }
+                else
+                {
+                    finalText = "⚠ Encountered an issue communicating with the AI service. Please check your Ollama configuration or Gemini API key / rate limits.";
+                }
             }
             else
             {
@@ -241,10 +289,12 @@ public class AgentService : IAgentService
         var provider = _config["Gemini:Provider"] ?? "Gemini";
         bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+        bool isOpenVINO = string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase);
 
         bool streamed = false;
 
-        if (!isOllama && !string.IsNullOrEmpty(apiKey))
+        if (!isOllama && !isOpenVINO && !string.IsNullOrEmpty(apiKey))
         {
             // Build a single-turn request with just the confirmed final text as a
             // "paraphrase / continue" prompt so we can stream the real tokens.
@@ -639,7 +689,7 @@ public class AgentService : IAgentService
             }
 
             var baseUrl = _config["Gemini:OllamaUrl"] ?? "http://localhost:11434";
-            var model = _config["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+            var model = _config["Gemini:OllamaModel"] ?? "gemma4:12b-it-q4_k_m";
             var url = $"{baseUrl.TrimEnd('/')}/api/chat";
 
             var ollamaRequestBody = new Dictionary<string, object>
@@ -661,10 +711,19 @@ public class AgentService : IAgentService
                 {
                     options.Add("temperature", tempProp.GetDouble());
                 }
-                if (options.Count > 0)
+                if (genConfig.TryGetProperty("maxOutputTokens", out var maxTokensProp))
                 {
-                    ollamaRequestBody.Add("options", options);
+                    options.Add("num_predict", maxTokensProp.GetInt32());
                 }
+                options.Add("num_ctx", 4096);
+                ollamaRequestBody.Add("options", options);
+            }
+            else
+            {
+                ollamaRequestBody.Add("options", new Dictionary<string, object>
+                {
+                    { "num_ctx", 4096 }
+                });
             }
 
             var jsonString = JsonSerializer.Serialize(ollamaRequestBody);
@@ -763,22 +822,319 @@ public class AgentService : IAgentService
         }
     }
 
+    private async Task<string?> CallOpenVINOChatAsync(object body, CancellationToken ct)
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(body);
+            using var doc = JsonDocument.Parse(json);
+
+            string systemInstruction = "";
+            if (doc.RootElement.TryGetProperty("system_instruction", out var siProp) &&
+                siProp.TryGetProperty("parts", out var partsProp) &&
+                partsProp.ValueKind == JsonValueKind.Array &&
+                partsProp.GetArrayLength() > 0)
+            {
+                systemInstruction = partsProp[0].GetProperty("text").GetString() ?? "";
+            }
+
+            var messages = new List<object>();
+            if (!string.IsNullOrEmpty(systemInstruction))
+            {
+                messages.Add(new { role = "system", content = systemInstruction });
+            }
+
+            if (doc.RootElement.TryGetProperty("contents", out var contentsProp) &&
+                contentsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var contentItem in contentsProp.EnumerateArray())
+                {
+                    var role = contentItem.GetProperty("role").GetString() ?? "user";
+                    var targetRole = role == "model" ? "assistant" : "user";
+
+                    if (contentItem.TryGetProperty("parts", out var partsArray) &&
+                        partsArray.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var part in partsArray.EnumerateArray())
+                        {
+                            if (part.TryGetProperty("text", out var textProp))
+                            {
+                                var text = textProp.GetString();
+                                if (!string.IsNullOrEmpty(text))
+                                {
+                                    messages.Add(new { role = targetRole, content = text });
+                                }
+                            }
+                            else if (part.TryGetProperty("functionCall", out var fcProp))
+                            {
+                                var name = fcProp.GetProperty("name").GetString() ?? "";
+                                var args = fcProp.GetProperty("args").Clone();
+                                messages.Add(new
+                                {
+                                    role = "assistant",
+                                    tool_calls = new[]
+                                    {
+                                        new
+                                        {
+                                            type = "function",
+                                            function = new
+                                            {
+                                                name = name,
+                                                arguments = args
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                            else if (part.TryGetProperty("functionResponse", out var frProp))
+                            {
+                                var responseObj = frProp.GetProperty("response").Clone();
+                                messages.Add(new
+                                {
+                                    role = "tool",
+                                    content = JsonSerializer.Serialize(responseObj)
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            var openVINOTools = new List<object>();
+            if (doc.RootElement.TryGetProperty("tools", out var toolsProp) &&
+                toolsProp.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var toolItem in toolsProp.EnumerateArray())
+                {
+                    if (toolItem.TryGetProperty("function_declarations", out var fdProp) &&
+                        fdProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var decl in fdProp.EnumerateArray())
+                        {
+                            openVINOTools.Add(new
+                            {
+                                type = "function",
+                                function = decl.Clone()
+                            });
+                        }
+                    }
+                }
+            }
+
+            var apiType = _config["Gemini:OpenVINOApiType"] ?? "OpenAI";
+            var isOllamaFormat = string.Equals(apiType, "Ollama", StringComparison.OrdinalIgnoreCase);
+
+            var baseUrl = _config["Gemini:OpenVINOUrl"] ?? (isOllamaFormat ? "http://localhost:11434" : "http://localhost:8000/v1");
+            var model = _config["Gemini:OpenVINOModel"] ?? "gemma4:12b-it-q4_k_m";
+            var url = isOllamaFormat ? $"{baseUrl.TrimEnd('/')}/api/chat" : $"{baseUrl.TrimEnd('/')}/chat/completions";
+
+            var requestBody = new Dictionary<string, object>
+            {
+                { "model", model },
+                { "messages", messages },
+                { "stream", false }
+            };
+
+            if (openVINOTools.Count > 0)
+            {
+                requestBody.Add("tools", openVINOTools);
+            }
+
+            if (doc.RootElement.TryGetProperty("generation_config", out var genConfig))
+            {
+                var options = new Dictionary<string, object>();
+                if (genConfig.TryGetProperty("temperature", out var tempProp))
+                {
+                    options.Add("temperature", tempProp.GetDouble());
+                }
+                if (genConfig.TryGetProperty("maxOutputTokens", out var maxTokensProp))
+                {
+                    options.Add("num_predict", maxTokensProp.GetInt32());
+                }
+                options.Add("num_ctx", 4096);
+                requestBody.Add(isOllamaFormat ? "options" : "options_not_needed", options);
+            }
+            else if (isOllamaFormat)
+            {
+                requestBody.Add("options", new Dictionary<string, object>
+                {
+                    { "num_ctx", 4096 }
+                });
+            }
+
+            var jsonString = JsonSerializer.Serialize(requestBody);
+
+            var timeoutSec = 600;
+            if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+            {
+                timeoutSec = parsedTimeout;
+            }
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+            using var httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync(url, httpContent, cts.Token);
+            response.EnsureSuccessStatusCode();
+
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+            using var respDoc = JsonDocument.Parse(responseBody);
+            
+            var geminiParts = new List<object>();
+
+            if (isOllamaFormat)
+            {
+                var messageProp = respDoc.RootElement.GetProperty("message");
+                var content = messageProp.TryGetProperty("content", out var cProp) ? cProp.GetString() : null;
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    geminiParts.Add(new { text = content });
+                }
+
+                if (messageProp.TryGetProperty("tool_calls", out var toolCallsProp) &&
+                    toolCallsProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var tc in toolCallsProp.EnumerateArray())
+                    {
+                        if (tc.TryGetProperty("function", out var funcProp))
+                        {
+                            var name = funcProp.GetProperty("name").GetString() ?? "";
+                            object? argsObj = null;
+
+                            if (funcProp.TryGetProperty("arguments", out var argsProp))
+                            {
+                                if (argsProp.ValueKind == JsonValueKind.String)
+                                {
+                                    var argsStr = argsProp.GetString();
+                                    if (!string.IsNullOrEmpty(argsStr))
+                                    {
+                                        argsObj = JsonSerializer.Deserialize<object>(argsStr);
+                                    }
+                                }
+                                else if (argsProp.ValueKind == JsonValueKind.Object)
+                                {
+                                    argsObj = argsProp.Clone();
+                                }
+                            }
+
+                            geminiParts.Add(new
+                            {
+                                functionCall = new
+                                {
+                                    name = name,
+                                    args = argsObj ?? new { }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (respDoc.RootElement.TryGetProperty("choices", out var choicesProp) &&
+                    choicesProp.ValueKind == JsonValueKind.Array &&
+                    choicesProp.GetArrayLength() > 0)
+                {
+                    var messageProp = choicesProp[0].GetProperty("message");
+                    var content = messageProp.TryGetProperty("content", out var cProp) ? cProp.GetString() : null;
+
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        geminiParts.Add(new { text = content });
+                    }
+
+                    if (messageProp.TryGetProperty("tool_calls", out var toolCallsProp) &&
+                        toolCallsProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var tc in toolCallsProp.EnumerateArray())
+                        {
+                            if (tc.TryGetProperty("function", out var funcProp))
+                            {
+                                var name = funcProp.GetProperty("name").GetString() ?? "";
+                                object? argsObj = null;
+
+                                if (funcProp.TryGetProperty("arguments", out var argsProp))
+                                {
+                                    if (argsProp.ValueKind == JsonValueKind.String)
+                                    {
+                                        var argsStr = argsProp.GetString();
+                                        if (!string.IsNullOrEmpty(argsStr))
+                                        {
+                                            argsObj = JsonSerializer.Deserialize<object>(argsStr);
+                                        }
+                                    }
+                                    else if (argsProp.ValueKind == JsonValueKind.Object)
+                                    {
+                                        argsObj = argsProp.Clone();
+                                    }
+                                }
+
+                                geminiParts.Add(new
+                                {
+                                    functionCall = new
+                                    {
+                                        name = name,
+                                        args = argsObj ?? new { }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (geminiParts.Count == 0)
+            {
+                geminiParts.Add(new { text = "" });
+            }
+
+            var geminiResponse = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = geminiParts.ToArray()
+                        }
+                    }
+                }
+            };
+
+            return JsonSerializer.Serialize(geminiResponse);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OpenVINO copilot API call failed");
+            return null;
+        }
+    }
+
     private async Task<string?> CallGeminiAsync(
         string model, string apiKey, object body, CancellationToken ct)
     {
         var provider = _config["Gemini:Provider"] ?? "Gemini";
         bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+        bool isOpenVINO = string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase);
 
         if (isOllama)
         {
             try
             {
                 var response = await CallOllamaChatAsync(body, ct);
-                if (response != null)
+                if (response == null)
                 {
-                    return response;
+                    _logger.LogWarning("Ollama chat failed. Gemini fallback is disabled.");
                 }
+                return response;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -787,6 +1143,28 @@ public class AgentService : IAgentService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Ollama chat failed. Gemini fallback is disabled.");
+                throw;
+            }
+        }
+
+        if (isOpenVINO)
+        {
+            try
+            {
+                var response = await CallOpenVINOChatAsync(body, ct);
+                if (response == null)
+                {
+                    _logger.LogWarning("OpenVINO chat failed. Gemini fallback is disabled.");
+                }
+                return response;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "OpenVINO chat failed. Gemini fallback is disabled.");
                 throw;
             }
         }

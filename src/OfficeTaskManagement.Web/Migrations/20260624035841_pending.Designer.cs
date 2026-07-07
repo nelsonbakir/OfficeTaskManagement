@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using OfficeTaskManagement.Data;
@@ -12,9 +13,11 @@ using Pgvector;
 namespace OfficeTaskManagement.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624035841_pending")]
+    partial class pending
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -242,54 +245,6 @@ namespace OfficeTaskManagement.Migrations
                     b.HasIndex("TenantId", "EntityType", "EntityId");
 
                     b.ToTable("AiEstimationLogs");
-                });
-
-            modelBuilder.Entity("OfficeTaskManagement.Models.Ai.AiQueuedJob", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int?>("EntityId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("EntityType")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ErrorMessage")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("JobType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("ProjectId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("RequestPayloadJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("default-tenant-id");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("TenantId", "UserId", "ProjectId");
-
-                    b.ToTable("AiQueuedJobs");
                 });
 
             modelBuilder.Entity("OfficeTaskManagement.Models.Ai.CodeEmbedding", b =>

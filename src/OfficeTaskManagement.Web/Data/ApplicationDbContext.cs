@@ -72,6 +72,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<CodeEmbedding>       CodeEmbeddings     { get; set; }
         public DbSet<AgentConversation>   AgentConversations { get; set; }
         public DbSet<AiEstimationLog>     AiEstimationLogs   { get; set; }
+        public DbSet<OfficeTaskManagement.Models.Ai.AiQueuedJob> AiQueuedJobs { get; set; }
         // ────────────────────────────────────────────────────────────────────
 
         // ── Onboarding Wizard Checkpoint ─────────────────────────────────────
@@ -471,6 +472,13 @@ namespace OfficeTaskManagement.Data
             builder.Entity<AiEstimationLog>(e =>
             {
                 e.HasIndex(x => new { x.TenantId, x.EntityType, x.EntityId });
+                e.HasIndex(x => x.CreatedAt);
+            });
+
+            // AiQueuedJob — index for listing failed jobs
+            builder.Entity<AiQueuedJob>(e =>
+            {
+                e.HasIndex(x => new { x.TenantId, x.UserId, x.ProjectId });
                 e.HasIndex(x => x.CreatedAt);
             });
 

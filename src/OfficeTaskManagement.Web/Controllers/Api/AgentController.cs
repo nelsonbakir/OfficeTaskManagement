@@ -6,6 +6,7 @@ using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Services.Agent;
 using OfficeTaskManagement.Services.Codebase;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace OfficeTaskManagement.Controllers.Api;
 
@@ -24,19 +25,28 @@ public class AgentController : ControllerBase
     private readonly IAgentService _agent;
     private readonly ApplicationDbContext _db;
     private readonly MentionSearchService _mentionSearch;
+    private readonly AgentConversationService _conversationService;
+    private readonly OfficeTaskManagement.Services.Ai.AiQueuedJobService _queuedJobService;
+    private readonly OfficeTaskManagement.Services.Ai.IGeminiAiService _aiService;
 
     public AgentController(
         IConfiguration config,
         CodebaseIndexingService indexer,
         IAgentService agent,
         ApplicationDbContext db,
-        MentionSearchService mentionSearch)
+        MentionSearchService mentionSearch,
+        AgentConversationService conversationService,
+        OfficeTaskManagement.Services.Ai.AiQueuedJobService queuedJobService,
+        OfficeTaskManagement.Services.Ai.IGeminiAiService aiService)
     {
         _config  = config;
         _indexer = indexer;
         _agent   = agent;
         _db      = db;
         _mentionSearch = mentionSearch;
+        _conversationService = conversationService;
+        _queuedJobService = queuedJobService;
+        _aiService = aiService;
     }
 
     // POST /api/agent/index-project/{projectId}
@@ -207,5 +217,184 @@ public class AgentController : ControllerBase
             .Select(p => new { id = p.Id, name = p.Name })
             .ToListAsync(ct);
         return Ok(projects);
+    }
+
+    // GET /api/agent/project-sessions/{projectId}
+    // Lists all active chat sessions for the selected project context.
+    [HttpGet("project-sessions/{projectId}")]
+    [Authorize]
+    public async Task<IActionResult> GetProjectSessionsAsync(int projectId, CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var sessions = await _conversationService.GetProjectSessionsAsync(projectId, userId, ct);
+        return Ok(sessions);
+    }
+
+    // GET /api/agent/conversation-history/{conversationId}
+    // Retrieves conversation history turns.
+    [HttpGet("conversation-history/{conversationId}")]
+    [Authorize]
+    public async Task<IActionResult> GetConversationHistoryAsync(string conversationId, CancellationToken ct)
+    {
+        var turns = await _conversationService.GetTurnsAsync(conversationId, ct);
+        return Ok(turns);
+    }
+
+    // GET /api/agent/failed-jobs
+    // Lists all failed/queued jobs for the current user and tenant.
+    [HttpGet("failed-jobs")]
+    [Authorize]
+    public async Task<IActionResult> GetFailedJobsAsync([FromQuery] int? projectId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var tenantId = _db.CurrentTenantId;
+        var jobs = await _queuedJobService.GetJobsAsync(tenantId, userId, projectId);
+        return Ok(jobs);
+    }
+
+    // DELETE /api/agent/failed-jobs/{jobId}
+    // Deletes/dismisses a failed job.
+    [HttpDelete("failed-jobs/{jobId}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteFailedJobAsync(string jobId)
+    {
+        var deleted = await _queuedJobService.DeleteJobAsync(jobId);
+        if (!deleted) return NotFound();
+        return NoContent();
+    }
+
+    // POST /api/agent/failed-jobs/{jobId}/resume
+    // Resumes (retries) a failed job.
+    [HttpPost("failed-jobs/{jobId}/resume")]
+    [Authorize]
+    public async Task<IActionResult> ResumeFailedJobAsync(string jobId, [FromQuery] string? conversationId, CancellationToken ct)
+    {
+        var job = await _queuedJobService.GetJobByIdAsync(jobId);
+        if (job == null) return NotFound();
+
+        try
+        {
+            if (job.JobType == "Chat")
+            {
+                var request = JsonSerializer.Deserialize<AgentChatRequest>(job.RequestPayloadJson);
+                if (request == null) return BadRequest("Invalid job payload.");
+
+                // Re-run the chat
+                var response = await _agent.ChatAsync(request, ct);
+
+                // If successful, delete the job from queue
+                await _queuedJobService.DeleteJobAsync(jobId);
+                return Ok(new { success = true, jobType = "Chat", result = response });
+            }
+            else if (job.JobType == "Estimation")
+            {
+                var request = JsonSerializer.Deserialize<EstimationRequest>(job.RequestPayloadJson);
+                if (request == null) return BadRequest("Invalid job payload.");
+
+                var result = await _aiService.EstimateAsync(request, ct);
+
+                // Apply to Task if it exists in DB
+                if (job.EntityId.HasValue && request.EntityType == "Task")
+                {
+                    var task = await _db.Tasks.FindAsync(job.EntityId.Value);
+                    if (task != null)
+                    {
+                        task.EstimatedOptimisticHours = result.OptimisticHours;
+                        task.EstimatedMostLikelyHours = result.MostLikelyHours;
+                        task.EstimatedPessimisticHours = result.PessimisticHours;
+                        task.PertEstimatedHours = result.PertHours;
+                        task.EstimatedHours = result.PertHours; // baseline
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+
+                // Append notification turn to active conversation if provided
+                if (!string.IsNullOrEmpty(conversationId))
+                {
+                    var resultText = $"✅ **AI Estimation Resumed & Completed** for {request.EntityType} *\"{request.Title}\"*:\n" +
+                                     $"- **Optimistic Hours:** {result.OptimisticHours}h\n" +
+                                     $"- **Most Likely Hours:** {result.MostLikelyHours}h\n" +
+                                     $"- **Pessimistic Hours:** {result.PessimisticHours}h\n" +
+                                     $"- **PERT Estimate:** {result.PertHours}h\n\n" +
+                                     $"*Rationale:* {result.Rationale}";
+                    await _conversationService.AppendTurnAsync(conversationId, "model", resultText, ct);
+                }
+
+                await _queuedJobService.DeleteJobAsync(jobId);
+                return Ok(new { success = true, jobType = "Estimation", result });
+            }
+            else if (job.JobType == "ReEstimation")
+            {
+                var request = JsonSerializer.Deserialize<ReEstimationRequest>(job.RequestPayloadJson);
+                if (request == null) return BadRequest("Invalid job payload.");
+
+                var result = await _aiService.ReEstimateAsync(request, ct);
+
+                // Apply to Task if it exists in DB
+                if (request.EntityId > 0 && request.EntityType == "Task")
+                {
+                    var task = await _db.Tasks.FindAsync(request.EntityId);
+                    if (task != null)
+                    {
+                        task.EstimatedOptimisticHours = result.OptimisticHours;
+                        task.EstimatedMostLikelyHours = result.MostLikelyHours;
+                        task.EstimatedPessimisticHours = result.PessimisticHours;
+                        task.PertEstimatedHours = result.PertHours;
+                        task.EstimatedHours = result.PertHours; // baseline
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+
+                // Append notification turn to active conversation if provided
+                if (!string.IsNullOrEmpty(conversationId))
+                {
+                    var resultText = $"✅ **AI Re-Estimation Resumed & Completed** for {request.EntityType} #{request.EntityId} *\"{request.Title}\"*:\n" +
+                                     $"- **New PERT Estimate:** {result.PertHours}h\n" +
+                                     $"- **Estimated Budget BDT:** {result.EstimatedBudgetBDT} BDT\n\n" +
+                                     $"*Rationale:* {result.Rationale}";
+                    await _conversationService.AppendTurnAsync(conversationId, "model", resultText, ct);
+                }
+
+                await _queuedJobService.DeleteJobAsync(jobId);
+                return Ok(new { success = true, jobType = "ReEstimation", result });
+            }
+            else if (job.JobType == "AcceptanceCriteria")
+            {
+                using var payloadDoc = JsonDocument.Parse(job.RequestPayloadJson);
+                var root = payloadDoc.RootElement;
+                var title = root.GetProperty("title").GetString() ?? "";
+                var description = root.GetProperty("description").GetString() ?? "";
+                var userStoryId = root.TryGetProperty("userStoryId", out var us) ? us.GetInt32() : 0;
+
+                var result = await _aiService.GenerateAcceptanceCriteriaAsync(title, description, ct);
+
+                // Apply to UserStory if it exists in DB
+                if (userStoryId > 0)
+                {
+                    var story = await _db.UserStories.FindAsync(userStoryId);
+                    if (story != null)
+                    {
+                        story.AcceptanceCriteria = result;
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+
+                // Append notification turn to active conversation if provided
+                if (!string.IsNullOrEmpty(conversationId))
+                {
+                    var resultText = $"✅ **Acceptance Criteria Resumed & Completed** for User Story #{userStoryId} *\"{title}\"*:\n\n{result}";
+                    await _conversationService.AppendTurnAsync(conversationId, "model", resultText, ct);
+                }
+
+                await _queuedJobService.DeleteJobAsync(jobId);
+                return Ok(new { success = true, jobType = "AcceptanceCriteria", result });
+            }
+
+            return BadRequest("Unsupported job type.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Resume failed: {ex.Message}");
+        }
     }
 }

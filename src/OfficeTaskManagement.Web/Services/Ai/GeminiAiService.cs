@@ -28,6 +28,8 @@ namespace OfficeTaskManagement.Services.Ai
         private readonly ApplicationDbContext _db;
         private readonly CodebaseRetrievalService _codebaseRetrieval;
         private readonly ILogger<GeminiAiService> _logger;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
+        private readonly AiQueuedJobService _queuedJobService;
 
         private const string StaticSystemPrompt = """
             You are an expert PMP-certified project manager and software architect assistant 
@@ -55,7 +57,9 @@ namespace OfficeTaskManagement.Services.Ai
             ContextBuilderService contextBuilder,
             ApplicationDbContext db,
             CodebaseRetrievalService codebaseRetrieval,
-            ILogger<GeminiAiService> logger)
+            ILogger<GeminiAiService> logger,
+            Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor,
+            AiQueuedJobService queuedJobService)
         {
             _http = http;
             _config = config;
@@ -63,6 +67,8 @@ namespace OfficeTaskManagement.Services.Ai
             _db = db;
             _codebaseRetrieval = codebaseRetrieval;
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
+            _queuedJobService = queuedJobService;
         }
 
 
@@ -133,8 +139,39 @@ namespace OfficeTaskManagement.Services.Ai
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Gemini estimation failed for {EntityType}: {Title}", request.EntityType, request.Title);
-                return FallbackEstimation($"AI estimation failed: {ex.Message}");
+                var provider = _config["Gemini:Provider"] ?? "Gemini";
+                if (string.Equals(provider, "Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogError(ex, "Gemini estimation failed for {EntityType}: {Title}. Queueing job.", request.EntityType, request.Title);
+                    try
+                    {
+                        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+                        var tenantId = _db.CurrentTenantId;
+                        var payloadJson = JsonSerializer.Serialize(request);
+
+                        await _queuedJobService.AddJobAsync(
+                            tenantId: tenantId,
+                            userId: userId,
+                            jobType: "Estimation",
+                            payloadJson: payloadJson,
+                            errorMessage: ex.Message,
+                            projectId: request.ProjectId,
+                            entityType: request.EntityType,
+                            entityId: null
+                        );
+                    }
+                    catch (Exception queueEx)
+                    {
+                        _logger.LogError(queueEx, "Failed to queue failed estimation job");
+                    }
+
+                    throw new InvalidOperationException("Gemini API call failed. The estimation job has been saved to the failed jobs queue for resumption.", ex);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Gemini/Ollama/OpenVINO estimation failed for {EntityType}: {Title}", request.EntityType, request.Title);
+                    return FallbackEstimation($"AI estimation failed: {ex.Message}");
+                }
             }
         }
 
@@ -239,6 +276,20 @@ namespace OfficeTaskManagement.Services.Ai
                     throw;
                 }
             }
+            if (string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var (text, _, _) = await CallOpenVINOApiAsync(prompt, StaticSystemPrompt, isJson: false, ct);
+                    return text;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "OpenVINO GenerateAcceptanceCriteriaAsync failed. Gemini fallback is disabled.");
+                    throw;
+                }
+            }
 
             var apiKey = _config["Gemini:ApiKey"] ?? "";
 
@@ -269,8 +320,38 @@ namespace OfficeTaskManagement.Services.Ai
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Acceptance criteria generation failed for: {Title}", title);
-                return "Unable to generate acceptance criteria at this time.";
+                if (string.Equals(provider, "Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogError(ex, "Acceptance criteria generation failed for: {Title}. Queueing job.", title);
+                    try
+                    {
+                        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+                        var tenantId = _db.CurrentTenantId;
+                        var payloadJson = JsonSerializer.Serialize(new { title, description });
+
+                        await _queuedJobService.AddJobAsync(
+                            tenantId: tenantId,
+                            userId: userId,
+                            jobType: "AcceptanceCriteria",
+                            payloadJson: payloadJson,
+                            errorMessage: ex.Message,
+                            projectId: null,
+                            entityType: "UserStory",
+                            entityId: null
+                        );
+                    }
+                    catch (Exception queueEx)
+                    {
+                        _logger.LogError(queueEx, "Failed to queue failed acceptance criteria job");
+                    }
+
+                    throw new InvalidOperationException("Gemini API call failed. The acceptance criteria job has been saved to the failed jobs queue for resumption.", ex);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Ollama/OpenVINO acceptance criteria generation failed for: {Title}", title);
+                    return "Unable to generate acceptance criteria at this time.";
+                }
             }
         }
 
@@ -337,8 +418,39 @@ namespace OfficeTaskManagement.Services.Ai
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Re-estimation failed for {EntityType}/{EntityId}", request.EntityType, request.EntityId);
-                return FallbackEstimation($"Re-estimation failed: {ex.Message}");
+                var provider = _config["Gemini:Provider"] ?? "Gemini";
+                if (string.Equals(provider, "Gemini", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogError(ex, "Re-estimation failed for {EntityType}/{EntityId}. Queueing job.", request.EntityType, request.EntityId);
+                    try
+                    {
+                        var userId = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+                        var tenantId = _db.CurrentTenantId;
+                        var payloadJson = JsonSerializer.Serialize(request);
+
+                        await _queuedJobService.AddJobAsync(
+                            tenantId: tenantId,
+                            userId: userId,
+                            jobType: "ReEstimation",
+                            payloadJson: payloadJson,
+                            errorMessage: ex.Message,
+                            projectId: request.ProjectId,
+                            entityType: request.EntityType,
+                            entityId: request.EntityId
+                        );
+                    }
+                    catch (Exception queueEx)
+                    {
+                        _logger.LogError(queueEx, "Failed to queue failed re-estimation job");
+                    }
+
+                    throw new InvalidOperationException("Gemini API call failed. The re-estimation job has been saved to the failed jobs queue for resumption.", ex);
+                }
+                else
+                {
+                    _logger.LogError(ex, "Ollama/OpenVINO re-estimation failed for {EntityType}/{EntityId}", request.EntityType, request.EntityId);
+                    return FallbackEstimation($"Re-estimation failed: {ex.Message}");
+                }
             }
         }
 
@@ -464,25 +576,149 @@ namespace OfficeTaskManagement.Services.Ai
         {
             var provider = _config["Gemini:Provider"] ?? "Gemini";
             if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase))
+                string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
             return !string.IsNullOrEmpty(_config["Gemini:ApiKey"]);
         }
 
+        private async Task<(string JsonText, int InputTokens, int OutputTokens)> CallOpenVINOApiAsync(
+            string promptText, string? systemPrompt, bool isJson, CancellationToken ct)
+        {
+            var apiType = _config["Gemini:OpenVINOApiType"] ?? "OpenAI";
+            if (string.Equals(apiType, "Ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseUrl = _config["Gemini:OpenVINOUrl"] ?? "http://localhost:11434";
+                var model = _config["Gemini:OpenVINOModel"] ?? "gemma4:12b-it-q4_k_m";
+                var url = $"{baseUrl.TrimEnd('/')}/api/generate";
+
+                var body = new Dictionary<string, object>
+                {
+                    { "model", model },
+                    { "prompt", promptText },
+                    { "stream", false }
+                };
+
+                if (!string.IsNullOrEmpty(systemPrompt))
+                {
+                    body.Add("system", systemPrompt);
+                }
+
+                if (isJson)
+                {
+                    body.Add("format", "json");
+                }
+
+                var timeoutSec = 600;
+                if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+                {
+                    timeoutSec = parsedTimeout;
+                }
+
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+                using var jsonContent = new StringContent(
+                    JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+                var response = await _http.PostAsync(url, jsonContent, cts.Token);
+                response.EnsureSuccessStatusCode();
+
+                var responseJson = await response.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                var text = root.GetProperty("response").GetString() ?? (isJson ? "{}" : "");
+                int inputTokens = root.TryGetProperty("prompt_eval_count", out var p) ? p.GetInt32() : 0;
+                int outputTokens = root.TryGetProperty("eval_count", out var e) ? e.GetInt32() : 0;
+
+                return (text, inputTokens, outputTokens);
+            }
+            else
+            {
+                var baseUrl = _config["Gemini:OpenVINOUrl"] ?? "http://localhost:8000/v1";
+                var model = _config["Gemini:OpenVINOModel"] ?? "gemma4:12b-it-q4_k_m";
+                var url = $"{baseUrl.TrimEnd('/')}/chat/completions";
+
+                var messages = new List<object>();
+                if (!string.IsNullOrEmpty(systemPrompt))
+                {
+                    messages.Add(new { role = "system", content = systemPrompt });
+                }
+                messages.Add(new { role = "user", content = promptText });
+
+                var body = new Dictionary<string, object>
+                {
+                    { "model", model },
+                    { "messages", messages },
+                    { "stream", false }
+                };
+
+                if (isJson)
+                {
+                    body.Add("response_format", new { type = "json_object" });
+                }
+
+                var timeoutSec = 600;
+                if (int.TryParse(_config["Gemini:OllamaTimeoutSeconds"], out var parsedTimeout))
+                {
+                    timeoutSec = parsedTimeout;
+                }
+
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+                using var jsonContent = new StringContent(
+                    JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+
+                var response = await _http.PostAsync(url, jsonContent, cts.Token);
+                response.EnsureSuccessStatusCode();
+
+                var responseJson = await response.Content.ReadAsStringAsync(ct);
+                using var doc = JsonDocument.Parse(responseJson);
+                var root = doc.RootElement;
+
+                var text = "";
+                if (root.TryGetProperty("choices", out var choicesProp) &&
+                    choicesProp.ValueKind == JsonValueKind.Array &&
+                    choicesProp.GetArrayLength() > 0)
+                {
+                    var choice = choicesProp[0];
+                    if (choice.TryGetProperty("message", out var msgProp) &&
+                        msgProp.TryGetProperty("content", out var contentProp))
+                    {
+                        text = contentProp.GetString() ?? "";
+                    }
+                }
+
+                int inputTokens = 0;
+                int outputTokens = 0;
+                if (root.TryGetProperty("usage", out var usageProp))
+                {
+                    inputTokens = usageProp.TryGetProperty("prompt_tokens", out var p) ? p.GetInt32() : 0;
+                    outputTokens = usageProp.TryGetProperty("completion_tokens", out var e) ? e.GetInt32() : 0;
+                }
+
+                return (text, inputTokens, outputTokens);
+            }
+        }
+
         private async Task<(string JsonText, int InputTokens, int OutputTokens)> CallOllamaApiAsync(
             string promptText, string? systemPrompt, bool isJson, CancellationToken ct)
         {
             var baseUrl = _config["Gemini:OllamaUrl"] ?? "http://localhost:11434";
-            var model = _config["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+            var model = _config["Gemini:OllamaModel"] ?? "gemma4:12b-it-q4_k_m";
             var url = $"{baseUrl.TrimEnd('/')}/api/generate";
 
             var body = new Dictionary<string, object>
             {
                 { "model", model },
                 { "prompt", promptText },
-                { "stream", false }
+                { "stream", false },
+                { "options", new Dictionary<string, object> { { "num_ctx", 4096 } } }
             };
 
             if (!string.IsNullOrEmpty(systemPrompt))
@@ -549,6 +785,19 @@ namespace OfficeTaskManagement.Services.Ai
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Ollama CallGeminiApiAsync failed. Gemini fallback is disabled.");
+                    throw;
+                }
+            }
+            if (string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    return await CallOpenVINOApiAsync(promptText, StaticSystemPrompt, isJson: true, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "OpenVINO CallGeminiApiAsync failed. Gemini fallback is disabled.");
                     throw;
                 }
             }

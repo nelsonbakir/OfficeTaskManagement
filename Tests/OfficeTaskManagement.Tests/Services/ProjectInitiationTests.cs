@@ -75,13 +75,18 @@ namespace OfficeTaskManagement.Tests.Services
                 NullLogger<CodebaseRetrievalService>.Instance
             );
 
+            var httpContextAccessorMock = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
+            var queuedJobService = new AiQueuedJobService(_db, NullLogger<AiQueuedJobService>.Instance);
+
             return new GeminiAiService(
                 httpClient,
                 config,
                 contextBuilder,
                 _db,
                 codebaseRetrieval,
-                NullLogger<GeminiAiService>.Instance
+                NullLogger<GeminiAiService>.Instance,
+                httpContextAccessorMock.Object,
+                queuedJobService
             );
         }
 

@@ -192,6 +192,122 @@ public class AiEstimationController : ControllerBase
         }
     }
 
+    // POST /api/ai/create-wbs
+    [HttpPost("create-wbs")]
+    public async Task<ActionResult<BulkCreateResult>> CreateWbsAsync(
+        [FromBody] CreateWbsRequest request, CancellationToken ct)
+    {
+        if (request == null || request.Wbs == null || request.Wbs.Count == 0)
+            return BadRequest("No WBS items provided.");
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var tenantId = _db.CurrentTenantId;
+        var now = DateTimeOffset.UtcNow.UtcDateTime;
+        var createdIds = new List<int>();
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            int epicCount = 0, featureCount = 0, storyCount = 0, taskCount = 0;
+
+            foreach (var epicDto in request.Wbs)
+            {
+                var epic = new Epic
+                {
+                    ProjectId = request.ProjectId,
+                    Name = epicDto.Name,
+                    Description = epicDto.Description,
+                    CreatedById = userId,
+                    CreatedAt = now,
+                    TenantId = tenantId
+                };
+                _db.Epics.Add(epic);
+                await _db.SaveChangesAsync(ct);
+                createdIds.Add(epic.Id);
+                epicCount++;
+
+                if (epicDto.Features == null) continue;
+                foreach (var featDto in epicDto.Features)
+                {
+                    var feature = new Feature
+                    {
+                        EpicId = epic.Id,
+                        Name = featDto.Name,
+                        Description = featDto.Description,
+                        CreatedById = userId,
+                        CreatedAt = now,
+                        TenantId = tenantId
+                    };
+                    _db.Features.Add(feature);
+                    await _db.SaveChangesAsync(ct);
+                    createdIds.Add(feature.Id);
+                    featureCount++;
+
+                    if (featDto.Stories == null) continue;
+                    foreach (var storyDto in featDto.Stories)
+                    {
+                        var story = new UserStory
+                        {
+                            FeatureId = feature.Id,
+                            Title = storyDto.Title,
+                            Description = storyDto.Description,
+                            AcceptanceCriteria = storyDto.AcceptanceCriteria,
+                            Priority = TaskPriority.Medium,
+                            CreatedById = userId,
+                            CreatedAt = now,
+                            TenantId = tenantId
+                        };
+                        _db.UserStories.Add(story);
+                        await _db.SaveChangesAsync(ct);
+                        createdIds.Add(story.Id);
+                        storyCount++;
+
+                        if (storyDto.Tasks == null) continue;
+                        foreach (var taskDto in storyDto.Tasks)
+                        {
+                            decimal o = taskDto.OptimisticHours;
+                            decimal m = taskDto.MostLikelyHours;
+                            decimal p = taskDto.PessimisticHours;
+                            decimal pert = (o > 0 && m > 0 && p > 0) ? _workflowEngine.CalculatePert(o, m, p) : 0;
+
+                            var task = new TaskItem
+                            {
+                                UserStoryId = story.Id,
+                                ProjectId = request.ProjectId,
+                                Title = taskDto.Title,
+                                Description = taskDto.Description,
+                                Priority = TaskPriority.Medium,
+                                EstimatedOptimisticHours = o > 0 ? o : null,
+                                EstimatedMostLikelyHours = m > 0 ? m : null,
+                                EstimatedPessimisticHours = p > 0 ? p : null,
+                                PertEstimatedHours = pert > 0 ? pert : null,
+                                EstimatedHours = pert > 0 ? pert : (m > 0 ? m : 0m),
+                                Status = Models.Enums.TaskStatus.New,
+                                CreatedById = userId,
+                                CreatedAt = now,
+                                TenantId = tenantId
+                            };
+                            _db.Tasks.Add(task);
+                            taskCount++;
+                        }
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+            }
+
+            await tx.CommitAsync(ct);
+            return Ok(new BulkCreateResult(
+                createdIds.ToArray(),
+                "Epic",
+                $"Successfully created {epicCount} epic(s), {featureCount} feature(s), {storyCount} user stor(ies), and {taskCount} task(s)."));
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     // POST /api/ai/bulk-reestimate  (T54)
     // Re-estimates multiple tasks and returns updated PERT for each.
     [HttpPost("bulk-reestimate")]

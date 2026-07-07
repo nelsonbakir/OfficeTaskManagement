@@ -283,13 +283,18 @@ a.copilot-action-btn { text-decoration: none; display: inline-flex; align-items:
     flex: 1;
 }
 .copilot-sidebar__input {
-    width: 100%; display: block; box-sizing: border-box; resize: none;
+    width: 100%; display: block; box-sizing: border-box; resize: none; margin: 0;
     background: #ffffff; border: 1px solid var(--border-color);
     border-radius: 8px; color: var(--text-primary);
     padding: 0.6rem 0.9rem; font-size: 0.875rem;
     line-height: 1.5; outline: none;
     transition: border-color 0.2s;
     font-family: inherit;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.copilot-sidebar__input::-webkit-scrollbar {
+    display: none;
 }
 .copilot-sidebar__input:focus { border-color: var(--primary-color); }
 .copilot-sidebar__input::placeholder { color: var(--text-secondary); opacity: 0.7; }
@@ -367,6 +372,8 @@ a.copilot-action-btn { text-decoration: none; display: inline-flex; align-items:
     z-index: 1;
     -ms-overflow-style: none;
     scrollbar-width: none;
+    box-sizing: border-box;
+    margin: 0;
 }
 
 .copilot-sidebar__input-backdrop::-webkit-scrollbar {
@@ -704,4 +711,257 @@ a.copilot-action-btn { text-decoration: none; display: inline-flex; align-items:
 
 .copilot-quick-btn span {
     font-size: 0.8rem;
+}
+
+/* WBS Proposed Plan Card in Chat */
+.copilot-wbs-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.75rem 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.copilot-wbs-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #1e293b;
+    margin-bottom: 0.4rem;
+}
+.copilot-wbs-card__title {
+    color: #475569;
+    font-size: 0.85rem;
+    margin-bottom: 0.8rem;
+    font-style: italic;
+}
+.copilot-wbs-card__summary {
+    font-size: 0.8rem;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+.copilot-wbs-card__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+.copilot-wbs-card-btn {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+}
+.copilot-wbs-card-btn--primary {
+    background: #6366f1;
+    color: #fff;
+}
+.copilot-wbs-card-btn--primary:hover {
+    background: #4f46e5;
+}
+.copilot-wbs-card-btn--secondary {
+    background: #fff;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+.copilot-wbs-card-btn--secondary:hover {
+    background: #f8fafc;
+    color: #1e293b;
+}
+
+/* WBS Wizard Modal Hierarchical Editor */
+.wbs-wizard-root {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+.wbs-epic-block {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.wbs-feature-block {
+    background: #f8fafc;
+    border-left: 3px solid #6366f1;
+    border-radius: 4px 8px 8px 4px;
+    padding: 1rem;
+    margin-top: 1rem;
+    margin-left: 1.5rem;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+}
+.wbs-story-block {
+    background: #ffffff;
+    border-left: 3px solid #10b981;
+    border-radius: 4px 8px 8px 4px;
+    padding: 0.85rem;
+    margin-top: 0.85rem;
+    margin-left: 2rem;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+}
+.wbs-task-block {
+    background: #f8fafc;
+    border-left: 3px solid #f59e0b;
+    border-radius: 4px 8px 8px 4px;
+    padding: 0.75rem;
+    margin-top: 0.75rem;
+    margin-left: 2.5rem;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+}
+
+/* Header & Input Controls inside Blocks */
+.wbs-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+.wbs-block-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: #fff;
+}
+.wbs-epic-badge { background-color: #475569; }
+.wbs-feature-badge { background-color: #6366f1; }
+.wbs-story-badge { background-color: #10b981; }
+.wbs-task-badge { background-color: #f59e0b; }
+
+.wbs-btn-delete {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.wbs-btn-delete:hover {
+    background: #fee2e2;
+}
+
+.wbs-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+.wbs-input-group label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+}
+.wbs-input {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    outline: none;
+    color: #1e293b;
+    background-color: #fff;
+    transition: border-color 0.15s ease;
+}
+.wbs-input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+/* Task Estimates Row */
+.wbs-task-estimates-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.wbs-pert-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: #e0f2fe;
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #bae6fd;
+}
+.wbs-pert-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0369a1;
+}
+
+/* Add Node Buttons */
+.wbs-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: transparent;
+    border: 1px dashed #cbd5e1;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: all 0.15s ease;
+}
+.wbs-add-btn:hover {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.03);
+}
+
+/* ── Copilot Session Bar Styles ─────────────────────────────────────────── */
+.copilot-sidebar__session-bar {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-2, rgba(255,255,255,0.02));
+    border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));
+}
+.copilot-sidebar__session-select {
+    flex: 1;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color, rgba(255,255,255,0.15)) !important;
+    background: var(--surface-1, transparent) !important;
+    color: var(--text-secondary, #94a3b8) !important;
+    outline: none;
+    cursor: pointer;
+}
+.copilot-sidebar__session-select option {
+    background: #1e293b;
+    color: #fff;
+}
+.copilot-sidebar__new-session-btn {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    border: 1px solid rgba(99,102,241,0.3) !important;
+    background: rgba(99,102,241,0.1) !important;
+    color: #818cf8 !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.copilot-sidebar__new-session-btn:hover {
+    background: #6366f1 !important;
+    color: #fff !important;
 }

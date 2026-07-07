@@ -40,7 +40,7 @@ public class CodebaseIndexingService : IHostedService
 
     // Skip directories
     private static readonly string[] SkipDirs =
-        ["bin", "obj", "node_modules", ".git", ".vs", "wwwroot/lib", "wwwroot\\lib", "Migrations", "ai-agent-plan"];
+        ["bin", "obj", "node_modules", ".git", ".vs", "wwwroot/lib", "wwwroot\\lib", "Migrations"];
 
     // Skip file extensions
     private static readonly string[] SkipExtensions =

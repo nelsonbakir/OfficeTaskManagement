@@ -84,6 +84,7 @@ builder.Services.AddHttpClient<GeminiAiService>(client => {
     client.Timeout = TimeSpan.FromMinutes(10);
 });
 builder.Services.AddScoped<IGeminiAiService>(sp => sp.GetRequiredService<GeminiAiService>());
+builder.Services.AddScoped<OfficeTaskManagement.Services.Ai.AiQueuedJobService>();
 
 // Dynamic Embedding Service Registration based on config provider (Gemini, Ollama, LocalMock)
 var provider = builder.Configuration["Gemini:Provider"] 
@@ -96,6 +97,14 @@ if (string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
         client.Timeout = TimeSpan.FromMinutes(10);
     });
     builder.Services.AddScoped<IGeminiEmbeddingService>(sp => sp.GetRequiredService<OllamaEmbeddingService>());
+}
+else if (string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddHttpClient<OpenVINOEmbeddingService>(client => {
+        client.Timeout = TimeSpan.FromMinutes(10);
+    });
+    builder.Services.AddScoped<IGeminiEmbeddingService>(sp => sp.GetRequiredService<OpenVINOEmbeddingService>());
 }
 else if (string.Equals(provider, "LocalMock", StringComparison.OrdinalIgnoreCase))
 {

@@ -30,13 +30,83 @@ namespace OfficeTaskManagement.Services
             var provider = _configuration["Gemini:Provider"] ?? "Gemini";
             bool isOllama = string.Equals(provider, "Ollama", StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(provider, "Gemma", StringComparison.OrdinalIgnoreCase);
+            bool isOpenVINO = string.Equals(provider, "OpenVINO", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(provider, "DirectML", StringComparison.OrdinalIgnoreCase);
+
+            if (isOpenVINO)
+            {
+                try
+                {
+                    var apiType = _configuration["Gemini:OpenVINOApiType"] ?? "OpenAI";
+                    var isOllamaFormat = string.Equals(apiType, "Ollama", StringComparison.OrdinalIgnoreCase);
+
+                    var baseUrl = _configuration["Gemini:OpenVINOUrl"] ?? (isOllamaFormat ? "http://localhost:11434" : "http://localhost:8000/v1");
+                    var model = _configuration["Gemini:OpenVINOModel"] ?? "gemma4:12b-it-q4_k_m";
+
+                    if (isOllamaFormat)
+                    {
+                        var vinoUrl = $"{baseUrl.TrimEnd('/')}/api/generate";
+                        var body = new { model = model, prompt = prompt, stream = false };
+
+                        var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+                        var vinoResponse = await _httpClient.PostAsync(vinoUrl, content);
+                        if (!vinoResponse.IsSuccessStatusCode)
+                        {
+                            return $"Error: OpenVINO Ollama API request failed with status {vinoResponse.StatusCode}. {await vinoResponse.Content.ReadAsStringAsync()}";
+                        }
+
+                        var responseJson = await vinoResponse.Content.ReadAsStringAsync();
+                        using var vinoDoc = JsonDocument.Parse(responseJson);
+                        return vinoDoc.RootElement.GetProperty("response").GetString() ?? "No response generated.";
+                    }
+                    else
+                    {
+                        var vinoUrl = $"{baseUrl.TrimEnd('/')}/chat/completions";
+                        var body = new
+                        {
+                            model = model,
+                            messages = new[]
+                            {
+                                new { role = "user", content = prompt }
+                            },
+                            stream = false
+                        };
+
+                        var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+                        var vinoResponse = await _httpClient.PostAsync(vinoUrl, content);
+                        if (!vinoResponse.IsSuccessStatusCode)
+                        {
+                            return $"Error: OpenVINO OpenAI API request failed with status {vinoResponse.StatusCode}. {await vinoResponse.Content.ReadAsStringAsync()}";
+                        }
+
+                        var responseJson = await vinoResponse.Content.ReadAsStringAsync();
+                        using var vinoDoc = JsonDocument.Parse(responseJson);
+                        if (vinoDoc.RootElement.TryGetProperty("choices", out var choicesProp) &&
+                            choicesProp.ValueKind == JsonValueKind.Array &&
+                            choicesProp.GetArrayLength() > 0)
+                        {
+                            var choice = choicesProp[0];
+                            if (choice.TryGetProperty("message", out var msgProp) &&
+                                msgProp.TryGetProperty("content", out var contentProp))
+                            {
+                                return contentProp.GetString() ?? "No response generated.";
+                            }
+                        }
+                        return "No response generated.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return $"Error: OpenVINO API call failed. {ex.Message}";
+                }
+            }
 
             if (isOllama)
             {
                 try
                 {
                     var baseUrl = _configuration["Gemini:OllamaUrl"] ?? "http://localhost:11434";
-                    var model = _configuration["Gemini:OllamaModel"] ?? "gemma-4-26b-a4b-it";
+                    var model = _configuration["Gemini:OllamaModel"] ?? "gemma4:12b-it-q4_k_m";
                     var ollamaUrl = $"{baseUrl.TrimEnd('/')}/api/generate";
 
                     var ollamaBody = new

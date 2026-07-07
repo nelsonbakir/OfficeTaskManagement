@@ -111,6 +111,41 @@ public class AgentConversationService
         return GetTurns(conversation.TurnsJson);
     }
 
+    /// <summary>
+    /// Gets all chat sessions (conversations) for a project context, ordered by last update.
+    /// Dynamic titles are extracted from the first user turn.
+    /// </summary>
+    public async Task<List<AgentSessionDto>> GetProjectSessionsAsync(
+        int projectId, string userId, CancellationToken ct = default)
+    {
+        var conversations = await _db.AgentConversations
+            .AsNoTracking()
+            .Where(c => c.EntityType == "Project" && c.EntityId == projectId && c.UserId == userId)
+            .OrderByDescending(c => c.UpdatedAt)
+            .ToListAsync(ct);
+
+        var sessions = new List<AgentSessionDto>();
+        foreach (var c in conversations)
+        {
+            string title = "";
+            var turns = GetTurns(c.TurnsJson);
+            var firstUserTurn = turns.Find(t => t.Role == "user");
+            if (firstUserTurn != null && !string.IsNullOrWhiteSpace(firstUserTurn.Text))
+            {
+                title = firstUserTurn.Text.Length > 40
+                    ? firstUserTurn.Text.Substring(0, 37) + "..."
+                    : firstUserTurn.Text;
+            }
+            else
+            {
+                title = $"Session ({c.CreatedAt.ToLocalTime().ToString("g")})";
+            }
+
+            sessions.Add(new AgentSessionDto(c.Id, title, c.CreatedAt, c.UpdatedAt));
+        }
+        return sessions;
+    }
+
     /// <summary>Deletes a conversation and all its turns.</summary>
     public async Task DeleteAsync(string conversationId, CancellationToken ct = default)
     {

@@ -48,6 +48,9 @@
             if (children) renderChildren(children);
         } catch (err) {
             showError(err.message || 'AI service unavailable. You can continue without AI estimates.');
+            if (typeof window.loadFailedJobs === 'function') {
+                window.loadFailedJobs();
+            }
         }
     }
 
@@ -64,7 +67,7 @@
     async function doReEstimate(title, originalHours) {
         showLoading();
         try {
-            const result = await fetch('/api/ai/reestimate', {
+            const resp = await fetch('/api/ai/reestimate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,10 +79,18 @@
                     title,
                     originalEstimatedHours: originalHours
                 })
-            }).then(r => { if (!r.ok) throw new Error('Re-estimation failed.'); return r.json(); });
+            });
+            if (!resp.ok) {
+                const text = await resp.text();
+                throw new Error(text || 'Re-estimation failed.');
+            }
+            const result = await resp.json();
             renderEstimation(result);
         } catch (err) {
             showError('Re-estimation failed. ' + err.message);
+            if (typeof window.loadFailedJobs === 'function') {
+                window.loadFailedJobs();
+            }
         }
     }
 
