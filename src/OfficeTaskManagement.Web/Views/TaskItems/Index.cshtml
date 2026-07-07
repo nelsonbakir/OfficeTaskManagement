@@ -70,6 +70,84 @@
     .toast-notification.success { background:#107C10; }
     .toast-notification.error { background:#D13438; }
     @@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+
+    /* ── Proposal Grooming Banner ── */
+    .proposal-banner {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid var(--primary-color, #6366f1);
+        border-radius: 6px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .proposal-banner-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+    }
+    .proposal-banner-goal {
+        font-size: 0.83rem;
+        color: var(--text-secondary);
+        font-style: italic;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+    .proposal-banner-themes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+    }
+    .proposal-theme-pill {
+        font-size: 0.7rem;
+        padding: 1px 8px;
+        border-radius: 12px;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 600;
+        border: 1px solid #bae6fd;
+    }
+    .proposal-banner-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 0.6rem;
+        margin-top: 0.6rem;
+        font-size: 0.8rem;
+    }
+    .proposal-toggle-label {
+        font-weight: 600;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        user-select: none;
+    }
+
+    /* Highlighted card suggested by AI */
+    .kanban-item.suggested-item {
+        border-left: 3px solid var(--primary-color, #6366f1) !important;
+        background: #f8fafc;
+    }
+    .suggested-badge {
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: var(--primary-color, #6366f1);
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        padding: 0.5px 5px;
+        border-radius: 3px;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
 </style>
 
 <div class="page-header">
@@ -118,6 +196,8 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+
+<div id="proposalBanner" style="display:none; margin-bottom:1.25rem;"></div>
 
 @if (Model.Any())
 {
@@ -382,7 +462,7 @@ else
 
     function updateColumnCounts() {
         document.querySelectorAll('.kanban-column').forEach(col => {
-            const items = col.querySelectorAll('.kanban-item');
+            const items = Array.from(col.querySelectorAll('.kanban-item')).filter(item => item.style.display !== 'none');
             const count = col.querySelector('.column-count');
             if (count) count.textContent = items.length;
         });
@@ -394,6 +474,114 @@ else
         t.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> ${msg}`;
         document.getElementById('toastContainer').appendChild(t);
         setTimeout(() => t.remove(), 3000);
+    }
+
+    // ── Proposal Filtering Logic ──
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const goal = urlParams.get('proposalGoal');
+        const themesStr = urlParams.get('proposalThemes');
+
+        if (goal || themesStr) {
+            const banner = document.getElementById('proposalBanner');
+            if (!banner) return;
+
+            const themes = themesStr ? themesStr.split(',').filter(Boolean) : [];
+            const themesHtml = themes.map(t => `<span class="proposal-theme-pill">${escapeHtml(t)}</span>`).join('');
+
+            banner.className = 'proposal-banner';
+            banner.innerHTML = `
+                <div class="proposal-banner-title">
+                    <i class="fas fa-wand-magic-sparkles" style="color: var(--primary-color);"></i>
+                    Active Sprint Proposal Backlog Grooming Context
+                </div>
+                <div class="proposal-banner-goal">"${escapeHtml(goal)}"</div>
+                <div class="proposal-banner-themes">
+                    ${themesHtml}
+                </div>
+                <div class="proposal-banner-controls">
+                    <label class="proposal-toggle-label">
+                        <input type="checkbox" id="proposalFilterToggle" checked style="cursor:pointer;" />
+                        Filter to matching proposal tasks
+                    </label>
+                    <span id="proposalFilterCount" class="text-muted small"></span>
+                </div>
+            `;
+            banner.style.display = 'block';
+
+            // Keyword extraction
+            const stopWords = new Set(['and', 'or', 'the', 'a', 'of', 'for', 'to', 'in', 'with', 'on', 'at', 'by', 'from', 'about', 'as', 'spt', 'setup']);
+            const keywords = [];
+            themes.forEach(theme => {
+                const tokens = theme.toLowerCase().split(/[\s\-_,./]+/);
+                tokens.forEach(tok => {
+                    if (tok.length > 2 && !stopWords.has(tok)) {
+                        keywords.push(tok);
+                    }
+                });
+            });
+            if (goal) {
+                const goalTokens = goal.toLowerCase().split(/[\s\-_,./]+/);
+                goalTokens.forEach(tok => {
+                    if (tok.length > 3 && !stopWords.has(tok) && !keywords.includes(tok)) {
+                        keywords.push(tok);
+                    }
+                });
+            }
+
+            const cards = document.querySelectorAll('.kanban-item');
+            
+            function applyFilter() {
+                const showOnlyMatching = document.getElementById('proposalFilterToggle').checked;
+                let visibleCount = 0;
+
+                cards.forEach(card => {
+                    const title = card.querySelector('.kanban-item-title a')?.textContent || '';
+                    const badges = Array.from(card.querySelectorAll('.badge, .area-badge')).map(b => b.textContent).join(' ');
+                    const contentText = (title + ' ' + badges).toLowerCase();
+
+                    const isMatch = keywords.some(kw => contentText.includes(kw));
+
+                    if (isMatch) {
+                        card.classList.add('suggested-item');
+                        if (!card.querySelector('.suggested-badge')) {
+                            const badgeWrap = card.querySelector('div[style*="display:flex"]');
+                            if (badgeWrap) {
+                                const badge = document.createElement('span');
+                                badge.className = 'badge suggested-badge';
+                                badge.innerHTML = '<i class="fas fa-sparkles"></i> Suggested';
+                                badge.style.fontSize = '0.68rem';
+                                badgeWrap.appendChild(badge);
+                            }
+                        }
+                        card.style.display = '';
+                        card.style.opacity = '1';
+                        visibleCount++;
+                    } else {
+                        card.classList.remove('suggested-item');
+                        if (showOnlyMatching) {
+                            card.style.display = 'none';
+                        } else {
+                            card.style.display = '';
+                            card.style.opacity = '0.4';
+                        }
+                    }
+                });
+
+                document.getElementById('proposalFilterCount').textContent = 
+                    `Showing ${visibleCount} suggested task${visibleCount === 1 ? '' : 's'} matching the proposal context out of ${cards.length} total.`;
+                
+                updateColumnCounts();
+            }
+
+            document.getElementById('proposalFilterToggle').addEventListener('change', applyFilter);
+            applyFilter();
+        }
+    });
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 </script>
 }

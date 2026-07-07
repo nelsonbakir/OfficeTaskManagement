@@ -1,237 +1,649 @@
 @model OfficeTaskManagement.ViewModels.ResourceManagement.EditProjectAllocationViewModel
 
 @{
-    ViewData["Title"] = $"Allocate Resource to {Model.ProjectName}";
+    ViewData["Title"] = Model.ProjectId > 0
+        ? $"Team Allocations — {Model.ProjectName}"
+        : "Allocate Resource";
+    var antiForgery = Html.AntiForgeryToken().ToString();
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="bi bi-person-lines-fill"></i> Allocate Resource</h2>
-    <div>
-        @if (Model.ProjectId > 0)
-        {
-            <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-outline-secondary">Back to Project</a>
-        }
-        else if (!string.IsNullOrEmpty(Model.UserId))
-        {
-            <a asp-controller="Resource" asp-action="Profile" asp-route-id="@Model.UserId" class="btn btn-outline-secondary">Back to Profile</a>
-        }
-        else
-        {
-            <a asp-controller="Resource" asp-action="Index" class="btn btn-outline-secondary">Back to Resources</a>
-        }
+<style>
+    /* ── Fluent single-column layout ── */
+    .alloc-container { max-width: 900px; margin: 0 auto; padding-bottom: 3rem; }
+
+    /* ── Header ── */
+    .alloc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .alloc-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; color: var(--text-primary); }
+    .alloc-breadcrumb { font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.2rem; }
+
+    /* ── Panel Card (Fluent theme) ── */
+    .alloc-panel {
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .alloc-panel-header {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--sidebar-bg);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .alloc-panel-title {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .alloc-panel-body { padding: 1rem; }
+
+    /* ── Filter pills ── */
+    .filter-pill {
+        padding: 0.25rem 0.7rem; border-radius: 2px; font-size: 0.75rem; font-weight: 600;
+        border: 1px solid var(--border-color); background: #fff;
+        color: var(--text-secondary); cursor: pointer; transition: all .15s;
+    }
+    .filter-pill.active { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+    .filter-pill:hover:not(.active) { border-color: var(--primary-color); color: var(--primary-color); }
+
+    /* ── Search Input ── */
+    .alloc-search-wrap { position: relative; width: 100%; }
+    .alloc-search-wrap input {
+        width: 100%; padding: 0.45rem 1rem 0.45rem 2.2rem;
+        border: 1px solid var(--border-color); border-radius: 4px;
+        font-size: 0.875rem; background: #fff; color: var(--text-primary);
+        transition: border-color .15s, box-shadow .15s;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .alloc-search-wrap input:focus {
+        outline: none; border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(0,120,212,.12);
+    }
+    .alloc-search-icon { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); font-size: 0.8rem; pointer-events: none; }
+
+    /* ── Team list ── */
+    .roster-grid { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    /* ── Resource Card ── */
+    .user-card {
+        display: flex;
+        flex-direction: column;
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        background: #fff;
+        transition: border-color .15s, background .15s, box-shadow .15s;
+    }
+    .user-card:hover { border-color: var(--primary-color); }
+    
+    /* Card states */
+    .user-card.selected {
+        border-color: var(--primary-color);
+        background: #eff6fc;
+        box-shadow: 0 0 0 2px rgba(0,120,212,.08);
+    }
+    .user-card.allocated {
+        border-color: var(--secondary-color);
+        border-left: 4px solid var(--secondary-color);
+    }
+
+    /* Card main profile layout */
+    .card-main-header {
+        display: grid;
+        grid-template-columns: 38px 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .u-avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; }
+    .u-avatar-initials {
+        width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center;
+        justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fff;
+    }
+
+    .u-name   { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); line-height: 1.2; }
+    .u-sub    { font-size: 0.75rem; color: var(--text-secondary); margin-top: 1px; }
+    .u-skills { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+    .u-skill  {
+        font-size: 0.68rem; padding: 1px 6px; border-radius: 2px;
+        background: #E2F6F9; color: var(--primary-dark); font-weight: 600;
+        border: 1px solid #B0E4ED;
+    }
+
+    /* ── Inline forms & summaries ── */
+    .card-inline-form {
+        border-top: 1px solid var(--border-color);
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+    }
+    .card-allocated-summary {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border-color);
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    /* Fields inside staged row */
+    .staged-fields { display: grid; grid-template-columns: 1fr 1.2fr 1.4fr; gap: 0.6rem; }
+    @@media (max-width: 768px) { .staged-fields { grid-template-columns: 1fr; } }
+    
+    .staged-field label { font-size: 0.68rem; color: var(--text-secondary); font-weight: 600; display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: .03em; }
+    .staged-field input, .staged-field select {
+        width: 100%; padding: 0.28rem 0.45rem; font-size: 0.8rem;
+        border: 1px solid var(--border-color); border-radius: 4px; background: #fff;
+        color: var(--text-primary);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .staged-field input:focus, .staged-field select:focus {
+        outline: none; border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(0,120,212,.1);
+    }
+    .pct-display { font-size: 0.72rem; color: var(--primary-color); font-weight: 700; float: right; }
+
+    /* Count badge */
+    .count-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 18px; height: 18px; border-radius: 9px;
+        background: var(--primary-color); color: #fff;
+        font-size: 0.68rem; font-weight: 700; padding: 0 4px;
+        margin-left: 0.35rem;
+    }
+
+    /* Buttons */
+    .btn-save-team {
+        background: var(--primary-color); color: #fff; border: none; border-radius: 4px;
+        padding: 0.4rem 1rem; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+        transition: background .15s, transform .1s; display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-save-team:not(:disabled):hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-save-team:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Toast */
+    .alloc-toast { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+    .alloc-toast-item {
+        padding: 0.55rem 1rem; border-radius: 4px; font-size: 0.83rem; font-weight: 600;
+        color: #fff; animation: slideUp .2s ease; box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    }
+    .alloc-toast-item.success { background: var(--success-color); }
+    .alloc-toast-item.error   { background: var(--danger-color); }
+    @@keyframes slideUp { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+
+<div class="alloc-container">
+    <div class="alloc-header">
+        <div>
+            <h1><i class="fas fa-users-gear" style="color:var(--primary-color)"></i>
+                @(Model.ProjectId > 0 ? "Team Allocations" : "Allocate Resource")
+            </h1>
+            <div class="alloc-breadcrumb">
+                @if (!string.IsNullOrEmpty(Model.ProjectName))
+                {
+                    <span>Project: <strong>@Model.ProjectName</strong></span>
+                }
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+            @if (!string.IsNullOrEmpty(Model.ReturnUrl) && Url.IsLocalUrl(Model.ReturnUrl))
+            {
+                <a href="@Model.ReturnUrl" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Sprint Planner
+                </a>
+            }
+            else if (Model.ProjectId > 0)
+            {
+                <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.ProjectId" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Back to Project
+                </a>
+            }
+            else
+            {
+                <a asp-controller="Resource" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Resources
+                </a>
+            }
+        </div>
     </div>
-</div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <form asp-action="@(Model.Id > 0 ? "EditAllocation" : "Allocate")" method="post">
-                    <input type="hidden" asp-for="Id" />
-                    @if (Model.ProjectId > 0)
-                    {
-                        <input type="hidden" asp-for="ProjectId" />
-                        <input type="hidden" asp-for="ProjectName" />
-                        <div class="mb-3">
-                            <label class="form-label text-muted small">Target Project</label>
-                            @if (!string.IsNullOrEmpty(Model.ProjectName))
-                            {
-                                <div class="p-2 border rounded bg-light fw-bold">@Model.ProjectName</div>
-                            }
-                            else
-                            {
-                                <div class="p-2 border rounded bg-light fw-bold">Project ID: @Model.ProjectId</div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="mb-3">
-                            <label asp-for="ProjectId" class="form-label">Target Project</label>
-                            <select asp-for="ProjectId" class="form-select" asp-items="@(new SelectList(ViewBag.Projects, "Id", "Name"))">
-                                <option value="">-- Select Project --</option>
-                            </select>
-                            <span asp-validation-for="ProjectId" class="text-danger"></span>
-                        </div>
-                    }
-
-                    @if (TempData["ResourceWarning"] != null)
-                    {
-                        <div class="alert alert-warning mb-4">
-                            <i class="bi bi-exclamation-triangle"></i> @TempData["ResourceWarning"]
-                        </div>
-                    }
-
-                    <div class="mb-3">
-                        <label asp-for="UserId" class="form-label">Resource to Allocate</label>
-                        <select asp-for="UserId" class="form-select" asp-items="@(new SelectList(ViewBag.Users, "Id", "FullName"))">
-                            <option value="">-- Select Resource --</option>
-                        </select>
-                        <span asp-validation-for="UserId" class="text-danger"></span>
+    <!-- ─────────────────── TOP CONFIGURATION CARD ─────────────────── -->
+    <div class="alloc-panel mb-4">
+        <div class="alloc-panel-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold text-muted mb-1">Search Resource</label>
+                    <div class="alloc-search-wrap">
+                        <i class="fas fa-search alloc-search-icon"></i>
+                        <input type="text" id="rosterSearch" placeholder="Search name, skill, or department..." autocomplete="off"/>
                     </div>
-
-                    <div class="mb-3">
-                        <label asp-for="ProjectRole" class="form-label"></label>
-                        <input asp-for="ProjectRole" class="form-control" placeholder="e.g., Lead Developer, QA Analyst" />
-                        <span asp-validation-for="ProjectRole" class="text-danger"></span>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted mb-1">Filter By Status</label>
+                    <div style="display:flex;gap:0.3rem;" id="filterPills">
+                        <button class="filter-pill active" data-filter="all">All</button>
+                        <button class="filter-pill" data-filter="allocated">On Project</button>
+                        <button class="filter-pill" data-filter="unallocated">Available</button>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label d-flex justify-content-between">
-                            <span>Allocation Percentage</span>
-                            <span id="pctVal" class="text-primary fw-bold">100%</span>
-                        </label>
-                        <div class="d-flex align-items-center">
-                            <input asp-for="AllocationPercentage" type="range" class="form-range" min="10" max="100" step="5" id="pctRange" />
-                        </div>
-                        <div class="form-text mt-2"><i class="bi bi-info-circle"></i> Percent of their working capacity dedicated to this project during the given dates.</div>
-                        <span asp-validation-for="AllocationPercentage" class="text-danger"></span>
-                    </div>
-
-                    <!-- Budget Advisory Panel -->
-                    <div id="budgetAdvisoryPanel" class="budget-advisory-panel" role="alert">
-                        <i class="bi bi-wallet2" id="budgetAdvisoryIcon"></i>
-                        <span id="budgetAdvisoryMsg"></span>
-                    </div>
-                    <link rel="stylesheet" href="~/css/budget.css" />
-
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <label asp-for="StartDate" class="form-label"></label>
-                            <input asp-for="StartDate" class="form-control" type="date" />
-                            <span asp-validation-for="StartDate" class="text-danger"></span>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="EndDate" class="form-label"></label>
-                            <input asp-for="EndDate" class="form-control" type="date" />
-                            <span asp-validation-for="EndDate" class="text-danger"></span>
-                            <div class="form-text">Leave blank if ongoing.</div>
-                        </div>
-                    </div>
-
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">Complete Allocation</button>
-                    </div>
-                </form>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted mb-1">Default Start Date</label>
+                    <input type="date" id="defaultStart" class="form-control form-control-sm"
+                           value="@DateTime.Today.ToString("yyyy-MM-dd")" style="height: 31px; font-size: 0.8rem;"/>
+                </div>
+                <div class="col-md-2 text-end">
+                    <button class="btn-save-team w-100" id="btnSaveAll" disabled style="height: 31px; justify-content: center;">
+                        <i class="fas fa-floppy-disk"></i> <span id="btnSaveLabel">Save Team</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6">
-        <div class="card shadow-sm border-info bg-light">
-            <div class="card-body">
-                <h5 class="card-title text-info"><i class="bi bi-lightbulb"></i> Allocation Guidance</h5>
-                <p>Assigning a resource to a project books their capacity, preventing over-commitment across the portfolio.</p>
-                <ul class="text-muted">
-                    <li><strong>100% allocation</strong> means the resource works exclusively on this project.</li>
-                    <li><strong>Part-time allocation</strong> (e.g., 50%) allows them to be shared across multiple projects concurrently.</li>
-                    <li>The system will automatically flag if a user's combined allocations exceed 100%.</li>
-                </ul>
-                <div class="mt-4" id="availabilityCheckResult" style="display: none;">
-                    <h6>Pre-allocation Check:</h6>
-                    <div id="availabilityOutput" class="p-3 border rounded bg-white"></div>
+
+    <!-- ─────────────────── ROSTER CARD LIST ─────────────────── -->
+    <div class="alloc-panel">
+        <div class="alloc-panel-header">
+            <div class="alloc-panel-title">
+                <i class="fas fa-users" style="color:var(--primary-color)"></i>
+                Team Members Roster
+                <span class="count-badge" id="stagingCount">0</span>
+            </div>
+            <span style="font-size:0.78rem;color:var(--text-secondary);" id="rosterCount">Loading roster…</span>
+        </div>
+        <div class="alloc-panel-body">
+            <div class="roster-grid" id="rosterGrid">
+                <div style="text-align:center;padding:2rem;color:var(--text-secondary);">
+                    <i class="fas fa-spinner fa-spin"></i> Loading team pool…
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Toast container -->
+<div class="alloc-toast" id="allocToast"></div>
+
 @section Scripts {
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    
-    <script>
-        $(document).ready(function() {
-            var range = $('#pctRange');
-            var valDisp = $('#pctVal');
+<script>
+(function () {
+    'use strict';
+
+    const PROJECT_ID = @Model.ProjectId;
+    const RETURN_URL = '@(Model.ReturnUrl ?? "")';
+
+    // State variables
+    let roster       = [];
+    let staged       = {};   // userId → { fullName, pct, role, start, end }
+    let existing     = {};   // userId → { allocationId, pct, role, start, end, fullName, isEditing }
+    let activeFilter = 'all';
+
+    // Fluent avatars colors
+    const COLOURS = ['#0078D4', '#107C10', '#D13438', '#8764B8', '#008272', '#D83B01', '#8A8886'];
+    function avatarColour(name) {
+        let h = 0;
+        for (const c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+        return COLOURS[h % COLOURS.length];
+    }
+    function initials(name) {
+        return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    }
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s ?? '';
+        return d.innerHTML;
+    }
+
+    // ── Fetch Roster ──
+    async function loadRoster() {
+        try {
+            const res = await fetch(`/Resource/TeamRoster?projectId=${PROJECT_ID}`);
+            roster = await res.json();
             
-            range.on('input', function() {
-                valDisp.text($(this).val() + '%');
-                checkAvailability();
-                checkBudgetAdvisory();
+            existing = {};
+            roster.filter(u => u.isAllocated).forEach(u => {
+                existing[u.userId] = {
+                    allocationId : u.allocationId,
+                    pct          : u.allocationPct,
+                    role         : u.projectRole ?? '',
+                    start        : u.startDate ?? '',
+                    end          : u.endDate   ?? '',
+                    fullName     : u.fullName,
+                    isEditing    : false
+                };
             });
+            renderAll();
+        } catch (e) {
+            document.getElementById('rosterGrid').innerHTML =
+                `<div style="color:var(--danger-color);font-size:0.83rem;padding:1rem"><i class="fas fa-triangle-exclamation"></i> Failed to load roster.</div>`;
+        }
+    }
 
-            $('#UserId, #StartDate, #EndDate').on('change', function() {
-                checkAvailability();
-                checkBudgetAdvisory();
-            });
+    function renderAll() {
+        renderRoster();
+        updateGlobalSaveButton();
+    }
 
-            $('#ProjectId').on('change', function() {
-                checkBudgetAdvisory();
-            });
-
-            function checkAvailability() {
-                var uId = $('#UserId').val();
-                var start = $('#StartDate').val();
-                var end = $('#EndDate').val() || start;
-                var allocPct = parseInt($('#pctRange').val());
-
-                if(uId && start) {
-                    $.get('/api/ResourceData/availability', { userId: uId, startDate: start, endDate: end })
-                     .done(function(data) {
-                         $('#availabilityCheckResult').fadeIn();
-                         var basePct = (data.effectiveAllocationPercent != null && data.effectiveAllocationPercent !== undefined)
-                             ? data.effectiveAllocationPercent
-                             : Math.max(data.currentAllocationPercent || 0, data.peakAllocationPercentInRange || 0);
-                         var totalPct = basePct + allocPct;
-                         var html = `<p class='mb-1'>Load in period (worst day): <strong>${basePct}%</strong></p>`;
-                         html += `<p class='mb-1'>New total with this allocation: <strong>${totalPct}%</strong></p>`;
-                         
-                         if(totalPct > 100) {
-                             html += `<div class='alert alert-danger mt-2 py-2 mb-0 border-danger bg-danger text-white'><i class='bi bi-x-circle'></i> Warning: This pushes the user over 100% capacity.</div>`;
-                         } else {
-                             html += `<div class='text-success mt-2'><i class='bi bi-check-circle'></i> User has sufficient capacity.</div>`;
-                         }
-                         
-                         $('#availabilityOutput').html(html);
-                     });
-                } else {
-                     $('#availabilityCheckResult').hide();
-                }
-            }
-
-            function checkBudgetAdvisory() {
-                var projId = $('#ProjectId').val() || @(Model.ProjectId > 0 ? Model.ProjectId.ToString() : "0");
-                var uId    = $('#UserId').val();
-                var pct    = parseInt($('#pctRange').val()) || 0;
-                var start  = $('#StartDate').val();
-                var end    = $('#EndDate').val();
-                var panel  = $('#budgetAdvisoryPanel');
-
-                if (!projId || projId === '0' || !uId || !start) {
-                    panel.removeClass('visible advisory-info advisory-warning advisory-critical');
-                    return;
-                }
-
-                // Rough cost estimate: pct/100 × dailyHours(8) × 22days × months × hourlyRate(unknown here, server resolves)
-                // We pass a signal additionalCost=0 initially; server returns current state.
-                // For a richer estimate the server could accept hours, but for UI advisory
-                // we let the server compute based on the ResourceProfile's rate.
-                var months = 1;
-                if (end && start) {
-                    var ms = new Date(end) - new Date(start);
-                    months = Math.max(1, Math.round(ms / (1000*60*60*24*30)));
-                }
-
-                $.get('/api/budget/' + projId + '/advisory', { additionalCost: 0 })
-                 .done(function(data) {
-                     if (!data.hasbudget) { panel.removeClass('visible advisory-info advisory-warning advisory-critical'); return; }
-                     var msg = data.message;
-                     panel.removeClass('advisory-info advisory-warning advisory-critical');
-                     if (data.level === 3) panel.addClass('advisory-critical');
-                     else if (data.level === 2) panel.addClass('advisory-warning');
-                     else panel.addClass('advisory-info');
-                     $('#budgetAdvisoryMsg').text(msg);
-                     panel.addClass('visible');
-                 })
-                 .fail(function() {
-                     panel.removeClass('visible advisory-info advisory-warning advisory-critical');
-                 });
-            }
-
-            // Run on load if project is pre-set
-            @if (Model.ProjectId > 0) {
-                <text>checkBudgetAdvisory();</text>
-            }
+    // ── Render Roster Cards Inline ──
+    function renderRoster() {
+        const q       = (document.getElementById('rosterSearch').value || '').toLowerCase();
+        const grid    = document.getElementById('rosterGrid');
+        const filtered = roster.filter(u => {
+            const matchesFilter =
+                activeFilter === 'all'
+                || (activeFilter === 'allocated'   && !!existing[u.userId])
+                || (activeFilter === 'unallocated' && !existing[u.userId]);
+            if (!matchesFilter) return false;
+            if (!q) return true;
+            const hay = [u.fullName, u.email, u.department, u.jobTitle, ...(u.skills||[]).map(s=>s.skillName)].join(' ').toLowerCase();
+            return hay.includes(q);
         });
-    </script>
+
+        document.getElementById('rosterCount').textContent =
+            `${filtered.length} of ${roster.length} members`;
+
+        if (!filtered.length) {
+            grid.innerHTML = `<div style="text-align:center;color:var(--text-secondary);font-size:0.85rem;padding:2rem 0;">
+                <i class="fas fa-search" style="font-size:1.4rem;display:block;margin-bottom:.4rem;color:var(--border-color);"></i>
+                No team members match your criteria</div>`;
+            return;
+        }
+
+        grid.innerHTML = filtered.map(u => {
+            const isAllocated = !!existing[u.userId];
+            const isStaged    = !!staged[u.userId];
+            const isEditing   = isAllocated && existing[u.userId].isEditing;
+
+            let cardCls = 'user-card';
+            if (isAllocated) cardCls += ' allocated';
+            else if (isStaged) cardCls += ' selected';
+
+            const skillBadges = (u.skills || []).slice(0, 4).map(s =>
+                `<span class="u-skill">${esc(s.skillName)}</span>`).join('');
+
+            const avatarHtml = u.avatarPath
+                ? `<img src="${esc(u.avatarPath)}" class="u-avatar" alt="${esc(u.fullName)}" />`
+                : `<div class="u-avatar-initials" style="background:${avatarColour(u.fullName)}">${initials(u.fullName)}</div>`;
+
+            // Action buttons configuration
+            let actionButtons = '';
+            if (isAllocated) {
+                if (isEditing) {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-outline-secondary" onclick="cancelEditExisting('${esc(u.userId)}')">Cancel</button>
+                        <button class="btn btn-sm btn-primary ms-1" onclick="saveEditExisting('${esc(u.userId)}', ${existing[u.userId].allocationId})">
+                            <i class="fas fa-save"></i> Save
+                        </button>`;
+                } else {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-outline-primary" onclick="editExisting('${esc(u.userId)}')">
+                            <i class="fas fa-pen-to-square"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger ms-1" onclick="removeExisting('${esc(u.userId)}', ${existing[u.userId].allocationId})">
+                            <i class="fas fa-trash-can"></i> Unallocate
+                        </button>`;
+                }
+            } else if (isStaged) {
+                actionButtons = `
+                    <button class="btn btn-sm btn-outline-secondary" onclick="unstage('${esc(u.userId)}')">
+                        <i class="fas fa-undo"></i> Remove
+                    </button>`;
+            } else {
+                actionButtons = `
+                    <button class="btn btn-sm btn-outline-primary" onclick="stage('${esc(u.userId)}')">
+                        <i class="fas fa-user-plus"></i> Allocate
+                    </button>`;
+            }
+
+            // Inline form / allocation summary block
+            let bottomContent = '';
+            if (isEditing) {
+                const e = existing[u.userId];
+                bottomContent = `
+                    <div class="card-inline-form">
+                        <div class="staged-fields">
+                            <div class="staged-field">
+                                <label>Role / Title</label>
+                                <input type="text" id="edit-role-${esc(u.userId)}" value="${esc(e.role)}" placeholder="e.g. Lead Developer" />
+                            </div>
+                            <div class="staged-field">
+                                <label>Allocation: <span class="pct-display" id="edit-pct-lbl-${esc(u.userId)}">${e.pct}%</span></label>
+                                <input type="range" min="10" max="100" step="5" id="edit-pct-${esc(u.userId)}" value="${e.pct}"
+                                       oninput="document.getElementById('edit-pct-lbl-${esc(u.userId)}').textContent=this.value+'%'" />
+                            </div>
+                            <div class="staged-field">
+                                <label>Start / End Dates</label>
+                                <div style="display:flex;gap:0.3rem;">
+                                    <input type="date" id="edit-start-${esc(u.userId)}" value="${e.start}" style="flex:1;" />
+                                    <input type="date" id="edit-end-${esc(u.userId)}" value="${e.end}" style="flex:1;" placeholder="Ongoing" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            } else if (isAllocated) {
+                const e = existing[u.userId];
+                const dateRange = e.start
+                    ? (e.end ? `${e.start} to ${e.end}` : `from ${e.start}`)
+                    : 'open-ended';
+                bottomContent = `
+                    <div class="card-allocated-summary">
+                        <i class="fas fa-circle-check" style="color:var(--secondary-color)"></i>
+                        <span>Allocated: <strong>${e.pct}%</strong> as <strong>${esc(e.role || 'Member')}</strong> (${dateRange})</span>
+                    </div>`;
+            } else if (isStaged) {
+                const s = staged[u.userId];
+                bottomContent = `
+                    <div class="card-inline-form">
+                        <div class="staged-fields">
+                            <div class="staged-field">
+                                <label>Role / Title</label>
+                                <input type="text" placeholder="e.g. Developer" value="${esc(s.role)}"
+                                       oninput="staged['${esc(u.userId)}'].role = this.value" />
+                            </div>
+                            <div class="staged-field">
+                                <label>Allocation: <span class="pct-display" id="pctLbl-${esc(u.userId)}">${s.pct}%</span></label>
+                                <input type="range" min="10" max="100" step="5" value="${s.pct}"
+                                       oninput="staged['${esc(u.userId)}'].pct=+this.value; document.getElementById('pctLbl-${esc(u.userId)}').textContent=this.value+'%'" />
+                            </div>
+                            <div class="staged-field">
+                                <label>Start / End Dates</label>
+                                <div style="display:flex;gap:0.3rem;">
+                                    <input type="date" value="${s.start}" oninput="staged['${esc(u.userId)}'].start=this.value" style="flex:1;" />
+                                    <input type="date" value="${s.end || ''}" oninput="staged['${esc(u.userId)}'].end=this.value||null" style="flex:1;" placeholder="Ongoing" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            const sub = [u.jobTitle, u.department].filter(Boolean).join(' · ');
+
+            return `
+                <div class="${cardCls}">
+                    <div class="card-main-header">
+                        ${avatarHtml}
+                        <div style="min-width:0; flex: 1;">
+                            <div class="u-name">${esc(u.fullName)}</div>
+                            ${sub ? `<div class="u-sub">${esc(sub)}</div>` : ''}
+                            <div class="u-skills">${skillBadges}</div>
+                        </div>
+                        <div class="u-badge-wrap" style="flex-direction:row;align-items:center;">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                    ${bottomContent}
+                </div>`;
+        }).join('');
+    }
+
+    function updateGlobalSaveButton() {
+        const btn   = document.getElementById('btnSaveAll');
+        const label = document.getElementById('btnSaveLabel');
+        const n     = Object.keys(staged).length;
+        btn.disabled = n === 0;
+        label.textContent = n > 0 ? `Save (${n})` : 'Save Team';
+        document.getElementById('stagingCount').textContent = n;
+    }
+
+    // ── Interaction Handlers ──
+    window.stage = function (uid) {
+        const name = roster.find(u => u.userId === uid)?.fullName ?? uid;
+        const defStart = document.getElementById('defaultStart').value || new Date().toISOString().slice(0,10);
+        staged[uid] = { fullName: name, pct: 100, role: '', start: defStart, end: null };
+        renderAll();
+    };
+
+    window.unstage = function (uid) {
+        delete staged[uid];
+        renderAll();
+    };
+
+    window.editExisting = function (uid) {
+        if (existing[uid]) {
+            existing[uid].isEditing = true;
+            renderAll();
+        }
+    };
+
+    window.cancelEditExisting = function (uid) {
+        if (existing[uid]) {
+            existing[uid].isEditing = false;
+            renderAll();
+        }
+    };
+
+    window.saveEditExisting = async function (uid, allocationId) {
+        const role  = document.getElementById(`edit-role-${uid}`)?.value ?? '';
+        const pct   = parseInt(document.getElementById(`edit-pct-${uid}`)?.value ?? '100');
+        const start = document.getElementById(`edit-start-${uid}`)?.value ?? '';
+        const end   = document.getElementById(`edit-end-${uid}`)?.value || null;
+
+        try {
+            const res = await postJson('/Resource/BatchUpsertAllocation', {
+                projectId : PROJECT_ID,
+                entries   : [{ userId: uid, allocationPercentage: pct, projectRole: role || null,
+                               startDate: start, endDate: end || null }]
+            });
+            if (!res.ok) throw new Error();
+
+            existing[uid] = { ...existing[uid], pct, role, start, end: end ?? '', isEditing: false };
+            toast('Allocation updated successfully', 'success');
+            renderAll();
+        } catch {
+            toast('Failed to update allocation', 'error');
+        }
+    };
+
+    window.removeExisting = async function (uid, allocationId) {
+        if (!confirm(`Remove this member from the project team allocation?`)) return;
+        try {
+            const res = await postForm(`/Resource/RemoveAllocationAjax?id=${allocationId}`);
+            if (!res.ok) throw new Error();
+
+            delete existing[uid];
+            const rosterItem = roster.find(r => r.userId === uid);
+            if (rosterItem) { rosterItem.isAllocated = false; rosterItem.allocationId = null; }
+            toast('Member removed from project team', 'success');
+            renderAll();
+        } catch {
+            toast('Failed to remove allocation', 'error');
+        }
+    };
+
+    // ── Batch Save Staged ──
+    document.getElementById('btnSaveAll').addEventListener('click', async () => {
+        const keys = Object.keys(staged);
+        if (!keys.length) return;
+
+        const btn = document.getElementById('btnSaveAll');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+        const entries = keys.map(uid => ({
+            userId               : uid,
+            allocationPercentage : staged[uid].pct,
+            projectRole          : staged[uid].role || null,
+            startDate            : staged[uid].start,
+            endDate              : staged[uid].end || null
+        }));
+
+        try {
+            const res = await postJson('/Resource/BatchUpsertAllocation', {
+                projectId: PROJECT_ID,
+                entries
+            });
+            if (!res.ok) throw new Error();
+
+            toast('Allocations saved successfully 🎉', 'success');
+            staged = {};
+            await loadRoster();
+
+            if (RETURN_URL) {
+                setTimeout(() => { window.location.href = RETURN_URL; }, 1200);
+            }
+        } catch {
+            toast('Failed to save allocations', 'error');
+            btn.disabled = false;
+            updateGlobalSaveButton();
+        }
+    });
+
+    // ── Helpers ──
+    async function postJson(url, body) {
+        return fetch(url, {
+            method  : 'POST',
+            headers : {
+                'Content-Type'              : 'application/json',
+                'RequestVerificationToken'  : getToken()
+            },
+            body: JSON.stringify(body)
+        });
+    }
+
+    async function postForm(url) {
+        const fd = new FormData();
+        fd.append('__RequestVerificationToken', getToken());
+        return fetch(url, { method: 'POST', body: fd });
+    }
+
+    function getToken() {
+        return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    function toast(msg, type = 'success') {
+        const container = document.getElementById('allocToast');
+        const el = document.createElement('div');
+        el.className = `alloc-toast-item ${type}`;
+        el.textContent = msg;
+        container.appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+
+    // ── Filters & Search ──
+    document.getElementById('filterPills').addEventListener('click', e => {
+        const pill = e.target.closest('.filter-pill');
+        if (!pill) return;
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = pill.dataset.filter;
+        renderRoster();
+    });
+
+    document.getElementById('rosterSearch').addEventListener('input', () => renderRoster());
+
+    document.getElementById('defaultStart').addEventListener('change', function () {
+        Object.keys(staged).forEach(uid => { staged[uid].start = this.value; });
+    });
+
+    loadRoster();
+
+}());
+</script>
+
+@* Hidden CSRF token for JS to pick up *@
+<form style="display:none">@Html.AntiForgeryToken()</form>
 }

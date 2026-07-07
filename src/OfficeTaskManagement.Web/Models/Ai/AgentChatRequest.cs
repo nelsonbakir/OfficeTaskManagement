@@ -21,7 +21,8 @@ namespace OfficeTaskManagement.Models.Ai
         int? EntityId,          // Current page entity ID
         string TenantId = "",   // Server-side overwritten from ClaimsPrincipal — client sends empty
         MentionReference[]? Mentions = null,
-        int? ProjectContextId = null
+        int? ProjectContextId = null,
+        string? DisplayMessage = null
     );
 
     /// <summary>

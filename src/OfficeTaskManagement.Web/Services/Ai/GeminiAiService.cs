@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using OfficeTaskManagement.Models.Ai;
 using OfficeTaskManagement.Data;
 using OfficeTaskManagement.Services.Codebase;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace OfficeTaskManagement.Services.Ai
@@ -1474,5 +1475,347 @@ namespace OfficeTaskManagement.Services.Ai
             }
             return text;
         }
+
+        // ── Sprint Planner AI Methods ─────────────────────────────────────────
+
+        /// <inheritdoc/>
+        public async Task<SprintGoalProposalDto> ProposeSprintGoalAsync(
+            int projectId, DateTime startDate, DateTime endDate,
+            CancellationToken ct = default)
+        {
+            // Gather backlog context
+            var backlogTasks = await _db.Tasks
+                .Where(t => t.ProjectId == projectId && t.IsBacklog && t.SprintId == null && t.Status != Models.Enums.TaskStatus.Done)
+                .OrderByDescending(t => t.Priority)
+                .Take(40)
+                .Select(t => new { t.Title, t.Description, Priority = t.Priority.ToString(), t.EstimatedHours })
+                .ToListAsync(ct);
+
+            var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId, ct);
+            if (project == null)
+                return new SprintGoalProposalDto("Complete project backlog tasks", new[] { "Backlog clearance" }, "Project not found", "Sprint 1");
+
+            if (!IsApiAvailable())
+            {
+                return new SprintGoalProposalDto(
+                    $"Complete the highest-priority backlog items for {project.Name}",
+                    new[] { "Backlog Clearance", "Quality" },
+                    "AI unavailable — manual goal setting recommended.",
+                    $"Sprint {DateTime.UtcNow:yyyy-MM-dd}");
+            }
+
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
+            var sprintDays = (endDate - startDate).TotalDays;
+            var backlogJson = System.Text.Json.JsonSerializer.Serialize(backlogTasks);
+            var prompt = $@"{StaticSystemPrompt}
+
+You are planning a sprint for project '{project.Name}'.
+Sprint window: {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd} ({sprintDays:F0} days).
+The following tasks are in the unassigned backlog (up to 40 shown):
+{backlogJson}
+
+Based on the backlog priorities and the sprint duration, propose:
+1. A concise, motivating sprint goal statement (1–2 sentences)
+2. 2–4 key themes that summarize the sprint focus
+3. A brief risk summary for this sprint window
+4. A recommended sprint name (e.g., 'Sprint 1 — Auth & Core APIs')
+
+Return valid JSON matching the schema.";
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    goalStatement       = new { type = "STRING" },
+                    keyThemes           = new { type = "ARRAY", items = new { type = "STRING" } },
+                    riskSummary         = new { type = "STRING" },
+                    recommendedSprintName = new { type = "STRING" }
+                },
+                required = new[] { "goalStatement", "keyThemes", "riskSummary", "recommendedSprintName" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(prompt, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                return new SprintGoalProposalDto(
+                    GoalStatement:         GetString(root, "goalStatement", $"Deliver sprint for {project.Name}"),
+                    KeyThemes:             GetStringArray(root, "keyThemes"),
+                    RiskSummary:           GetString(root, "riskSummary", "No specific risks identified."),
+                    RecommendedSprintName: GetString(root, "recommendedSprintName", $"Sprint {DateTime.UtcNow:yyyy-MM-dd}")
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ProposeSprintGoalAsync failed for project {ProjectId}", projectId);
+                return new SprintGoalProposalDto(
+                    $"Deliver priority backlog items for {project.Name}",
+                    new[] { "Backlog Delivery" },
+                    $"AI analysis failed: {ex.Message}",
+                    $"Sprint {DateTime.UtcNow:yyyy-MM-dd}");
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<SprintTaskSuggestionDto>> SelectSprintBacklogAsync(
+            int projectId, DateTime startDate, DateTime endDate,
+            decimal totalCapacityHours, CancellationToken ct = default)
+        {
+            // Fetch unassigned backlog tasks
+            var backlogTasks = await _db.Tasks
+                .Where(t => t.ProjectId == projectId && t.Status == Models.Enums.TaskStatus.Approved && t.SprintId == null)
+                .OrderByDescending(t => t.Priority)
+                .Take(60)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.Title,
+                    t.Description,
+                    Priority = t.Priority.ToString(),
+                    t.EstimatedHours,
+                    t.EstimatedOptimisticHours,
+                    t.EstimatedMostLikelyHours,
+                    t.EstimatedPessimisticHours,
+                    t.PertEstimatedHours
+                })
+                .ToListAsync(ct);
+
+            if (!backlogTasks.Any())
+                return new List<SprintTaskSuggestionDto>();
+
+            if (!IsApiAvailable())
+            {
+                // Greedy fallback: pick highest-priority tasks that fit capacity
+                var fallback = new List<SprintTaskSuggestionDto>();
+                decimal remaining = totalCapacityHours;
+                foreach (var t in backlogTasks)
+                {
+                    var hours = t.PertEstimatedHours ?? t.EstimatedHours;
+                    if (hours <= 0) hours = 4m;
+                    if (remaining - hours < 0 && fallback.Count > 0) break;
+                    fallback.Add(new SprintTaskSuggestionDto(
+                        TaskId: t.Id, Title: t.Title, Description: t.Description,
+                        Priority: t.Priority,
+                        PertHours: hours,
+                        OptimisticHours: t.EstimatedOptimisticHours ?? hours * 0.7m,
+                        MostLikelyHours: t.EstimatedMostLikelyHours ?? hours,
+                        PessimisticHours: t.EstimatedPessimisticHours ?? hours * 1.5m,
+                        StoryPoints: 3,
+                        Rationale: "Selected by priority (AI unavailable).",
+                        IsNewTask: false,
+                        Selected: true));
+                    remaining -= hours;
+                }
+                return fallback;
+            }
+
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
+            var backlogJson = System.Text.Json.JsonSerializer.Serialize(backlogTasks);
+            var prompt = $@"{StaticSystemPrompt}
+
+Sprint window: {startDate:yyyy-MM-dd} to {endDate:yyyy-MM-dd}.
+Total team capacity for this sprint: {totalCapacityHours:F1} hours.
+
+From the following backlog (JSON), select the optimal set of tasks to fit within {totalCapacityHours:F1} hours.
+Rules:
+- Total PertHours of selected tasks must NOT exceed {totalCapacityHours:F1}.
+- Prefer higher-priority tasks.
+- For tasks with null PERT hours, estimate using PERT three-point method.
+- Leave 10% buffer for unplanned work (so effective target is {totalCapacityHours * 0.9m:F1} hours).
+- If backlog tasks have missing estimates, set reasonable defaults.
+
+Backlog JSON:
+{backlogJson}
+
+Return a JSON array of selected tasks.";
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    selectedTasks = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                taskId           = new { type = "INTEGER" },
+                                title            = new { type = "STRING" },
+                                description      = new { type = "STRING" },
+                                priority         = new { type = "STRING" },
+                                optimisticHours  = new { type = "NUMBER" },
+                                mostLikelyHours  = new { type = "NUMBER" },
+                                pessimisticHours = new { type = "NUMBER" },
+                                pertHours        = new { type = "NUMBER" },
+                                storyPoints      = new { type = "INTEGER" },
+                                rationale        = new { type = "STRING" },
+                                isNewTask        = new { type = "BOOLEAN" }
+                            },
+                            required = new[] { "title", "priority", "pertHours", "rationale" }
+                        }
+                    }
+                },
+                required = new[] { "selectedTasks" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(prompt, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var result = new List<SprintTaskSuggestionDto>();
+                if (root.TryGetProperty("selectedTasks", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        var optimistic  = item.TryGetProperty("optimisticHours",  out var o) ? o.GetDecimal() : 0;
+                        var mostLikely  = item.TryGetProperty("mostLikelyHours",  out var m) ? m.GetDecimal() : 0;
+                        var pessimistic = item.TryGetProperty("pessimisticHours", out var p) ? p.GetDecimal() : 0;
+                        var pert        = item.TryGetProperty("pertHours",        out var pe) ? pe.GetDecimal() : CalculatePert(optimistic, mostLikely, pessimistic);
+                        int? taskId     = item.TryGetProperty("taskId", out var tid) && tid.ValueKind != JsonValueKind.Null ? tid.GetInt32() : (int?)null;
+                        bool isNew      = item.TryGetProperty("isNewTask", out var isn) && isn.GetBoolean();
+                        result.Add(new SprintTaskSuggestionDto(
+                            TaskId:          taskId,
+                            Title:           GetString(item, "title", "Untitled Task"),
+                            Description:     GetStringNullable(item, "description"),
+                            Priority:        GetString(item, "priority", "Medium"),
+                            PertHours:       pert,
+                            OptimisticHours: optimistic,
+                            MostLikelyHours: mostLikely,
+                            PessimisticHours:pessimistic,
+                            StoryPoints:     GetInt(item, "storyPoints", 3),
+                            Rationale:       GetString(item, "rationale", "Selected by AI."),
+                            IsNewTask:       isNew,
+                            Selected:        true));
+                    }
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "SelectSprintBacklogAsync failed for project {ProjectId}", projectId);
+                return new List<SprintTaskSuggestionDto>();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<List<TaskAssignmentSuggestionDto>> AssignSprintTasksAsync(
+            int projectId,
+            List<SprintTaskSuggestionDto> tasks,
+            List<ResourceCapacitySlotDto> resources,
+            CancellationToken ct = default)
+        {
+            if (!tasks.Any() || !resources.Any())
+                return tasks.Select(t => new TaskAssignmentSuggestionDto(t.TaskId, t.Title, null, null, null, "No resources available.", t.PertHours, t.Priority)).ToList();
+
+            if (!IsApiAvailable())
+            {
+                // Round-robin fallback
+                var fallback = new List<TaskAssignmentSuggestionDto>();
+                int i = 0;
+                foreach (var task in tasks)
+                {
+                    var res = resources[i % resources.Count];
+                    fallback.Add(new TaskAssignmentSuggestionDto(task.TaskId, task.Title, res.UserId, res.FullName, res.AvatarPath, "Round-robin assignment (AI unavailable).", task.PertHours, task.Priority));
+                    i++;
+                }
+                return fallback;
+            }
+
+            var apiKey = _config["Gemini:ApiKey"] ?? "";
+            var tasksJson     = System.Text.Json.JsonSerializer.Serialize(tasks.Select(t => new { t.TaskId, t.Title, t.Priority, t.PertHours, t.Rationale }));
+            var resourcesJson = System.Text.Json.JsonSerializer.Serialize(resources.Select(r => new { r.UserId, r.FullName, r.Role, r.AvailableHours, r.CurrentLoadPct, r.Skills }));
+
+            var prompt = $@"{StaticSystemPrompt}
+
+Assign the following sprint tasks to team members.
+
+Tasks (JSON):
+{tasksJson}
+
+Available team members and capacity (JSON):
+{resourcesJson}
+
+Assignment Rules:
+- Match task requirements (priority, domain implied by title) to team member skills.
+- Distribute load evenly — avoid assigning all high-hour tasks to one person.
+- A person whose CurrentLoadPct is already > 90% should only receive ≤ 2 tasks.
+- Return an assignment for every task, even if capacity is insufficient (flag it in reason).
+- UserId must exactly match one of the UserId values provided in the team list.
+
+Return a JSON array of assignments.";
+
+            var responseSchema = new
+            {
+                type = "OBJECT",
+                properties = new
+                {
+                    assignments = new
+                    {
+                        type = "ARRAY",
+                        items = new
+                        {
+                            type = "OBJECT",
+                            properties = new
+                            {
+                                taskId           = new { type = "INTEGER" },
+                                title            = new { type = "STRING" },
+                                assigneeUserId   = new { type = "STRING" },
+                                assigneeName     = new { type = "STRING" },
+                                assignmentReason = new { type = "STRING" }
+                            },
+                            required = new[] { "title", "assigneeUserId", "assigneeName", "assignmentReason" }
+                        }
+                    }
+                },
+                required = new[] { "assignments" }
+            };
+
+            try
+            {
+                var (json, _, _) = await CallGeminiApiAsync(prompt, responseSchema, apiKey, ct);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                var result = new List<TaskAssignmentSuggestionDto>();
+                if (root.TryGetProperty("assignments", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        var assigneeId   = GetStringNullable(item, "assigneeUserId");
+                        var assigneeName = GetStringNullable(item, "assigneeName");
+                        // Lookup avatar from resources list
+                        var resMatch     = assigneeId != null ? resources.FirstOrDefault(r => r.UserId == assigneeId) : null;
+                        int? taskId      = item.TryGetProperty("taskId", out var tid) && tid.ValueKind != JsonValueKind.Null ? tid.GetInt32() : (int?)null;
+                        // Match against original task for hours/priority
+                        var origTask     = taskId.HasValue ? tasks.FirstOrDefault(t => t.TaskId == taskId) : null;
+                        result.Add(new TaskAssignmentSuggestionDto(
+                            TaskId:                   taskId,
+                            Title:                    GetString(item, "title", "Task"),
+                            SuggestedAssigneeId:      assigneeId,
+                            SuggestedAssigneeName:    assigneeName,
+                            SuggestedAssigneeAvatarPath: resMatch?.AvatarPath,
+                            AssignmentReason:         GetString(item, "assignmentReason", "AI assignment."),
+                            TaskPertHours:            origTask?.PertHours ?? 0,
+                            Priority:                 origTask?.Priority ?? "Medium"));
+                    }
+                }
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "AssignSprintTasksAsync failed for project {ProjectId}", projectId);
+                return tasks.Select(t => new TaskAssignmentSuggestionDto(t.TaskId, t.Title, null, null, null, $"AI assignment failed: {ex.Message}", t.PertHours, t.Priority)).ToList();
+            }
+        }
+
+        private static decimal CalculatePert(decimal o, decimal m, decimal p)
+            => m > 0 ? Math.Round((o + 4 * m + p) / 6, 2) : (o > 0 ? o : 4m);
     }
 }

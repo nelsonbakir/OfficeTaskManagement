@@ -283,9 +283,11 @@
             await sendAiMessage(text);
         }
 
-        async function sendAiMessage(text) {
+        async function sendAiMessage(text, displayMessage = null) {
+            if (!text.trim() || isSending) return;
             isSending = true;
             sendBtn.disabled = true;
+            const originalPayload = { text, displayMessage };
             const typingEl = appendTypingIndicator();
 
             try {
@@ -303,7 +305,8 @@
                         entityType: entityType,
                         entityId: entityId ? parseInt(entityId) : null,
                         mentions: mentions.map(m => ({ type: m.type, id: m.id })),
-                        projectContextId: getActiveProjectContextId()
+                        projectContextId: getActiveProjectContextId(),
+                        displayMessage: displayMessage
                     })
                 });
 
@@ -313,8 +316,7 @@
 
                 if (!streamResp.ok) {
                     const err = await streamResp.text();
-                    appendMessage('ai', `⚠ Error: ${err || 'AI service unavailable.'}`);
-                    return;
+                    throw new Error(err || 'AI service unavailable.');
                 }
 
                 // Stream the response token by token
@@ -336,16 +338,30 @@
 
                     for (const line of lines) {
                         if (!line.trim()) continue;
+                        let obj = null;
                         try {
-                            const obj = JSON.parse(line);
-                            if (obj.done) break;
-                            if (obj.chunk) {
-                                fullText += obj.chunk;
-                                bubble.innerHTML = renderMarkdown(fullText);
-                                messagesEl.scrollTop = messagesEl.scrollHeight;
+                            obj = JSON.parse(line);
+                        } catch { 
+                            /* skip malformed chunk */ 
+                            continue;
+                        }
+
+                        if (obj.done) break;
+                        if (obj.error) {
+                            throw new Error(obj.error);
+                        }
+                        if (obj.chunk) {
+                            fullText += obj.chunk;
+                            bubble.innerHTML = renderMarkdown(fullText);
+                            messagesEl.scrollTop = messagesEl.scrollHeight;
+                        }
+                        if (obj.actions) {
+                            actions = obj.actions;
+                            const draftAction = actions.find(a => a.actionType.startsWith('draft_'));
+                            if (draftAction) {
+                                launchWbsWizard(draftAction);
                             }
-                            if (obj.actions) actions = obj.actions;
-                        } catch { /* skip malformed chunk */ }
+                        }
                     }
                 }
 
@@ -391,7 +407,7 @@
                 await loadFailedJobs();
             } catch (err) {
                 typingEl?.remove();
-                appendMessage('ai', `⚠ Network error: ${err.message}`);
+                appendErrorMessage(err.message, text);
                 await loadFailedJobs();
             } finally {
                 isSending = false;
@@ -427,8 +443,8 @@
                     break;
                 case '/plan':
                     aiMessage = args
-                        ? `Parse these meeting notes and create a full project Work Breakdown Structure (Epics → Features → User Stories → Tasks). Use the bulk_create_wbs tool to create everything in the database. Meeting notes:\n\n${args}`
-                        : 'I want to create a project plan from meeting notes. Please ask me to paste my meeting notes and then generate a full WBS with Epics, Features, User Stories, and Tasks.';
+                        ? `Parse these meeting notes and create a project Work Breakdown Structure. Use the draft_epics tool to start the interactive WBS planning flow. Wait for user approval before moving to the next level. Meeting notes:\n\n${args}`
+                        : 'I want to create a project plan from meeting notes. Please ask me to paste my meeting notes and then use draft_epics to begin the interactive WBS planning flow.';
                     break;
                 case '/report':
                     aiMessage = args
@@ -469,7 +485,7 @@
             }
 
             // Send to AI backend
-            sendAiMessage(aiMessage);
+            sendAiMessage(aiMessage, cmdText);
         }
 
         // ── Render helpers ────────────────────────────────────────────────────────
@@ -486,6 +502,43 @@
             bubble.className = 'copilot-msg__bubble';
             // Render markdown-ish text (bold, lists, newlines) safely
             bubble.innerHTML = renderMarkdown(text);
+
+            div.appendChild(avatar);
+            div.appendChild(bubble);
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return div;
+        }
+
+        function appendErrorMessage(errorText, originalPayload) {
+            const div = document.createElement('div');
+            div.className = `copilot-msg copilot-msg--error`;
+
+            const avatar = document.createElement('span');
+            avatar.className = 'copilot-msg__avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.textContent = '❌';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'copilot-msg__bubble';
+            
+            const errorTitle = document.createElement('strong');
+            errorTitle.textContent = 'API Request Failed';
+            
+            const errorDesc = document.createElement('p');
+            errorDesc.textContent = errorText;
+
+            const retryBtn = document.createElement('button');
+            retryBtn.className = 'copilot-retry-btn';
+            retryBtn.textContent = '↻ Retry Request';
+            retryBtn.onclick = () => {
+                div.remove();
+                sendAiMessage(originalPayload.text, originalPayload.displayMessage);
+            };
+
+            bubble.appendChild(errorTitle);
+            bubble.appendChild(errorDesc);
+            bubble.appendChild(retryBtn);
 
             div.appendChild(avatar);
             div.appendChild(bubble);
@@ -532,7 +585,9 @@
             btn.textContent = 'Working...';
 
             try {
-                if (action.actionType === 'bulk-create') {
+                if (action.actionType.startsWith('draft_')) {
+                    launchWbsWizard(action);
+                } else if (action.actionType === 'bulk-create') {
                     const resp = await fetch('/api/ai/bulk-create', {
                         method: 'POST',
                         headers: {
@@ -555,6 +610,136 @@
             }
 
             actionsEl.style.display = 'none';
+        }
+
+        // ── WBS Wizard Integration ───────────────────────────────────────────────
+        let draftWbsState = { projectId: null, epics: [] };
+
+        function launchWbsWizard(action) {
+            const payload = typeof action.payload === 'string' ? JSON.parse(action.payload) : action.payload;
+            const args = typeof payload.args === 'string' ? JSON.parse(payload.args) : (payload.args ?? {});
+            
+            const root = document.getElementById('wbs-wizard-editor-root');
+            if (!root) return;
+
+            const myModal = new bootstrap.Modal(document.getElementById('wbsWizardModal'));
+            myModal.show();
+            
+            if (action.actionType === 'draft_epics') {
+                draftWbsState.projectId = args.projectId;
+                draftWbsState.epics = args.epics || [];
+                renderWbsWizardEpics(root);
+            } else if (action.actionType === 'draft_features') {
+                draftWbsState.epics = args.epics || [];
+                renderWbsWizardFeatures(root);
+            } else if (action.actionType === 'draft_stories_and_tasks') {
+                draftWbsState.epics = args.epics || [];
+                renderWbsWizardStories(root);
+            }
+        }
+
+        function renderWbsWizardEpics(root) {
+            root.innerHTML = `<h5 class="mb-3 text-primary"><i class="fas fa-layer-group"></i> Step 1: Review Epics</h5>`;
+            const list = document.createElement('div');
+            list.className = 'list-group mb-3';
+            
+            draftWbsState.epics.forEach((epic, idx) => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item';
+                item.innerHTML = `
+                    <div class="mb-2"><strong><input type="text" class="form-control form-control-sm epic-name" data-idx="${idx}" value="${epic.name.replace(/"/g, '&quot;')}" /></strong></div>
+                    <div><textarea class="form-control form-control-sm epic-desc" data-idx="${idx}" rows="2">${epic.description || ''}</textarea></div>
+                `;
+                list.appendChild(item);
+            });
+            root.appendChild(list);
+
+            const applyBtn = document.getElementById('wbs-wizard-apply-btn');
+            applyBtn.textContent = 'Next: Draft Features';
+            applyBtn.onclick = () => {
+                root.querySelectorAll('.epic-name').forEach(el => draftWbsState.epics[el.dataset.idx].name = el.value);
+                root.querySelectorAll('.epic-desc').forEach(el => draftWbsState.epics[el.dataset.idx].description = el.value);
+                
+                const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('wbsWizardModal'));
+                bootstrapModal.hide();
+                
+                sendAiMessage(`Here are the approved Epics. Please use draft_features to generate Features for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``);
+            };
+        }
+
+        function renderWbsWizardFeatures(root) {
+            root.innerHTML = `<h5 class="mb-3 text-primary"><i class="fas fa-cubes"></i> Step 2: Review Features</h5>`;
+            const list = document.createElement('div');
+            
+            draftWbsState.epics.forEach((epic, eIdx) => {
+                const epicCard = document.createElement('div');
+                epicCard.className = 'card mb-3 shadow-sm border-0';
+                epicCard.innerHTML = `<div class="card-header bg-white border-bottom-0 pt-3"><strong>Epic: ${epic.name}</strong></div>`;
+                
+                const featList = document.createElement('div');
+                featList.className = 'list-group list-group-flush';
+                (epic.features || []).forEach((feat, fIdx) => {
+                    const item = document.createElement('div');
+                    item.className = 'list-group-item bg-light';
+                    item.innerHTML = `
+                        <div class="mb-1"><input type="text" class="form-control form-control-sm feat-name" data-e="${eIdx}" data-f="${fIdx}" value="${feat.name.replace(/"/g, '&quot;')}" /></div>
+                        <div><input type="text" class="form-control form-control-sm feat-desc" data-e="${eIdx}" data-f="${fIdx}" value="${feat.description || ''}" placeholder="Description" /></div>
+                    `;
+                    featList.appendChild(item);
+                });
+                epicCard.appendChild(featList);
+                list.appendChild(epicCard);
+            });
+            root.appendChild(list);
+
+            const applyBtn = document.getElementById('wbs-wizard-apply-btn');
+            applyBtn.textContent = 'Next: Draft Stories & Tasks';
+            applyBtn.onclick = () => {
+                root.querySelectorAll('.feat-name').forEach(el => draftWbsState.epics[el.dataset.e].features[el.dataset.f].name = el.value);
+                root.querySelectorAll('.feat-desc').forEach(el => draftWbsState.epics[el.dataset.e].features[el.dataset.f].description = el.value);
+                
+                const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('wbsWizardModal'));
+                bootstrapModal.hide();
+                
+                sendAiMessage(`Here are the approved Features. Please use draft_stories_and_tasks to generate User Stories, Test Cases, and PERT-estimated Tasks for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``);
+            };
+        }
+
+        function renderWbsWizardStories(root) {
+            root.innerHTML = `<h5 class="mb-3 text-success"><i class="fas fa-check-circle"></i> Step 3: Final Review</h5>`;
+            const pre = document.createElement('pre');
+            pre.className = 'p-3 bg-dark text-white rounded small';
+            pre.style.maxHeight = '400px';
+            pre.textContent = JSON.stringify(draftWbsState.epics, null, 2);
+            root.appendChild(pre);
+
+            const applyBtn = document.getElementById('wbs-wizard-apply-btn');
+            applyBtn.textContent = 'Commit to Database';
+            applyBtn.onclick = async () => {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Saving...';
+                try {
+                    const resp = await fetch('/api/wbs/bulk-create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': getAntiForgeryToken()
+                        },
+                        body: JSON.stringify({ projectId: draftWbsState.projectId, wbs: draftWbsState.epics })
+                    });
+                    if (!resp.ok) throw new Error(await resp.text());
+                    const result = await resp.text();
+                    
+                    const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('wbsWizardModal'));
+                    bootstrapModal.hide();
+                    
+                    appendMessage('ai', `✅ **WBS Creation Complete:**\n${result}`);
+                } catch (err) {
+                    alert('Save failed: ' + err.message);
+                } finally {
+                    applyBtn.disabled = false;
+                }
+            };
         }
 
         // ── Simple markdown renderer (no external dependencies) ───────────────────
@@ -1472,10 +1657,10 @@
                                 const bubble = aiMsgDiv.querySelector('.copilot-msg__bubble');
                                 bubble.innerHTML = renderWbsProposedCard(wbsData);
                             } else {
-                                appendMessage('ai', turn.text);
+                                appendMessage('ai', turn.displayText || turn.text);
                             }
                         } else {
-                            appendMessage('user', turn.text);
+                            appendMessage('user', turn.displayText || turn.text);
                         }
                     });
                 }

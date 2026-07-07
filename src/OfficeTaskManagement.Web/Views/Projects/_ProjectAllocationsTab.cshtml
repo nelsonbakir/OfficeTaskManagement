@@ -1,0 +1,138 @@
+@model OfficeTaskManagement.Models.Project
+@using OfficeTaskManagement.Services
+@inject IMediaService MediaService
+@inject OfficeTaskManagement.Services.Authorization.IPermissionService PermSvc
+
+@{
+    var sprints = Model.Sprints ?? new List<OfficeTaskManagement.Models.Sprint>();
+    var tasks = sprints.SelectMany(s => s.Tasks).ToList();
+}
+
+<div class="section-header" style="margin-top: 1.5rem;">
+    <h2>Project Team Workload & Progress</h2>
+    @if (await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
+        <a asp-controller="Resource" asp-action="Allocate" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">
+            <i class="fas fa-user-plus"></i> Allocate Resource
+        </a>
+    }
+</div>
+
+@if (Model.ResourceAllocations != null && Model.ResourceAllocations.Any()) {
+    <div class="table-responsive" style="margin-top: 1.5rem;">
+        <table class="table table-hover">
+            <thead class="bg-light">
+                <tr>
+                    <th>Resource Profile</th>
+                    <th style="width: 160px;">Allocation / Period</th>
+                    <th>Assigned Workload</th>
+                    <th style="width: 180px;">Task Progress</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var allocation in Model.ResourceAllocations) {
+                    var userTasks = tasks.Where(t => t.AssigneeId == allocation.UserId).ToList();
+                    var totalTasks = userTasks.Count;
+                    var completedTasks = userTasks.Count(t => t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done || t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Reviewed);
+                    var inProgressTasks = userTasks.Count(t => t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress);
+                    var todoTasks = userTasks.Count(t => t.Status == OfficeTaskManagement.Models.Enums.TaskStatus.ToDo);
+                    
+                    var activeTasks = userTasks
+                        .Where(t => t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done && t.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Reviewed)
+                        .OrderByDescending(t => t.Priority)
+                        .Take(3)
+                        .ToList();
+
+                    var progressPct = totalTasks > 0 ? (int)Math.Round((double)completedTasks / totalTasks * 100) : 0;
+
+                    <tr>
+                        <td class="align-middle">
+                            <div class="d-flex align-items-center gap-2">
+                                @if (allocation.User != null && !string.IsNullOrEmpty(allocation.User.AvatarPath)) {
+                                    <img src="@MediaService.GetUrl(allocation.User.AvatarPath)" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover;" alt="@allocation.User.FullName" />
+                                } else {
+                                    <i class="fas fa-user-circle text-muted fs-2"></i>
+                                }
+                                <div>
+                                    <div class="fw-bold text-dark">@(allocation.User?.FullName ?? "Unknown")</div>
+                                    <div class="text-muted small" style="margin-top: -2px;">
+                                        <span class="badge bg-light text-primary border me-1">@allocation.ProjectRole</span>
+                                        @allocation.User?.Email
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="align-middle">
+                            <div class="progress" style="height: 6px; width: 120px; margin-bottom: 4px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: @allocation.AllocationPercentage%"></div>
+                            </div>
+                            <div class="small fw-semibold">@allocation.AllocationPercentage% capacity</div>
+                            <div class="text-muted" style="font-size: 0.75rem; margin-top: 1px;">
+                                @allocation.StartDate.ToString("MMM dd") - @(allocation.EndDate?.ToString("MMM dd, yyyy") ?? "Continuous")
+                            </div>
+                        </td>
+                        <td class="align-middle">
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-bottom:0.4rem;">
+                                <span class="badge bg-light text-secondary border">@todoTasks To-Do</span>
+                                <span class="badge bg-light text-primary border">@inProgressTasks In Progress</span>
+                                <span class="badge bg-light text-success border">@completedTasks Done</span>
+                            </div>
+                            @if (activeTasks.Any()) {
+                                foreach (var task in activeTasks) {
+                                    var priorityIcon = task.Priority == OfficeTaskManagement.Models.Enums.TaskPriority.High 
+                                        ? "<i class='fas fa-angles-up text-danger'></i>" 
+                                        : "<i class='fas fa-angle-up text-primary'></i>";
+                                    <div style="font-size: 0.78rem; color: #605E5C; display: flex; align-items: center; gap: 0.35rem; margin-top: 2px;">
+                                        @Html.Raw(priorityIcon)
+                                        <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" style="color: inherit; text-decoration: none;">@task.Title</a>
+                                    </div>
+                                }
+                            } else {
+                                <div class="text-muted small italic" style="font-size: 0.78rem;">
+                                    <i class="fas fa-check-circle text-success"></i> No active tasks assigned
+                                </div>
+                            }
+                            @if (totalTasks > 0) {
+                                <a href="/Resource/Workload/@allocation.UserId?projectId=@Model.Id" target="_blank" class="text-primary small fw-semibold mt-2 d-inline-block text-decoration-none">
+                                    <i class="fas fa-arrow-up-right-from-square"></i> See All (@totalTasks) Tasks
+                                </a>
+                            }
+                        </td>
+                        <td class="align-middle">
+                            <div class="progress" style="height: 10px; border-radius: 5px; margin-bottom: 4px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: @progressPct%"></div>
+                            </div>
+                            <div class="small fw-bold">@progressPct% completed</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">@completedTasks of @totalTasks tasks done</div>
+                        </td>
+                        <td class="align-middle text-end">
+                            @if (await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
+                                <div class="d-flex justify-content-end gap-1">
+                                    <a asp-controller="Resource" asp-action="EditAllocation" asp-route-id="@allocation.Id" class="quick-action-btn" title="Edit Allocation">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <form asp-controller="Resource" asp-action="DeleteAllocation" asp-route-id="@allocation.Id" method="post" onsubmit="return confirm('Are you sure you want to remove this allocation?');" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="quick-action-btn text-danger" style="border: 1px solid #FDE7E9;" title="Delete Allocation">
+                                            <i class="fas fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+} else {
+    <div class="empty-list" style="margin-top: 1.5rem;">
+        <i class="fas fa-users-gear"></i>
+        No formal resource allocations for this project
+        @if (await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
+            <p style="margin-top: 0.5rem;">
+                <a asp-controller="Resource" asp-action="Allocate" asp-route-projectId="@Model.Id" class="btn btn-primary btn-sm">Allocate your first resource</a>
+            </p>
+        }
+    </div>
+}

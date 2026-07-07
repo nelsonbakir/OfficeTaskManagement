@@ -1,0 +1,494 @@
+@model OfficeTaskManagement.ViewModels.ResourceManagement.ResourceWorkloadViewModel
+
+@{
+    ViewData["Title"] = $"Workload: {Model.FullName}";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0"><i class="bi bi-briefcase text-primary me-2"></i> @Model.FullName's Workload Dashboard</h2>
+        <p class="text-muted small mb-0">Browse allocations and tasks across all projects</p>
+    </div>
+    <div>
+        <a asp-action="Profile" asp-route-id="@Model.UserId" class="btn btn-outline-primary me-2">
+            <i class="bi bi-person-badge"></i> View Profile Settings
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary">Back to Pool</a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column: Project Browser -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-0 py-3">
+                <h5 class="card-title mb-0 fw-bold text-dark"><i class="bi bi-folder-symlink me-1"></i> Project Browser</h5>
+            </div>
+            <div class="list-group list-group-flush border-top" id="projectListGroup">
+                <!-- All Projects Option -->
+                <button type="button" class="list-group-item list-group-item-action active d-flex justify-content-between align-items-center py-3" data-project-id="all" onclick="selectProject('all')">
+                    <div>
+                        <strong class="mb-1 d-block"><i class="bi bi-grid-fill me-1"></i> All Projects</strong>
+                        <small class="text-white-50">Full resource workload</small>
+                    </div>
+                    <span class="badge bg-light text-primary rounded-pill">@Model.AssignedTasks.Count Tasks</span>
+                </button>
+
+                <!-- Project List -->
+                @foreach (var alloc in Model.ActiveAllocations)
+                {
+                    var projTasks = Model.AssignedTasks.Count(t => t.ProjectId == alloc.ProjectId);
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3" data-project-id="@alloc.ProjectId" onclick="selectProject(@alloc.ProjectId)">
+                        <div>
+                            <strong class="mb-1 d-block"><i class="bi bi-briefcase-fill me-1 text-primary"></i> @alloc.ProjectName</strong>
+                            <small class="text-muted">
+                                Role: @(alloc.ProjectRole ?? "Team Member")
+                                <span class="mx-1">•</span>
+                                @alloc.StartDate.ToString("MMM dd") – @(alloc.EndDate?.ToString("MMM dd") ?? "Continuous")
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary rounded-pill d-block mb-1">@alloc.AllocationPercentage%</span>
+                            <span class="badge bg-light text-secondary border rounded-pill" style="font-size: 0.72rem;">@projTasks tasks</span>
+                        </div>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Task List & Workload metrics -->
+    <div class="col-md-8 mb-4">
+        <!-- Workload Metrics Summary Card -->
+        <div class="card shadow-sm border-0 mb-4 bg-light">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="fw-bold text-dark mb-1" id="selectedProjectHeader">All Projects</h5>
+                        <p class="text-muted small mb-0" id="selectedProjectSub">Aggregated resource workload and metrics</p>
+                    </div>
+                    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                        <div style="font-size: 0.85rem;" class="fw-bold text-dark mb-1" id="metricsProgressText">0 / 0 Tasks completed</div>
+                        <div class="progress" style="height: 8px;" id="metricsProgressBarContainer">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: 0%;" id="metricsProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tasks Card -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-0">
+                <h5 class="card-title mb-0 fw-bold text-dark"><i class="bi bi-list-check me-1"></i> Assigned Tasks</h5>
+                <div class="d-flex gap-2">
+                    <!-- Status Filter Dropdown -->
+                    <select id="taskStatusFilter" class="form-select form-select-sm" style="width: auto;">
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active Tasks (To-Do / In Progress)</option>
+                        <option value="completed">Completed Tasks (Done / Reviewed)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="card-body p-0 border-top">
+                @if (Model.AssignedTasks.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle" id="tasksTable">
+                            <thead class="bg-light">
+                                <tr style="font-size: 0.85rem;">
+                                    <th class="ps-3">Task Detail</th>
+                                    <th>Project</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th class="pe-3 text-end" style="width: 180px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var task in Model.AssignedTasks)
+                                {
+                                    var isActive = task.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Done && task.Status != OfficeTaskManagement.Models.Enums.TaskStatus.Reviewed;
+                                    <tr data-task-id="@task.Id" data-project-id="@task.ProjectId" data-active="@isActive.ToString().ToLower()" style="font-size: 0.85rem; @(task.IsPaused ? "background-color: #fcf8f2; opacity: 0.85;" : "")">
+                                        <td class="ps-3 py-3">
+                                            <strong>
+                                                <a asp-controller="TaskItems" asp-action="Details" asp-route-id="@task.Id" class="task-title-link text-dark text-decoration-none hover-primary">
+                                                    @if (task.IsPaused)
+                                                    {
+                                                        <i class="bi bi-pause-circle text-danger me-1" title="Paused"></i>
+                                                    }
+                                                    @task.Title
+                                                </a>
+                                            </strong>
+                                            @if (task.Sprint != null)
+                                            {
+                                                <div class="text-muted small" style="font-size: 0.72rem; margin-top: 1px;"><i class="bi bi-rocket-takeoff-fill me-1"></i> @task.Sprint.Name</div>
+                                            }
+                                        </td>
+                                        <td class="text-muted">@(task.Project?.Name ?? "N/A")</td>
+                                        <td>
+                                            @{
+                                                var statusBadge = task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "bg-success bg-opacity-10 text-success border border-success border-opacity-25" :
+                                                                  (task.Status == OfficeTaskManagement.Models.Enums.TaskStatus.InProgress ? "bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" :
+                                                                  "bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25");
+                                            }
+                                            <span class="badge @statusBadge">@task.Status</span>
+                                        </td>
+                                        <td>
+                                            @{
+                                                var priorityBadge = task.Priority == OfficeTaskManagement.Models.Enums.TaskPriority.High ? "bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" :
+                                                                    (task.Priority == OfficeTaskManagement.Models.Enums.TaskPriority.Medium ? "bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25" :
+                                                                    "bg-light text-secondary border border-opacity-25");
+                                            }
+                                            <span class="badge @priorityBadge">@task.Priority</span>
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <div class="d-flex justify-content-end gap-1">
+                                                @if (task.IsPaused)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-success py-0 px-2" style="font-size:0.75rem;" title="Resume Task" onclick="resumeTask(@task.Id)">
+                                                        <i class="bi bi-play-fill"></i> Resume
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.75rem;" title="Pause Task" onclick="openPauseModal(@task.Id)">
+                                                        <i class="bi bi-pause-fill"></i> Pause
+                                                    </button>
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.75rem;" title="Reassign Task" onclick="openReassignModal(@task.Id, @task.ProjectId)">
+                                                    <i class="bi bi-person-fill-exclamation"></i> Reassign
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="py-5 text-center text-muted">
+                        <i class="bi bi-journal-check fs-2"></i>
+                        <p class="mt-2 mb-0">No tasks currently assigned to this resource.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pause Task Modal -->
+<div class="modal fade" id="pauseTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pause-circle text-danger me-2"></i>Pause Task</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="pauseTaskId" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Task Title</label>
+                    <div id="pauseTaskTitleDisplay" class="p-2 bg-light rounded border small fw-semibold text-dark"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Pause Reason <span class="text-danger">*</span></label>
+                    <textarea id="pauseTaskNotes" class="form-control form-control-sm" rows="3" placeholder="Provide audit log notes for pausing this task..."></textarea>
+                </div>
+                <div class="alert alert-warning py-2 small mb-0" style="font-size: 0.82rem;">
+                    <i class="bi bi-info-circle-fill me-1"></i> The estimated workload hours for this task will be removed from resource utilization metrics.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-danger" onclick="submitPauseTask()">Confirm Pause</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reassign Task Modal -->
+<div class="modal fade" id="reassignTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-up text-primary me-2"></i>Reassign Task</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="reassignTaskId" />
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Task Title</label>
+                    <div id="reassignTaskTitleDisplay" class="p-2 bg-light rounded border small fw-semibold text-dark"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">New Assignee (Project Team Members) <span class="text-danger">*</span></label>
+                    <select id="reassignUserId" class="form-select form-select-sm" required>
+                        <option value="">-- Loading Team Members... --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">Reassignment Notes</label>
+                    <input id="reassignNotes" class="form-control form-control-sm" placeholder="Optional notes explaining the reassignment..." />
+                </div>
+                <div class="alert alert-primary py-2 small mb-0" style="font-size: 0.82rem;">
+                    <i class="bi bi-info-circle-fill me-1"></i> This task's workload will transfer directly to the selected team member's capacity score.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-primary" onclick="submitReassignTask()">Confirm Reassign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-primary:hover {
+        color: var(--bs-primary) !important;
+        text-decoration: underline !important;
+    }
+    #projectListGroup button {
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+    }
+    #projectListGroup button.active {
+        border-left: 3px solid var(--bs-primary);
+        background-color: var(--bs-primary) !important;
+        color: white !important;
+    }
+    #projectListGroup button:not(.active):hover {
+        border-left: 3px solid var(--bs-primary);
+        background-color: #f8fafc;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Parse projectId from URL query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectIdParam = urlParams.get('projectId');
+            
+            if (projectIdParam) {
+                selectProject(projectIdParam);
+            } else {
+                updateProgressMetrics();
+            }
+
+            // Wire status filter dropdown
+            const statusFilter = document.getElementById('taskStatusFilter');
+            if (statusFilter) {
+                statusFilter.addEventListener('change', () => {
+                    const activeBtn = document.querySelector('#projectListGroup button.active');
+                    const projectId = activeBtn ? activeBtn.dataset.projectId : 'all';
+                    applyFilters(projectId);
+                });
+            }
+        });
+
+        function selectProject(projectId) {
+            // Toggle active class on list buttons
+            const buttons = document.querySelectorAll('#projectListGroup button');
+            buttons.forEach(btn => {
+                if (btn.dataset.projectId === projectId.toString()) {
+                    btn.classList.add('active');
+                    // Find header detail from button content
+                    const nameEl = btn.querySelector('strong');
+                    const subEl = btn.querySelector('small');
+                    document.getElementById('selectedProjectHeader').innerHTML = nameEl ? nameEl.innerHTML : 'Selected Project';
+                    document.getElementById('selectedProjectSub').innerHTML = subEl ? subEl.innerHTML : 'Project Workload details';
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            applyFilters(projectId);
+        }
+
+        function applyFilters(projectId) {
+            const table = document.getElementById('tasksTable');
+            if (!table) return;
+
+            const statusFilterVal = document.getElementById('taskStatusFilter').value;
+            const rows = table.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const rowProjId = row.dataset.projectId;
+                const isActive = row.dataset.active === 'true';
+
+                // Check project filter
+                const matchesProject = projectId === 'all' || rowProjId === projectId.toString();
+                
+                // Check status filter
+                let matchesStatus = true;
+                if (statusFilterVal === 'active') {
+                    matchesStatus = isActive;
+                } else if (statusFilterVal === 'completed') {
+                    matchesStatus = !isActive;
+                }
+
+                if (matchesProject && matchesStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            updateProgressMetrics();
+        }
+
+        function updateProgressMetrics() {
+            const table = document.getElementById('tasksTable');
+            if (!table) return;
+
+            const activeBtn = document.querySelector('#projectListGroup button.active');
+            const currentProjId = activeBtn ? activeBtn.dataset.projectId : 'all';
+            
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+            let total = 0;
+            let completed = 0;
+
+            rows.forEach(row => {
+                const rowProjId = row.dataset.projectId;
+                const isActive = row.dataset.active === 'true';
+
+                // Scope metrics to selected project
+                if (currentProjId === 'all' || rowProjId === currentProjId.toString()) {
+                    total++;
+                    if (!isActive) {
+                        completed++;
+                    }
+                }
+            });
+
+            const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            document.getElementById('metricsProgressText').textContent = `${completed} / ${total} Tasks completed`;
+            
+            const progressBar = document.getElementById('metricsProgressBar');
+            if (progressBar) {
+                progressBar.style.width = `${pct}%`;
+                progressBar.setAttribute('aria-valuenow', pct);
+            }
+        }
+
+        // ── TASK OPERATIONS ──
+        
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.style.position = 'fixed';
+            t.style.bottom = '20px';
+            t.style.right = '20px';
+            t.style.padding = '0.75rem 1.25rem';
+            t.style.borderRadius = '6px';
+            t.style.color = 'white';
+            t.style.fontSize = '0.85rem';
+            t.style.zIndex = '9999';
+            t.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            t.style.backgroundColor = type === 'success' ? '#107C10' : '#D13438';
+            t.innerHTML = `<i class="bi ${type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'} me-2"></i> ${msg}`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        async function postApi(url, body) {
+            try {
+                const r = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const d = await r.json();
+                if (r.ok && d.success) {
+                    showToast(d.message, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast(d.message || 'Action failed', 'danger');
+                }
+            } catch (e) {
+                showToast('Network error — please try again', 'danger');
+            }
+        }
+
+        function openPauseModal(taskId) {
+            const row = document.querySelector(`#tasksTable tr[data-task-id="${taskId}"]`);
+            const title = row ? row.querySelector('.task-title-link').textContent.trim() : `Task #${taskId}`;
+            
+            document.getElementById('pauseTaskId').value = taskId;
+            document.getElementById('pauseTaskTitleDisplay').textContent = title;
+            document.getElementById('pauseTaskNotes').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('pauseTaskModal'));
+            modal.show();
+        }
+
+        function submitPauseTask() {
+            const id = document.getElementById('pauseTaskId').value;
+            const notes = document.getElementById('pauseTaskNotes').value.trim();
+            if (!notes) {
+                showToast('Please provide a reason for pausing the task.', 'danger');
+                return;
+            }
+            postApi(`/api/strategic/task/${id}/pause`, { notes });
+        }
+
+        function resumeTask(taskId) {
+            postApi(`/api/strategic/task/${taskId}/resume`, { notes: 'Resumed from workload profile' });
+        }
+
+        async function openReassignModal(taskId, projectId) {
+            const row = document.querySelector(`#tasksTable tr[data-task-id="${taskId}"]`);
+            const title = row ? row.querySelector('.task-title-link').textContent.trim() : `Task #${taskId}`;
+            
+            document.getElementById('reassignTaskId').value = taskId;
+            document.getElementById('reassignTaskTitleDisplay').textContent = title;
+            document.getElementById('reassignNotes').value = '';
+
+            const selectEl = document.getElementById('reassignUserId');
+            selectEl.innerHTML = '<option value="">-- Loading Team Members... --</option>';
+
+            const modal = new bootstrap.Modal(document.getElementById('reassignTaskModal'));
+            modal.show();
+
+            try {
+                const res = await fetch(`/Resource/GetProjectResources?projectId=${projectId}`);
+                if (!res.ok) throw new Error('Failed to load project team');
+                const users = await res.json();
+                
+                selectEl.innerHTML = '<option value="">-- Select Team Member --</option>';
+                users.forEach(u => {
+                    // Don't list the current assignee as a candidate to reassign to
+                    if (u.id !== '@Model.UserId') {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.name;
+                        selectEl.appendChild(opt);
+                    }
+                });
+
+                if (selectEl.options.length <= 1) {
+                    selectEl.innerHTML = '<option value="">No other team members allocated to this project</option>';
+                }
+            } catch (e) {
+                selectEl.innerHTML = '<option value="">Error loading project team</option>';
+                showToast('Failed to fetch project resources', 'danger');
+            }
+        }
+
+        function submitReassignTask() {
+            const taskId = document.getElementById('reassignTaskId').value;
+            const userId = document.getElementById('reassignUserId').value;
+            const notes = document.getElementById('reassignNotes').value.trim();
+            
+            if (!userId) {
+                showToast('Please select a target team member to reassign.', 'danger');
+                return;
+            }
+
+            postApi(`/api/strategic/task/${taskId}/reassign`, { newAssigneeId: userId, notes });
+        }
+    </script>
+}

@@ -46,6 +46,7 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
         public List<ResourceSkillViewModel> Skills { get; set; } = new();
         public List<ProjectAllocationSummaryViewModel> ActiveAllocations { get; set; } = new();
         public List<AvailabilityBlockViewModel> AvailabilityBlocks { get; set; } = new();
+        public List<OfficeTaskManagement.Models.TaskItem> AssignedTasks { get; set; } = new();
 
         /// <summary>Last 5 salary records, newest first (Manager/Admin only).</summary>
         public List<SalaryHistoryViewModel> RecentSalaryHistory { get; set; } = new();

@@ -22,5 +22,5 @@ public interface IAgentService
     /// Runs the full agentic function-call loop first, then streams the final text response.
     /// KF-1 (Streaming) — yields string chunks for NDJSON SSE delivery.
     /// </summary>
-    IAsyncEnumerable<string> StreamChatAsync(AgentChatRequest request, CancellationToken ct = default);
+    IAsyncEnumerable<object> StreamChatAsync(AgentChatRequest request, CancellationToken ct = default);
 }

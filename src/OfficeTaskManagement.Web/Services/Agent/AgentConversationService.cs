@@ -72,7 +72,8 @@ public class AgentConversationService
         string conversationId,
         string role,
         string text,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? displayText = null)
     {
         var conversation = await _db.AgentConversations
             .FirstOrDefaultAsync(c => c.Id == conversationId, ct);
@@ -84,7 +85,7 @@ public class AgentConversationService
         }
 
         var turns = GetTurns(conversation.TurnsJson);
-        turns.Add(new ConversationTurn(role, text, DateTimeOffset.UtcNow));
+        turns.Add(new ConversationTurn(role, text, DateTimeOffset.UtcNow, displayText));
 
         // Cap history at 40 turns to avoid context window overflow (~20 user + 20 model)
         if (turns.Count > 40)
@@ -174,4 +175,4 @@ public class AgentConversationService
 }
 
 /// <summary>A single turn in a multi-turn conversation (user or model).</summary>
-public record ConversationTurn(string Role, string Text, DateTimeOffset Timestamp);
+public record ConversationTurn(string Role, string Text, DateTimeOffset Timestamp, string? DisplayText = null);

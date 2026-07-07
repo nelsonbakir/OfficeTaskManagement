@@ -251,5 +251,144 @@ namespace OfficeTaskManagement.Tests.Services
             Assert.True(callCount >= 2, $"Expected at least 2 calls (429 + retry), got {callCount}");
             Assert.Equal(8.0m, result.MostLikelyHours);
         }
+
+        [Fact]
+        public async Task ProposeSprintGoalAsync_ValidResponse_ReturnsProposals()
+        {
+            // Arrange
+            SetupGeminiResponse(new
+            {
+                goalStatement = "Deliver core features.",
+                keyThemes = new[] { "Setup", "Authentication" },
+                riskSummary = "No major risks.",
+                recommendedSprintName = "Sprint 1 - Core"
+            });
+
+            var project = new OfficeTaskManagement.Models.Project
+            {
+                Name = "Project Alpha",
+                TenantId = "test-tenant"
+            };
+            _db.Projects.Add(project);
+            await _db.SaveChangesAsync();
+
+            var task = new OfficeTaskManagement.Models.TaskItem
+            {
+                Title = "Initial Task",
+                IsBacklog = true,
+                TenantId = "test-tenant",
+                ProjectId = project.Id
+            };
+            _db.Tasks.Add(task);
+            await _db.SaveChangesAsync();
+
+            var service = CreateService();
+
+            // Act
+            var result = await service.ProposeSprintGoalAsync(project.Id, DateTime.UtcNow, DateTime.UtcNow.AddDays(14));
+
+            // Assert
+            Assert.Equal("Deliver core features.", result.GoalStatement);
+            Assert.Equal("Sprint 1 - Core", result.RecommendedSprintName);
+            Assert.Equal(2, result.KeyThemes.Length);
+        }
+
+        [Fact]
+        public async Task SelectSprintBacklogAsync_ValidResponse_ReturnsSelectedTasks()
+        {
+            // Arrange
+            SetupGeminiResponse(new
+            {
+                selectedTasks = new[]
+                {
+                    new
+                    {
+                        taskId = 101,
+                        title = "Selected Task 1",
+                        description = "Desc",
+                        priority = "High",
+                        optimisticHours = 2.0,
+                        mostLikelyHours = 4.0,
+                        pessimisticHours = 8.0,
+                        pertHours = 4.3,
+                        storyPoints = 5,
+                        rationale = "Fits capacity",
+                        isNewTask = false
+                    }
+                }
+            });
+
+            var project = new OfficeTaskManagement.Models.Project
+            {
+                Name = "Project Beta",
+                TenantId = "test-tenant"
+            };
+            _db.Projects.Add(project);
+            await _db.SaveChangesAsync();
+
+            var task = new OfficeTaskManagement.Models.TaskItem
+            {
+                Id = 101,
+                Title = "Selected Task 1",
+                IsBacklog = true,
+                TenantId = "test-tenant",
+                ProjectId = project.Id
+            };
+            _db.Tasks.Add(task);
+            await _db.SaveChangesAsync();
+
+            var service = CreateService();
+
+            // Act
+            var result = await service.SelectSprintBacklogAsync(project.Id, DateTime.UtcNow, DateTime.UtcNow.AddDays(14), 40m);
+
+            // Assert
+            Assert.Single(result);
+            Assert.Equal("Selected Task 1", result[0].Title);
+            Assert.Equal(4.3m, result[0].PertHours);
+            Assert.Equal("Fits capacity", result[0].Rationale);
+        }
+
+        [Fact]
+        public async Task AssignSprintTasksAsync_ValidResponse_ReturnsSuggestedAssignments()
+        {
+            // Arrange
+            SetupGeminiResponse(new
+            {
+                assignments = new[]
+                {
+                    new
+                    {
+                        taskId = 201,
+                        title = "Task 1",
+                        assigneeUserId = "user-123",
+                        assigneeName = "John Doe",
+                        assignmentReason = "Has CSS skills"
+                    }
+                }
+            });
+
+            var service = CreateService();
+
+            var tasks = new List<SprintTaskSuggestionDto>
+            {
+                new SprintTaskSuggestionDto(201, "Task 1", "Desc", "High", 5m, 3m, 5m, 8m, 5, "Priority", false, true)
+            };
+
+            var resources = new List<ResourceCapacitySlotDto>
+            {
+                new ResourceCapacitySlotDto("user-123", "John Doe", null, "Dev", 40m, 40m, 50m, new[] { "CSS" })
+            };
+
+            // Act
+            var result = await service.AssignSprintTasksAsync(1, tasks, resources);
+
+            // Assert
+            Assert.Single(result);
+            Assert.Equal("user-123", result[0].SuggestedAssigneeId);
+            Assert.Equal("John Doe", result[0].SuggestedAssigneeName);
+            Assert.Equal("Has CSS skills", result[0].AssignmentReason);
+        }
     }
 }
+

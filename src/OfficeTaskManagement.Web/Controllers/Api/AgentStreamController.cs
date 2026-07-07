@@ -52,9 +52,9 @@ public class AgentStreamController : ControllerBase
 
         try
         {
-            await foreach (var chunk in _agent.StreamChatAsync(enriched, ct))
+            await foreach (var obj in _agent.StreamChatAsync(enriched, ct))
             {
-                var line  = JsonSerializer.Serialize(new { chunk }) + "\n";
+                var line  = JsonSerializer.Serialize(obj) + "\n";
                 var bytes = Encoding.UTF8.GetBytes(line);
                 await Response.Body.WriteAsync(bytes, ct);
                 await Response.Body.FlushAsync(ct);

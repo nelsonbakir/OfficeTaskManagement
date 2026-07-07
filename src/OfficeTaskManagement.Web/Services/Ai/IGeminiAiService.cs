@@ -62,6 +62,36 @@ namespace OfficeTaskManagement.Services.Ai
         /// If suggestTests is true, focuses on creating comprehensive QA test cases and writing unit tests.
         /// </summary>
         Task<TaskAndTestCaseSuggestionsDto> SuggestTasksAndTestCasesAsync(int projectId, string storyTitle, string storyDescription, bool suggestTests, CancellationToken ct = default);
+
+        // ── Sprint Planner ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Analyses the unassigned backlog of a project and proposes a coherent sprint goal
+        /// with key themes and risk summary for the given date window.
+        /// Returns a fallback with a generic goal if the API is unavailable.
+        /// </summary>
+        Task<SprintGoalProposalDto> ProposeSprintGoalAsync(
+            int projectId, DateTime startDate, DateTime endDate,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Given the team's total capacity hours and the project backlog, selects an optimal
+        /// task set that fits within the sprint's capacity envelope using PERT sizing.
+        /// Returns an empty list as fallback if the API is unavailable.
+        /// </summary>
+        Task<List<SprintTaskSuggestionDto>> SelectSprintBacklogAsync(
+            int projectId, DateTime startDate, DateTime endDate,
+            decimal totalCapacityHours, CancellationToken ct = default);
+
+        /// <summary>
+        /// Assigns each sprint task to the best-matched team member based on
+        /// skills, current utilization, and RACI role constraints.
+        /// Returns tasks with null assignees as fallback if the API is unavailable.
+        /// </summary>
+        Task<List<TaskAssignmentSuggestionDto>> AssignSprintTasksAsync(
+            int projectId,
+            List<SprintTaskSuggestionDto> tasks,
+            List<ResourceCapacitySlotDto> resources,
+            CancellationToken ct = default);
     }
 }
-

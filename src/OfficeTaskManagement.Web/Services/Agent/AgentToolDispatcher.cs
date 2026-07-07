@@ -62,7 +62,9 @@ public class AgentToolDispatcher
                 // KF-2 Write tools
                 "create_project"              => await CreateProjectAsync(args, userId, tenantId, ct),
                 "assign_task"                 => await AssignTaskAsync(args, ct),
-                "bulk_create_wbs"             => await BulkCreateWbsAsync(args, userId, tenantId, ct),
+                "draft_epics"                 => await DraftEpicsAsync(args, ct),
+                "draft_features"              => await DraftFeaturesAsync(args, ct),
+                "draft_stories_and_tasks"     => await DraftStoriesAndTasksAsync(args, ct),
                 "get_work_package_summary"    => await GetWorkPackageSummaryAsync(args, ct),
                 // KF-5: PM Status Report
                 "generate_status_report"      => await GenerateStatusReportAsync(args, ct),
@@ -397,6 +399,16 @@ public class AgentToolDispatcher
         return $"Project created: ID={project.Id}, Name=\"{name}\".";
     }
 
+    // ── wbs_drafting ──────────────────────────────────────────────────────────
+    private Task<string> DraftEpicsAsync(JsonElement args, CancellationToken ct) 
+        => Task.FromResult("Drafted Epics successfully. Please ask the user to review the WBS Drafting UI.");
+
+    private Task<string> DraftFeaturesAsync(JsonElement args, CancellationToken ct) 
+        => Task.FromResult("Drafted Features successfully. Please ask the user to review the WBS Drafting UI.");
+
+    private Task<string> DraftStoriesAndTasksAsync(JsonElement args, CancellationToken ct) 
+        => Task.FromResult("Drafted Stories and Tasks successfully. Please ask the user to review the WBS Drafting UI.");
+
     // ── assign_task ──────────────────────────────────────────────────────────────
     private async Task<string> AssignTaskAsync(JsonElement args, CancellationToken ct)
     {
@@ -423,117 +435,6 @@ public class AgentToolDispatcher
 
         await _db.SaveChangesAsync(ct);
         return $"Task {taskId} updated — AssigneeId: {task.AssigneeId ?? "(unchanged)"}, SprintId: {task.SprintId?.ToString() ?? "(unchanged)"}";
-    }
-
-    // ── bulk_create_wbs ────────────────────────────────────────────────────────
-    private async Task<string> BulkCreateWbsAsync(
-        JsonElement args, string userId, string tenantId, CancellationToken ct)
-    {
-        var projectId = args.GetProperty("projectId").GetInt32();
-        var wbsArray  = args.GetProperty("wbs");
-
-        int epicCount = 0, featureCount = 0, storyCount = 0, taskCount = 0;
-
-        foreach (var epicEl in wbsArray.EnumerateArray())
-        {
-            var epicName = epicEl.TryGetProperty("name", out var en) ? en.GetString() ?? "Unnamed Epic" : "Unnamed Epic";
-            var epicDesc = epicEl.TryGetProperty("description", out var ed) ? ed.GetString() : null;
-
-            var epic = new Epic
-            {
-                ProjectId   = projectId,
-                Name        = epicName,
-                Description = epicDesc,
-                CreatedById = userId,
-                CreatedAt   = DateTime.UtcNow,
-                TenantId    = tenantId
-            };
-            _db.Epics.Add(epic);
-            await _db.SaveChangesAsync(ct); // flush to get epic.Id
-            epicCount++;
-
-            if (!epicEl.TryGetProperty("features", out var featuresEl) ||
-                featuresEl.ValueKind != JsonValueKind.Array) continue;
-
-            foreach (var featEl in featuresEl.EnumerateArray())
-            {
-                var featName = featEl.TryGetProperty("name", out var fn) ? fn.GetString() ?? "Unnamed Feature" : "Unnamed Feature";
-                var featDesc = featEl.TryGetProperty("description", out var fd) ? fd.GetString() : null;
-
-                var feature = new Feature
-                {
-                    EpicId      = epic.Id,
-                    Name        = featName,
-                    Description = featDesc,
-                    CreatedById = userId,
-                    CreatedAt   = DateTime.UtcNow,
-                    TenantId    = tenantId
-                };
-                _db.Features.Add(feature);
-                await _db.SaveChangesAsync(ct);
-                featureCount++;
-
-                if (!featEl.TryGetProperty("stories", out var storiesEl) ||
-                    storiesEl.ValueKind != JsonValueKind.Array) continue;
-
-                foreach (var storyEl in storiesEl.EnumerateArray())
-                {
-                    var storyTitle = storyEl.TryGetProperty("title",       out var st) ? st.GetString() ?? "Unnamed Story" : "Unnamed Story";
-                    var storyDesc  = storyEl.TryGetProperty("description", out var sd) ? sd.GetString() : null;
-                    var ac         = storyEl.TryGetProperty("acceptanceCriteria", out var acEl) ? acEl.GetString() : null;
-
-                    var story = new UserStory
-                    {
-                        FeatureId          = feature.Id,
-                        Title              = storyTitle,
-                        Description        = storyDesc,
-                        AcceptanceCriteria = ac,
-                        CreatedById        = userId,
-                        CreatedAt          = DateTime.UtcNow,
-                        TenantId           = tenantId
-                    };
-                    _db.UserStories.Add(story);
-                    await _db.SaveChangesAsync(ct);
-                    storyCount++;
-
-                    if (!storyEl.TryGetProperty("tasks", out var tasksEl) ||
-                        tasksEl.ValueKind != JsonValueKind.Array) continue;
-
-                    foreach (var taskEl in tasksEl.EnumerateArray())
-                    {
-                        var taskTitle = taskEl.TryGetProperty("title",       out var tt) ? tt.GetString() ?? "Unnamed Task" : "Unnamed Task";
-                        var taskDesc  = taskEl.TryGetProperty("description", out var tde) ? tde.GetString() : null;
-
-                        decimal o  = taskEl.TryGetProperty("optimisticHours",  out var ov)  ? (decimal)ov.GetDouble()  : 0;
-                        decimal m  = taskEl.TryGetProperty("mostLikelyHours",  out var mv)  ? (decimal)mv.GetDouble()  : 0;
-                        decimal pe = taskEl.TryGetProperty("pessimisticHours", out var pv)  ? (decimal)pv.GetDouble()  : 0;
-                        decimal pert = (o > 0 && m > 0 && pe > 0) ? _workflowEngine.CalculatePert(o, m, pe) : 0;
-
-                        var taskItem = new TaskItem
-                        {
-                            UserStoryId               = story.Id,
-                            ProjectId                 = projectId,
-                            Title                     = taskTitle,
-                            Description               = taskDesc,
-                            EstimatedOptimisticHours  = o  > 0 ? o  : null,
-                            EstimatedMostLikelyHours  = m  > 0 ? m  : null,
-                            EstimatedPessimisticHours = pe > 0 ? pe : null,
-                            PertEstimatedHours        = pert > 0 ? pert : null,
-                            EstimatedHours            = pert > 0 ? pert : (m > 0 ? m : 0m),
-                            Status                    = Models.Enums.TaskStatus.New,
-                            CreatedById               = userId,
-                            CreatedAt                 = DateTime.UtcNow,
-                            TenantId                  = tenantId
-                        };
-                        _db.Tasks.Add(taskItem);
-                        taskCount++;
-                    }
-                    await _db.SaveChangesAsync(ct);
-                }
-            }
-        }
-
-        return $"WBS created for project {projectId}: {epicCount} epic(s), {featureCount} feature(s), {storyCount} user stor(ies), {taskCount} task(s).";
     }
 
     // ── get_work_package_summary ────────────────────────────────────────────────

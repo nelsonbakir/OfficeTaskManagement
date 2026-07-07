@@ -101,6 +101,21 @@ namespace OfficeTaskManagement.Controllers
             return View(project);
         }
 
+        // GET: Projects/AllocationsTab/5
+        public async Task<IActionResult> AllocationsTab(int id)
+        {
+            var project = await _context.Projects
+                .Include(p => p.ResourceAllocations)
+                    .ThenInclude(ra => ra.User)
+                .Include(p => p.Sprints)
+                    .ThenInclude(s => s.Tasks)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (project == null) return NotFound();
+
+            return PartialView("_ProjectAllocationsTab", project);
+        }
+
         // GET: Projects/Budget/5
         [HasPermission(Permissions.BudgetView)]
         public async Task<IActionResult> Budget(int? id)

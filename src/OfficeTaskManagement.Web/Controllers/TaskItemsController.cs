@@ -159,18 +159,36 @@ namespace OfficeTaskManagement.Controllers
         }
 
         // GET: TaskItems/Create
-        public IActionResult Create()
+        public IActionResult Create(int? projectId, bool isBacklog = false, Models.Enums.TaskStatus? status = null)
         {
+            var taskItem = new TaskItem
+            {
+                IsBacklog = isBacklog
+            };
+            if (status.HasValue)
+            {
+                taskItem.Status = status.Value;
+            }
+            if (projectId.HasValue)
+            {
+                taskItem.ProjectId = projectId.Value;
+            }
+
             var vm = new TaskItemViewModel
             {
+                TaskItem = taskItem,
                 UsersList = new SelectList(_context.Users, "Id", "Email"),
-                ProjectsList = new SelectList(_context.Projects, "Id", "Name"),
+                ProjectsList = new SelectList(_context.Projects, "Id", "Name", projectId),
                 EpicsList = new SelectList(new List<Epic>(), "Id", "Name"), // Initially empty
-                SprintsList = new SelectList(_context.Sprints, "Id", "Name"),
+                SprintsList = new SelectList(projectId.HasValue
+                    ? _context.Sprints.Where(s => s.ProjectId == projectId.Value)
+                    : _context.Sprints, "Id", "Name"),
                 FeaturesList = new SelectList(new List<Feature>(), "Id", "Name"), // Initially empty
                 UserStoriesList = new SelectList(new List<UserStory>(), "Id", "Title"), // Initially empty
                 AreasList = new MultiSelectList(_context.Areas, "Id", "Name"),
-                ParentTasksList = new SelectList(_context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title"),
+                ParentTasksList = new SelectList(projectId.HasValue
+                    ? _context.Tasks.Where(t => t.ParentTaskId == null && t.ProjectId == projectId.Value)
+                    : _context.Tasks.Where(t => t.ParentTaskId == null), "Id", "Title"),
                 WorkflowTemplatesList = new SelectList(_context.WorkflowTemplates.Where(t => t.IsActive), "Id", "Name"),
                 AccountableUsersList = new SelectList(_context.Users, "Id", "Email")
             };
@@ -1166,6 +1184,11 @@ namespace OfficeTaskManagement.Controllers
 
             var oldStatus = task.Status;
             task.Status = newStatus;
+
+            if (newStatus == TaskStatus.New || newStatus == TaskStatus.Approved)
+            {
+                task.IsBacklog = true;
+            }
 
             _context.TaskHistories.Add(new TaskHistory
             {

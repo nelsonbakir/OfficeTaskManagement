@@ -31,5 +31,13 @@ namespace OfficeTaskManagement.ViewModels.ResourceManagement
 
         [Display(Name = "End Date")]
         public DateTime? EndDate { get; set; }
+
+        /// <summary>
+        /// Optional URL to redirect to after a successful save.
+        /// Set by callers (e.g. the AI Sprint Planner wizard) that want
+        /// the user returned to a specific page rather than Projects/Details.
+        /// Must pass <see cref="Microsoft.AspNetCore.Mvc.IUrlHelper.IsLocalUrl"/> check.
+        /// </summary>
+        public string? ReturnUrl { get; set; }
     }
 }

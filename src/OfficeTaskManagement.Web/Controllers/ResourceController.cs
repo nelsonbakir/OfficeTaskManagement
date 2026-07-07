@@ -163,6 +163,61 @@ namespace OfficeTaskManagement.Controllers
             return View(vm);
         }
 
+        // GET: Resource/Workload/5
+        public async Task<IActionResult> Workload(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return NotFound();
+
+            var user = await _context.Users
+                .Include(u => u.ResourceProfile)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null) return NotFound();
+
+            var allocations = await _resourceService.GetUserAllocationSummaryAsync(id);
+            
+            var assignedTasks = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.Sprint)
+                .Where(t => t.AssigneeId == id)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            var vm = new ResourceWorkloadViewModel
+            {
+                UserId = user.Id,
+                FullName = user.FullName ?? string.Empty,
+                Email = user.Email ?? string.Empty,
+                Department = user.ResourceProfile?.Department,
+                AvatarPath = user.AvatarPath,
+                ActiveAllocations = allocations.Select(a => new ProjectAllocationSummaryViewModel
+                {
+                    Id = a.AllocationId,
+                    ProjectId = a.ProjectId,
+                    ProjectName = a.ProjectName,
+                    AllocationPercentage = a.AllocationPercentage,
+                    ProjectRole = a.ProjectRole,
+                    StartDate = a.StartDate,
+                    EndDate = a.EndDate
+                }).ToList(),
+                AssignedTasks = assignedTasks
+            };
+
+            return View(vm);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProjectResources(int projectId)
+        {
+            var resources = await _context.ProjectResourceAllocations
+                .Where(ra => ra.ProjectId == projectId)
+                .Include(ra => ra.User)
+                .Select(ra => new { id = ra.UserId, name = ra.User.FullName ?? ra.User.Email })
+                .Distinct()
+                .ToListAsync();
+            return Json(resources);
+        }
+
         // POST: Resource/Profile/5
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -200,10 +255,15 @@ namespace OfficeTaskManagement.Controllers
 
         // GET: Resource/Allocate
         [HasPermission(Permissions.ResourcesManage)]
-        public async Task<IActionResult> Allocate(int? projectId, string? userId)
+        public async Task<IActionResult> Allocate(int? projectId, string? userId, string? returnUrl)
         {
             var vm = new EditProjectAllocationViewModel();
-            
+
+            // Preserve returnUrl so the view can pass it through the form
+            // and the POST action can redirect back to the caller (e.g. Sprint Planner wizard).
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+                vm.ReturnUrl = returnUrl;
+
             if (projectId != null)
             {
                 var project = await _context.Projects.FindAsync(projectId);
@@ -214,7 +274,7 @@ namespace OfficeTaskManagement.Controllers
                     ViewBag.ProjectName = project.Name;
                 }
             }
-            
+
             if (!string.IsNullOrEmpty(userId))
             {
                 vm.UserId = userId;
@@ -277,6 +337,11 @@ namespace OfficeTaskManagement.Controllers
                 {
                     TempData["ResourceWarning"] = "Warning: This allocation pushes the user over 100% capacity for some or all of this period.";
                 }
+
+                // If a safe returnUrl was provided (e.g. from the Sprint Planner wizard),
+                // redirect there so the user lands back on the right page.
+                if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
+                    return Redirect(model.ReturnUrl);
 
                 return RedirectToAction("Details", "Projects", new { id = model.ProjectId });
             }
@@ -362,6 +427,128 @@ namespace OfficeTaskManagement.Controllers
 
             TempData["SuccessMessage"] = "Allocation removed successfully.";
             return RedirectToAction("Details", "Projects", new { id = projectId });
+        }
+
+        // ── GET: Resource/TeamRoster?projectId=5 ─────────────────────────────
+        /// <summary>
+        /// Returns a JSON roster of all users with their skills, current allocation
+        /// load, and whether they are already allocated to the given project.
+        /// Used by the enhanced multi-resource Allocate page (fetch, no page reload).
+        /// </summary>
+        [HttpGet]
+        [HasPermission(Permissions.ResourcesManage)]
+        public async Task<IActionResult> TeamRoster(int projectId)
+        {
+            var users = await _context.Users
+                .Include(u => u.ResourceProfile)
+                .ThenInclude(rp => rp!.Skills)
+                .OrderBy(u => u.FullName ?? u.Email)
+                .ToListAsync();
+
+            var existingAllocations = await _context.ProjectResourceAllocations
+                .Where(a => a.ProjectId == projectId)
+                .ToListAsync();
+
+            var result = users.Select(u =>
+            {
+                var alloc = existingAllocations.FirstOrDefault(a => a.UserId == u.Id);
+                return new
+                {
+                    userId      = u.Id,
+                    fullName    = u.FullName ?? u.Email ?? u.Id,
+                    email       = u.Email,
+                    avatarPath  = u.AvatarPath,
+                    department  = u.ResourceProfile?.Department,
+                    jobTitle    = u.JobTitle,
+                    skills      = (u.ResourceProfile?.Skills ?? Enumerable.Empty<ResourceSkill>())
+                                    .Select(s => new { s.SkillName, level = s.ProficiencyLevel.ToString() })
+                                    .ToList(),
+                    isAllocated    = alloc != null,
+                    allocationId   = alloc?.Id,
+                    allocationPct  = alloc?.AllocationPercentage ?? 100,
+                    projectRole    = alloc?.ProjectRole,
+                    startDate      = alloc?.StartDate.ToString("yyyy-MM-dd"),
+                    endDate        = alloc?.EndDate?.ToString("yyyy-MM-dd"),
+                    currentLoadPct = 0 // filled client-side if needed; avoids N+1 per row
+                };
+            });
+
+            return Json(result);
+        }
+
+        // ── POST: Resource/BatchUpsertAllocation ──────────────────────────────
+        /// <summary>
+        /// Creates or updates one or more <see cref="ProjectResourceAllocation"/> records
+        /// in a single round-trip. Called by the enhanced Allocate page via fetch (JSON).
+        /// </summary>
+        [HttpPost]
+        [HasPermission(Permissions.ResourcesManage)]
+        public async Task<IActionResult> BatchUpsertAllocation([FromBody] BatchAllocationRequest req)
+        {
+            if (req?.Entries == null || !req.Entries.Any())
+                return BadRequest(new { error = "No allocation entries provided." });
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            var saved = new List<object>();
+
+            foreach (var entry in req.Entries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.UserId)) continue;
+
+                // Ensure ResourceProfile exists
+                var profile = await _resourceService.GetOrCreateProfileAsync(entry.UserId);
+
+                var existing = await _context.ProjectResourceAllocations
+                    .FirstOrDefaultAsync(a => a.ProjectId == req.ProjectId && a.UserId == entry.UserId);
+
+                if (existing != null)
+                {
+                    existing.AllocationPercentage = entry.AllocationPercentage;
+                    existing.ProjectRole          = entry.ProjectRole;
+                    existing.StartDate            = entry.StartDate;
+                    existing.EndDate              = entry.EndDate;
+                    _context.Update(existing);
+                    saved.Add(new { allocationId = existing.Id, userId = entry.UserId, action = "updated" });
+                }
+                else
+                {
+                    var alloc = new ProjectResourceAllocation
+                    {
+                        ProjectId            = req.ProjectId,
+                        UserId               = entry.UserId,
+                        AllocationPercentage = entry.AllocationPercentage,
+                        ProjectRole          = entry.ProjectRole,
+                        StartDate            = entry.StartDate,
+                        EndDate              = entry.EndDate,
+                        AllocatedById        = currentUser?.Id,
+                        ResourceProfileId    = profile.Id,
+                        AllocatedAt          = DateTime.UtcNow
+                    };
+                    _context.ProjectResourceAllocations.Add(alloc);
+                    await _context.SaveChangesAsync(); // flush to get Id
+                    saved.Add(new { allocationId = alloc.Id, userId = entry.UserId, action = "created" });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { saved });
+        }
+
+        // ── POST: Resource/RemoveAllocationAjax ──────────────────────────────
+        /// <summary>
+        /// Removes a <see cref="ProjectResourceAllocation"/> by its Id.
+        /// Returns JSON so the enhanced Allocate page can update the UI without reload.
+        /// </summary>
+        [HttpPost]
+        [HasPermission(Permissions.ResourcesManage)]
+        public async Task<IActionResult> RemoveAllocationAjax(int id)
+        {
+            var alloc = await _context.ProjectResourceAllocations.FindAsync(id);
+            if (alloc == null) return NotFound(new { error = "Allocation not found." });
+
+            _context.ProjectResourceAllocations.Remove(alloc);
+            await _context.SaveChangesAsync();
+            return Ok(new { removed = id });
         }
 
         // GET: Resource/MyAvailability

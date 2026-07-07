@@ -1,0 +1,295 @@
+/* =============================================================================
+   sprint-planner.css
+   Only NEW styles not covered by modern-theme.css or onboard-wizard.css.
+   All wizard chrome (steps, cards, panels, spinners, buttons) reuses existing
+   classes from onboard-wizard.css and site.css directly.
+   ============================================================================= */
+
+/* ── "AI Plan Sprint" trigger button in section header ─────────────────────
+   Reuses .ai-panel__trigger-btn from site.css — no duplicate needed here.
+   Only adds the display:inline-flex so the icon aligns with the text.        */
+#btn-ai-plan-sprint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* ── Modal animation (Bootstrap modal already handles show/hide)  ───────────
+   sp-slide-in is reused by the toast notification.                          */
+@keyframes sp-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Date input row (Step 1) ───────────────────────────────────────────────
+   Three-column grid for start date / end date / sprint name inputs.         */
+.sp-date-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+@media (max-width: 768px) { .sp-date-row { grid-template-columns: 1fr; } }
+
+/* Field label style consistent with existing form labels in the app */
+.sp-field label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.3rem;
+}
+.sp-field input {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    background: #ffffff;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+.sp-field input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(0,120,212,.25);
+}
+
+/* ── AI goal proposal block (Step 1 result) ────────────────────────────────
+   Uses the app's existing EFF6FC/ai-status tint, like .ow-status-ai.       */
+.sp-proposal-card {
+    background: #EFF6FC;
+    border: 1px solid rgba(0,120,212,.18);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    margin-top: 0.75rem;
+}
+.sp-goal-text {
+    font-size: 0.925rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: 0.65rem;
+}
+.sp-themes { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.65rem; }
+.sp-risk-text {
+    font-size: 0.82rem;
+    color: #7B5E00;
+    background: #FFFBEB;
+    border-left: 3px solid var(--warning-color);
+    padding: 0.45rem 0.75rem;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ── Capacity summary stats row (Step 2) ───────────────────────────────────
+   Three stat boxes shown above the resource list.                           */
+.sp-capacity-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.sp-stat-box {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    text-align: center;
+}
+.sp-stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    line-height: 1;
+}
+.sp-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-top: 0.2rem;
+}
+
+/* Resource availability rows inside the capacity gate card */
+.sp-resource-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.5fr 1.5fr;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.sp-resource-row:last-child { border-bottom: none; }
+
+.sp-resource-name {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+.sp-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.sp-avatar-placeholder {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Thin load bar (used in both capacity gate and as a gauge) */
+.sp-load-bar { height: 5px; background: var(--border-color); border-radius: 5px; overflow: hidden; }
+.sp-load-fill { height: 100%; border-radius: 5px; background: var(--success-color); transition: width 0.4s ease; }
+.sp-load-fill.amber { background: var(--warning-color); }
+.sp-load-fill.red   { background: var(--danger-color); }
+
+/* ── Horizontal capacity / load gauge (Steps 3 & 5) ───────────────────────
+   Inline gauge bar with label + fill + text.                                */
+.sp-gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    margin-bottom: 1rem;
+}
+.sp-gauge-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    min-width: 60px;
+}
+.sp-gauge-bar { flex: 1; height: 7px; background: var(--border-color); border-radius: 7px; overflow: hidden; }
+.sp-gauge-fill { height: 100%; border-radius: 7px; background: var(--success-color); transition: width 0.3s ease, background 0.3s; }
+.sp-gauge-fill.amber  { background: var(--warning-color); }
+.sp-gauge-fill.danger { background: var(--danger-color); }
+.sp-gauge-text { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; min-width: 90px; text-align: right; }
+
+/* ── Task-selection rows (Step 3) ──────────────────────────────────────────
+   Extends .onboard-list-item — adds selected state colour.                  */
+.onboard-list-item.sp-task-selected {
+    border-color: var(--primary-color);
+    background: #EFF6FC;
+}
+
+/* ── AI-generated badge (used in Steps 3 & 4) ─────────────────────────────
+   Mirrors the existing .ai-badge--new pattern from site.css.                */
+.ai-generated-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: #EFF6FC;
+    color: var(--primary-color);
+    border: 1px solid rgba(0,120,212,.2);
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+/* ── PERT hours chip (used in Steps 3 & 4 item rows) ──────────────────────
+   Matches the .ow-pert-val visual language from onboard-wizard.css.         */
+.ai-child-hours {
+    background: var(--ow-status-ai, #EFF6FF);
+    color: var(--primary-color);
+    border: 1px solid rgba(0,120,212,.15);
+    border-radius: 4px;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* Assignment dropdown (Step 4) — consistent with other form selects */
+.sp-assignee-select {
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: #ffffff;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.sp-assignee-select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 0.1rem #fff, 0 0 0 0.25rem rgba(0,120,212,.25);
+}
+
+/* Assignment grid row (Step 4) */
+.sp-assign-row {
+    display: grid;
+    grid-template-columns: 2fr 2fr 0.7fr;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 0.4rem;
+    background: #ffffff;
+    transition: border-color 0.2s;
+}
+.sp-assign-row:hover { border-color: rgba(0,120,212,.3); }
+.sp-assign-reason { font-size: 0.75rem; color: var(--success-color); display: flex; align-items: flex-start; gap: 0.3rem; margin-top: 0.2rem; line-height: 1.4; }
+
+/* ── Review summary header (Step 5) ────────────────────────────────────────
+   Three stat boxes identical to sp-capacity-summary.                        */
+.sp-review-header { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+
+/* Sprint goal highlighted block (Step 5) — mirrors .ow-status-badge.saved */
+.sp-goal-card {
+    background: #F0FDF4;
+    border: 1px solid rgba(16,124,16,.18);
+    border-left: 3px solid var(--success-color);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+}
+.sp-goal-card-label { font-size: 0.72rem; font-weight: 700; color: var(--success-color); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+.sp-goal-card-text  { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); line-height: 1.5; }
+
+/* Review task table rows */
+.sp-review-task-row {
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 0.6fr 0.6fr;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+.sp-review-task-row:last-child { border-bottom: none; }
+.sp-review-task-name  { font-weight: 600; color: var(--text-primary); }
+.sp-review-assignee   { display: flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); }
+.sp-review-hours      { color: var(--primary-color); font-weight: 700; text-align: right; }
+
+/* ── #sprints tab: must be relative for the overlay to position inside it ── */
+#sprints { position: relative; min-height: 300px; }

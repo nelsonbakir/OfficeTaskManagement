@@ -32,7 +32,9 @@ public static class AgentToolDefinitions
                 // KF-2: Write tools
                 CreateProjectTool(),
                 AssignTaskTool(),
-                BulkCreateWbsTool(),
+                DraftEpicsTool(),
+                DraftFeaturesTool(),
+                DraftStoriesAndTasksTool(),
                 GetWorkPackageSummaryTool(),
                 // KF-5: PM Status Report
                 GenerateStatusReportTool()
@@ -256,60 +258,145 @@ public static class AgentToolDefinitions
         }
     };
 
-    private static object BulkCreateWbsTool() => new
+    private static object DraftEpicsTool() => new
     {
-        name = "bulk_create_wbs",
-        description = "Creates a full Work Breakdown Structure (WBS) from structured data. Creates N Epics, each with M Features, each with P User Stories, each with Q Tasks in a single batch. Use when the user provides meeting notes or a project description to decompose.",
+        name = "draft_epics",
+        description = "Drafts a list of Epics based on project meeting notes or requirements. Returns a structured JSON payload to the UI for user review. Use this as Step 1 of the interactive WBS planning flow.",
         parameters = new
         {
             type = "object",
             properties = new
             {
-                projectId = new { type = "integer", description = "The project ID to create the WBS under" },
-                wbs = new
+                projectId = new { type = "integer", description = "The project ID" },
+                epics = new
                 {
                     type = "array",
-                    description = "Array of epic objects defining the full WBS hierarchy",
                     items = new
                     {
                         type = "object",
                         properties = new
                         {
-                            name        = new { type = "string" },
+                            name = new { type = "string" },
+                            description = new { type = "string" }
+                        }
+                    }
+                }
+            },
+            required = new[] { "projectId", "epics" }
+        }
+    };
+
+    private static object DraftFeaturesTool() => new
+    {
+        name = "draft_features",
+        description = "Drafts a list of Features for given approved Epics. Returns a structured JSON payload to the UI for user review. Use this as Step 2 of the interactive WBS planning flow.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer" },
+                epics = new
+                {
+                    type = "array",
+                    description = "Array of epics with drafted features",
+                    items = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            name = new { type = "string" },
                             description = new { type = "string" },
-                            features    = new
+                            features = new
                             {
-                                type  = "array",
+                                type = "array",
                                 items = new
                                 {
                                     type = "object",
                                     properties = new
                                     {
-                                        name        = new { type = "string" },
+                                        name = new { type = "string" },
+                                        description = new { type = "string" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            required = new[] { "projectId", "epics" }
+        }
+    };
+
+    private static object DraftStoriesAndTasksTool() => new
+    {
+        name = "draft_stories_and_tasks",
+        description = "Drafts User Stories, Test Cases, and PERT-estimated Tasks for given approved Features. Returns a structured JSON payload to the UI. Use this as Step 3 of the interactive WBS planning flow.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer" },
+                epics = new
+                {
+                    type = "array",
+                    description = "Array of epics with features and drafted stories/tasks",
+                    items = new
+                    {
+                        type = "object",
+                        properties = new
+                        {
+                            name = new { type = "string" },
+                            description = new { type = "string" },
+                            features = new
+                            {
+                                type = "array",
+                                items = new
+                                {
+                                    type = "object",
+                                    properties = new
+                                    {
+                                        name = new { type = "string" },
                                         description = new { type = "string" },
-                                        stories     = new
+                                        stories = new
                                         {
-                                            type  = "array",
+                                            type = "array",
                                             items = new
                                             {
                                                 type = "object",
                                                 properties = new
                                                 {
-                                                    title              = new { type = "string" },
-                                                    description        = new { type = "string" },
+                                                    title = new { type = "string" },
+                                                    description = new { type = "string" },
                                                     acceptanceCriteria = new { type = "string" },
-                                                    tasks              = new
+                                                    testCases = new
                                                     {
-                                                        type  = "array",
+                                                        type = "array",
                                                         items = new
                                                         {
                                                             type = "object",
                                                             properties = new
                                                             {
-                                                                title            = new { type = "string" },
-                                                                description      = new { type = "string" },
-                                                                optimisticHours  = new { type = "number" },
-                                                                mostLikelyHours  = new { type = "number" },
+                                                                title = new { type = "string" },
+                                                                steps = new { type = "string" },
+                                                                expectedResult = new { type = "string" },
+                                                                isAutomated = new { type = "boolean" }
+                                                            }
+                                                        }
+                                                    },
+                                                    tasks = new
+                                                    {
+                                                        type = "array",
+                                                        items = new
+                                                        {
+                                                            type = "object",
+                                                            properties = new
+                                                            {
+                                                                title = new { type = "string" },
+                                                                description = new { type = "string" },
+                                                                optimisticHours = new { type = "number" },
+                                                                mostLikelyHours = new { type = "number" },
                                                                 pessimisticHours = new { type = "number" }
                                                             }
                                                         }
@@ -324,7 +411,7 @@ public static class AgentToolDefinitions
                     }
                 }
             },
-            required = new[] { "projectId", "wbs" }
+            required = new[] { "projectId", "epics" }
         }
     };
 

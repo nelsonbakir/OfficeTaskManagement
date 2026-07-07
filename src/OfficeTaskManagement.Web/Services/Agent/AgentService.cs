@@ -83,10 +83,32 @@ public class AgentService : IAgentService
         var systemInstruction = await BuildSystemInstructionAsync(request, ct);
 
         // 3. Append the new user message to history
-        await _conversationService.AppendTurnAsync(request.ConversationId, "user", request.Message, ct);
+        await _conversationService.AppendTurnAsync(request.ConversationId, "user", request.Message, ct, request.DisplayMessage);
 
         // 4. Prepare Gemini request with tools + full history
         var contents = BuildContents(history, request.Message);
+
+        object generationConfig;
+        if (model.Contains("thinking", StringComparison.OrdinalIgnoreCase))
+        {
+            generationConfig = new
+            {
+                temperature = 0.3,
+                max_output_tokens = 4096,
+                thinking_config = new
+                {
+                    thinking_budget = 2048
+                }
+            };
+        }
+        else
+        {
+            generationConfig = new
+            {
+                temperature = 0.3,
+                max_output_tokens = 2048
+            };
+        }
 
         var requestBody = new
         {
@@ -94,15 +116,7 @@ public class AgentService : IAgentService
             contents,
             tools = AgentToolDefinitions.GetTools(),
             tool_config = new { function_calling_config = new { mode = "AUTO" } },
-            generation_config = new
-            {
-                temperature = 0.3,
-                max_output_tokens = 2048,
-                thinking_config = new
-                {
-                    thinking_budget = 2048
-                }
-            }
+            generation_config = generationConfig
         };
 
         // 5. Agentic loop — keep dispatching function calls until text response
@@ -145,9 +159,9 @@ public class AgentService : IAgentService
                         funcName, funcArgs, request.UserId, tenantId, ct);
 
                     // Track createable actions for UI buttons
-                    if (funcName.StartsWith("create_"))
+                    if (funcName.StartsWith("create_") || funcName.StartsWith("draft_"))
                     {
-                        suggestedActions.Add(new AgentAction(funcName, result, new { }));
+                        suggestedActions.Add(new AgentAction(funcName, result, new { args = funcArgs.GetRawText() }));
                     }
 
                     functionResponses.Add(new
@@ -242,11 +256,10 @@ public class AgentService : IAgentService
     {
         await _conversationService.DeleteAsync(conversationId, ct);
     }
-
     // ── StreamChatAsync — KF-1 Streaming ──────────────────────────────────────
     // Runs the full agentic function-call loop first (non-streaming, handles tool calls),
     // then streams the FINAL text response either via Gemini SSE or fallback chunking.
-    public async IAsyncEnumerable<string> StreamChatAsync(
+    public async IAsyncEnumerable<object> StreamChatAsync(
         AgentChatRequest request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
@@ -273,11 +286,22 @@ public class AgentService : IAgentService
         }
 
         if (cancelled) yield break;
-        if (phase1Error != null) { yield return phase1Error; yield break; }
+        if (phase1Error != null) { yield return new { error = phase1Error }; yield break; }
 
-        var finalText = response!.Message;
+        if (response?.Actions != null && response.Actions.Any())
+        {
+            yield return new { actions = response.Actions };
+        }
+
+        var finalText = response?.Message;
         if (string.IsNullOrEmpty(finalText))
         {
+            yield break;
+        }
+
+        if (finalText.Contains("Gemini API call failed"))
+        {
+            yield return new { error = finalText };
             yield break;
         }
 
@@ -386,7 +410,7 @@ public class AgentService : IAgentService
             // Yield collected SSE chunks outside the catch block
             foreach (var chunk in sseChunks)
             {
-                yield return chunk;
+                yield return new { chunk };
             }
             streamed = sseSuccess;
         }
@@ -399,7 +423,7 @@ public class AgentService : IAgentService
             for (int i = 0; i < finalText.Length && !ct.IsCancellationRequested; i += chunkSize)
             {
                 var end   = Math.Min(i + chunkSize, finalText.Length);
-                yield return finalText[i..end];
+                yield return new { chunk = finalText[i..end] };
                 await Task.Delay(10, ct); // small delay to simulate token flow
             }
         }
@@ -524,25 +548,39 @@ public class AgentService : IAgentService
     private static object[] BuildContents(
         IReadOnlyList<ConversationTurn> history, string newMessage)
     {
-        var contents = new List<object>();
+        var merged = new List<(string Role, List<object> Parts)>();
+
+        void AddPart(string role, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            if (merged.Count > 0 && merged[^1].Role == role)
+            {
+                merged[^1].Parts.Add(new { text = text });
+            }
+            else
+            {
+                merged.Add((role, new List<object> { new { text = text } }));
+            }
+        }
 
         foreach (var turn in history)
         {
-            contents.Add(new
-            {
-                role  = turn.Role == "user" ? "user" : "model",
-                parts = new[] { new { text = turn.Text } }
-            });
+            var role = turn.Role == "user" ? "user" : "model";
+            AddPart(role, turn.Text ?? "");
         }
 
-        // Add the current user message (already appended to DB above)
-        contents.Add(new
-        {
-            role  = "user",
-            parts = new[] { new { text = newMessage } }
-        });
+        AddPart("user", newMessage);
 
-        return contents.ToArray();
+        if (merged.Count > 0 && merged[0].Role != "user")
+        {
+            merged.RemoveAt(0);
+        }
+
+        return merged.Select(m => new
+        {
+            role = m.Role,
+            parts = m.Parts.ToArray()
+        }).ToArray<object>();
     }
 
     // ── BUG 3 FIX: Preserve original JsonElement parts verbatim ───────────────
@@ -1193,7 +1231,12 @@ public class AgentService : IAgentService
                     break;
             }
 
-            resp!.EnsureSuccessStatusCode();
+            if (!resp!.IsSuccessStatusCode)
+            {
+                var errorResponse = await resp.Content.ReadAsStringAsync(ct);
+                _logger.LogError("Gemini API Error: {StatusCode} - {ErrorResponse}", resp.StatusCode, errorResponse);
+                resp.EnsureSuccessStatusCode();
+            }
             return await resp.Content.ReadAsStringAsync(ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

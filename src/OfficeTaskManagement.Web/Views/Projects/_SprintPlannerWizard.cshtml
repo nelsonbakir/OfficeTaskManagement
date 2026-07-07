@@ -1,0 +1,888 @@
+@* _SprintPlannerWizard.cshtml
+   AI Sprint Planner Wizard — rendered as a Bootstrap Modal.
+   Reuses existing modern-theme.css and onboard-wizard.css classes.
+*@
+@* projectId passed from Details.cshtml *@
+@model int
+
+<link rel="stylesheet" href="~/css/onboard-wizard.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/sprint-planner.css" asp-append-version="true" />
+
+<style>
+    /* ── Prerequisite Guidance Panel — Team Capacity Gate ──────────────── */
+    .sp-prereq-alert {
+        display: flex;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        background: rgba(245, 158, 11, 0.07);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        border-left: 4px solid var(--warning-color, #f59e0b);
+        border-radius: 8px;
+        margin-top: 1rem;
+    }
+    .sp-prereq-icon { font-size: 1.3rem; color: var(--warning-color, #f59e0b); padding-top: 3px; flex-shrink: 0; }
+    .sp-prereq-title { font-weight: 700; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.3rem; }
+    .sp-prereq-msg   { font-size: 0.83rem; color: var(--text-secondary); margin: 0 0 0.6rem; line-height: 1.5; }
+    .sp-prereq-window { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+    .sp-prereq-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .sp-prereq-link {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        padding: 0.42rem 0.95rem; border-radius: 6px; font-size: 0.81rem; font-weight: 600;
+        background: var(--primary-color, #6366f1); color: #fff; text-decoration: none;
+        border: none; cursor: pointer; transition: opacity .15s;
+    }
+    .sp-prereq-link:hover { opacity: 0.85; color: #fff; text-decoration: none; }
+    .sp-prereq-link-secondary {
+        background: transparent;
+        border: 1px solid var(--border-color, #d1d5db);
+        color: var(--text-primary);
+    }
+    .sp-prereq-link-secondary:hover { background: var(--light-bg, #f9fafb); opacity: 1; }
+
+    /* Custom width override for longer step labels */
+    .wizard-step-label {
+        max-width: 115px !important;
+    }
+</style>
+
+<div class="modal fade" id="sp-modal" tabindex="-1" aria-labelledby="spModalLabel" aria-hidden="true" data-project-id="@Model">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0" style="background: var(--light-bg); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);">
+            
+            <!-- ── Modal Header ── -->
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding: 1.25rem 1.5rem; background: #ffffff; border-top-left-radius: 12px; border-top-right-radius: 12px;">
+                <h5 class="modal-title" id="spModalLabel" style="font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.55rem; margin: 0;">
+                    <i class="fas fa-wand-magic-sparkles" style="color: var(--primary-color);"></i> AI Sprint Planner
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- ── Modal Body ── -->
+            <div class="modal-body" style="padding: 1.5rem 1.75rem;">
+                
+                <!-- Step progress rail -->
+                <div class="wizard-steps" style="margin-bottom: 1.5rem; padding: 0 1rem;">
+                    <div class="wizard-step-progress" id="sp-step-progress" style="width:0%"></div>
+
+                    <div class="wizard-step-node active" data-step="1" id="sp-step-1">
+                        <div class="wizard-step-circle"><span class="ow-step-num">1</span></div>
+                        <span class="wizard-step-label">AI Sprint Proposal</span>
+                    </div>
+                    <div class="wizard-step-node" data-step="2" id="sp-step-2">
+                        <div class="wizard-step-circle"><span class="ow-step-num">2</span></div>
+                        <span class="wizard-step-label">Team Capacity</span>
+                    </div>
+                    <div class="wizard-step-node" data-step="3" id="sp-step-3">
+                        <div class="wizard-step-circle"><span class="ow-step-num">3</span></div>
+                        <span class="wizard-step-label">AI Task Planner</span>
+                    </div>
+                    <div class="wizard-step-node" data-step="4" id="sp-step-4">
+                        <div class="wizard-step-circle"><span class="ow-step-num">4</span></div>
+                        <span class="wizard-step-label">Assign</span>
+                    </div>
+                    <div class="wizard-step-node" data-step="5" id="sp-step-5">
+                        <div class="wizard-step-circle"><span class="ow-step-num">5</span></div>
+                        <span class="wizard-step-label">Confirm</span>
+                    </div>
+                </div>
+
+                <!-- ================================================================
+                     STEP 1 — Sprint Setup & Goal Proposal
+                ================================================================= -->
+                <div class="wizard-panel active" id="sp-panel-1">
+                    <div class="glass-card">
+                        <h3><i class="fas fa-calendar-alt"></i> Sprint Setup</h3>
+                        <p class="text-muted" style="margin-bottom: 1rem;">Set the sprint dates. AI will analyse your backlog and propose a focused goal.</p>
+
+                        <div class="sp-date-row">
+                            <div class="sp-field">
+                                <label for="sp-start-date">Start Date</label>
+                                <input type="date" id="sp-start-date" />
+                            </div>
+                            <div class="sp-field">
+                                <label for="sp-end-date">End Date</label>
+                                <input type="date" id="sp-end-date" />
+                            </div>
+                            <div class="sp-field">
+                                <label for="sp-sprint-name">Sprint Name</label>
+                                <input type="text" id="sp-sprint-name" placeholder="AI will suggest…" />
+                            </div>
+                        </div>
+
+                        <button class="ai-panel__trigger-btn" id="sp-btn-analyse" type="button">
+                            <i class="fas fa-sparkles"></i> Analyse Backlog
+                        </button>
+                    </div>
+
+                    <!-- AI goal result card -->
+                    <div class="glass-card" id="sp-goal-result" style="display:none">
+                        <h3>
+                            <i class="fas fa-bullseye"></i> AI Sprint Proposal
+                            <span class="ai-generated-badge ms-2"><i class="fas fa-robot"></i> AI</span>
+                        </h3>
+
+                        <div class="sp-proposal-card">
+                            <div class="sp-goal-text" id="sp-goal-text"></div>
+                            <div class="sp-themes" id="sp-themes"></div>
+                            <div class="sp-risk-text" id="sp-risk-text"></div>
+                        </div>
+
+                        <div class="wizard-footer" style="border-top:none; padding-top:0.75rem; margin-top:0.75rem;">
+                            <span class="text-muted" style="font-size:0.8rem">
+                                <i class="fas fa-info-circle"></i> Edit the sprint name above before continuing.
+                            </span>
+                            <button class="ai-panel__trigger-btn" id="sp-btn-step2" type="button">
+                                Check Team Capacity <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================================================================
+                     STEP 2 — Capacity Gate
+                ================================================================= -->
+                <div class="wizard-panel" id="sp-panel-2">
+                    <div class="glass-card">
+                        <h3><i class="fas fa-users"></i> Team Capacity Gate</h3>
+                        <p class="text-muted" style="margin-bottom: 1rem;">Available hours for each allocated team member during the sprint window.</p>
+
+                        <div class="sp-capacity-summary">
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="sp-total-hours">—</div>
+                                <div class="sp-stat-label">Available Hours</div>
+                            </div>
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="sp-member-count">—</div>
+                                <div class="sp-stat-label">Team Members</div>
+                            </div>
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="sp-avg-load">—</div>
+                                <div class="sp-stat-label">Avg Current Load</div>
+                            </div>
+                        </div>
+
+                        <div id="sp-resource-list">
+                            <div class="onboard-loading-wrapper" style="padding:2rem;">
+                                <div class="ai-spinner" style="width:28px; height:28px;"></div>
+                                <span class="text-muted">Loading team capacity…</span>
+                            </div>
+                        </div>
+
+                        <!-- ── Prerequisite guidance panel ────────────────────
+                             Shown automatically when resources list is empty.
+                             Hidden when capacity loads successfully.
+                        ──────────────────────────────────────────────────── -->
+                        <div id="sp-prereq-panel" style="display:none;">
+                            <div class="sp-prereq-alert">
+                                <div class="sp-prereq-icon"><i class="fas fa-circle-exclamation"></i></div>
+                                <div style="flex:1;">
+                                    <div class="sp-prereq-title" id="sp-prereq-title">Prerequisite Required</div>
+                                    <p class="sp-prereq-msg" id="sp-prereq-msg"></p>
+                                    <div class="sp-prereq-window">
+                                        <i class="fas fa-calendar-range"></i>
+                                        Sprint window:&nbsp;<strong id="sp-prereq-dates"></strong>
+                                    </div>
+                                    <div class="sp-prereq-actions" id="sp-prereq-actions"></div>
+                                    <div style="margin-top:0.75rem;">
+                                        <button class="btn-ow-skip" id="sp-btn-recheck" type="button">
+                                            <i class="fas fa-rotate-right"></i> Check Again
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="wizard-footer">
+                            <button class="btn-ow-skip" onclick="spGoTo(1)" type="button">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button class="ai-panel__trigger-btn" id="sp-btn-step3" type="button">
+                                <i class="fas fa-sparkles"></i> Select Sprint Tasks
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================================================================
+                     STEP 3 — Task Selection
+                ================================================================= -->
+                <div class="wizard-panel" id="sp-panel-3">
+                    <div class="glass-card">
+                        <h3><i class="fas fa-list-check"></i> AI Task Selection</h3>
+                        <p class="text-muted" style="margin-bottom: 1rem;">Review and adjust the AI-selected tasks. Check or uncheck to include or exclude.</p>
+
+                        <div class="sp-gauge-row">
+                            <span class="sp-gauge-label">Capacity</span>
+                            <div class="sp-gauge-bar">
+                                <div class="sp-gauge-fill" id="sp-task-gauge-fill" style="width:0%"></div>
+                            </div>
+                            <span class="sp-gauge-text" id="sp-task-gauge-text">0 / 0 hrs</span>
+                        </div>
+
+                        <div id="sp-task-list">
+                            <div class="onboard-loading-wrapper" style="padding:2rem;">
+                                <div class="ai-spinner" style="width:28px; height:28px;"></div>
+                                <span class="text-muted">AI is selecting optimal tasks…</span>
+                            </div>
+                        </div>
+
+                        <div class="wizard-footer">
+                            <button class="btn-ow-skip" onclick="spGoTo(2)" type="button">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button class="ai-panel__trigger-btn" id="sp-btn-step4" type="button">
+                                <i class="fas fa-sparkles"></i> Assign Team Members
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================================================================
+                     STEP 4 — Resource Assignment
+                ================================================================= -->
+                <div class="wizard-panel" id="sp-panel-4">
+                    <div class="glass-card">
+                        <h3><i class="fas fa-user-check"></i> AI Resource Assignment</h3>
+                        <p class="text-muted" style="margin-bottom: 1rem;">AI-suggested assignees based on skills and workload. Override any assignment using the dropdown.</p>
+
+                        <div id="sp-assign-list">
+                            <div class="onboard-loading-wrapper" style="padding:2rem;">
+                                <div class="ai-spinner" style="width:28px; height:28px;"></div>
+                                <span class="text-muted">AI is matching tasks to team members…</span>
+                            </div>
+                        </div>
+
+                        <div class="wizard-footer">
+                            <button class="btn-ow-skip" onclick="spGoTo(3)" type="button">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button class="ai-panel__trigger-btn" id="sp-btn-step5" type="button">
+                                Review Sprint Plan <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================================================================
+                     STEP 5 — Review & Confirm
+                ================================================================= -->
+                <div class="wizard-panel" id="sp-panel-5">
+                    <div class="glass-card">
+                        <h3>
+                            <i class="fas fa-check-circle" style="color:var(--success-color)"></i>
+                            Review &amp; Confirm Sprint Plan
+                        </h3>
+                        <p class="text-muted" style="margin-bottom: 1rem;">This is the only step that writes to the database.</p>
+
+                        <!-- Summary stats -->
+                        <div class="sp-review-header">
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="rv-task-count">—</div>
+                                <div class="sp-stat-label">Tasks</div>
+                            </div>
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="rv-total-hours">—</div>
+                                <div class="sp-stat-label">Total Hours</div>
+                            </div>
+                            <div class="sp-stat-box">
+                                <div class="sp-stat-value" id="rv-utilization">—</div>
+                                <div class="sp-stat-label">Utilization</div>
+                            </div>
+                        </div>
+
+                        <!-- Sprint goal -->
+                        <div class="sp-goal-card">
+                            <div class="sp-goal-card-label"><i class="fas fa-bullseye"></i> Sprint Goal</div>
+                            <div class="sp-goal-card-text" id="rv-goal-text"></div>
+                        </div>
+
+                        <!-- Sprint metadata -->
+                        <div style="display:flex; gap:2rem; font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                            <span><i class="fas fa-tag"></i>&nbsp;<span id="rv-sprint-name" style="font-weight:600; color:var(--text-primary)"></span></span>
+                            <span><i class="fas fa-calendar"></i>&nbsp;<span id="rv-sprint-dates"></span></span>
+                        </div>
+
+                        <!-- Load gauge -->
+                        <div class="sp-gauge-row">
+                            <span class="sp-gauge-label">Load</span>
+                            <div class="sp-gauge-bar">
+                                <div class="sp-gauge-fill" id="rv-gauge-fill" style="width:0%"></div>
+                            </div>
+                            <span class="sp-gauge-text" id="rv-gauge-text">0 / 0 hrs</span>
+                        </div>
+
+                        <!-- Task review table -->
+                        <div style="border:1px solid var(--border-color); border-radius:8px; overflow:hidden; margin-bottom:1rem;">
+                            <div style="background:var(--light-bg); padding:0.5rem 1rem; display:grid; grid-template-columns:2fr 1.5fr 0.6fr 0.6fr; gap:0.75rem; font-size:0.72rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border-color)">
+                                <span>Task</span><span>Assignee</span><span style="text-align:center">SP</span><span style="text-align:right">Hours</span>
+                            </div>
+                            <div id="rv-task-list" style="padding:0 1rem;"></div>
+                        </div>
+
+                        <div class="wizard-footer">
+                            <button class="btn-ow-skip" onclick="spGoTo(4)" type="button">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button class="ai-panel__apply-btn" id="sp-btn-confirm" type="button">
+                                <i class="fas fa-check"></i> Confirm &amp; Save Sprint
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     JavaScript — AI Sprint Planner (vanilla, self-contained)
+================================================================= -->
+<script>
+(function () {
+    'use strict';
+
+    // ── State ──────────────────────────────────────────────────────────────
+    const state = {
+        projectId:     0,
+        startDate:     '',
+        endDate:       '',
+        sprintName:    '',
+        goal:          '',
+        resources:     [],
+        totalCapacity: 0,
+        tasks:         [],
+        assignments:   [],
+        currentStep:   1
+    };
+
+    const modalEl   = document.getElementById('sp-modal');
+    const csrfToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+    function init() {
+        if (!modalEl) return;
+        state.projectId = parseInt(modalEl.dataset.projectId, 10);
+
+        // Default dates: today → today + 14 days
+        const today = new Date(), end = new Date(today);
+        end.setDate(end.getDate() + 14);
+        document.getElementById('sp-start-date').value = fmtDate(today);
+        document.getElementById('sp-end-date').value   = fmtDate(end);
+
+        modalEl.addEventListener('show.bs.modal', () => {
+            goTo(1);
+        });
+
+        document.getElementById('sp-btn-analyse')?.addEventListener('click', step1Analyse);
+        document.getElementById('sp-btn-step2')?.addEventListener('click', () => {
+            if (!state.goal) { toast('Please click “Analyse Backlog” first to generate a sprint goal.', 'error'); return; }
+            goTo(2);
+        });
+        document.getElementById('sp-btn-step3')?.addEventListener('click', () => {
+            // Button is disabled when resources are empty (prereq panel is showing).
+            // Guard kept as a safety net — showPrereqPanel() will have already run
+            // via loadCapacity(), so simply return rather than showing a confusing toast.
+            if (!state.resources.length) return;
+            step3Select();
+        });
+        document.getElementById('sp-btn-step4')?.addEventListener('click', step4Assign);
+        document.getElementById('sp-btn-step5')?.addEventListener('click', buildReview);
+        document.getElementById('sp-btn-confirm')?.addEventListener('click', confirmSave);
+        document.getElementById('sp-btn-recheck')?.addEventListener('click', async () => {
+            document.getElementById('sp-prereq-panel').style.display = 'none';
+            await loadCapacity();
+        });
+    }
+
+    // ── Navigation ─────────────────────────────────────────────────────────
+    window.spGoTo = goTo;
+    window.step3Select = step3Select;
+    function goTo(step) {
+        state.currentStep = step;
+        document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(`sp-panel-${step}`)?.classList.add('active');
+
+        // Step nodes — mirrors onboard-wizard.js class names exactly
+        document.querySelectorAll('.wizard-step-node').forEach(s => {
+            const n = parseInt(s.dataset.step, 10);
+            s.classList.remove('active', 'completed');
+            if (n < step)  s.classList.add('completed');
+            else if (n === step) s.classList.add('active');
+        });
+
+        // Animated progress line
+        const pct  = Math.round(((step - 1) / 4) * 100);
+        const line = document.getElementById('sp-step-progress');
+        if (line) line.style.width = `${pct}%`;
+
+        if (step === 2) loadCapacity();
+    }
+
+    // ── STEP 1 — Propose sprint goal ───────────────────────────────────────
+    async function step1Analyse() {
+        state.startDate  = document.getElementById('sp-start-date').value;
+        state.endDate    = document.getElementById('sp-end-date').value;
+        state.sprintName = document.getElementById('sp-sprint-name').value;
+
+        if (!state.startDate || !state.endDate) { toast('Please set both start and end dates.', 'error'); return; }
+        if (state.startDate >= state.endDate)   { toast('End date must be after start date.', 'error'); return; }
+
+        const btn = document.getElementById('sp-btn-analyse');
+        setBusy(btn, true);
+        document.getElementById('sp-goal-result').style.display = 'none';
+
+        try {
+            const data = await api('/api/sprint-planner/propose-goal', 'POST', {
+                projectId: state.projectId,
+                startDate: state.startDate,
+                endDate:   state.endDate
+            });
+            state.goal = data.goalStatement ?? '';
+            state.themes = data.keyThemes ?? [];
+            document.getElementById('sp-goal-text').textContent = data.goalStatement ?? '';
+            document.getElementById('sp-risk-text').textContent = data.riskSummary ?? '';
+
+            const themesEl = document.getElementById('sp-themes');
+            themesEl.innerHTML = '';
+            (data.keyThemes ?? []).forEach(t => {
+                const b = document.createElement('span');
+                b.className = 'badge-tech';
+                b.textContent = t;
+                themesEl.appendChild(b);
+            });
+
+            if (!state.sprintName && data.recommendedSprintName) {
+                document.getElementById('sp-sprint-name').value = data.recommendedSprintName;
+                state.sprintName = data.recommendedSprintName;
+            }
+            document.getElementById('sp-goal-result').style.display = 'block';
+        } catch (e) {
+            toast(e.message, 'error');
+        } finally {
+            setBusy(btn, false);
+        }
+    }
+
+    // ── STEP 2 — Load capacity ─────────────────────────────────────────────
+    async function loadCapacity() {
+        const listEl  = document.getElementById('sp-resource-list');
+        const btn3    = document.getElementById('sp-btn-step3');
+        const prereqEl = document.getElementById('sp-prereq-panel');
+
+        listEl.innerHTML = '<div class="onboard-loading-wrapper" style="padding:2rem"><div class="ai-spinner" style="width:28px;height:28px"></div><span class="text-muted">Loading team capacity…</span></div>';
+        if (btn3) btn3.disabled = true;   // Disabled until we confirm resources exist
+
+        try {
+            const params = new URLSearchParams({ startDate: state.startDate, endDate: state.endDate });
+            const data   = await api(`/api/sprint-planner/capacity/${state.projectId}?${params}`, 'GET');
+            state.resources     = data.resources ?? [];
+            state.totalCapacity = data.totalAllocatedHours ?? 0;
+
+            document.getElementById('sp-total-hours').textContent  = (data.totalAllocatedHours ?? 0).toFixed(1);
+            document.getElementById('sp-member-count').textContent = state.resources.length;
+
+            const avgLoad = state.resources.length
+                ? Math.round(state.resources.reduce((s, r) => s + r.currentLoadPct, 0) / state.resources.length)
+                : 0;
+            const avgEl = document.getElementById('sp-avg-load');
+            avgEl.textContent = `${avgLoad}%`;
+            avgEl.style.color = avgLoad > 90 ? 'var(--danger-color)' : avgLoad > 70 ? 'var(--warning-color)' : 'var(--success-color)';
+
+            listEl.innerHTML = '';
+
+            if (!state.resources.length) {
+                // No members found — show diagnostic prerequisite panel instead of dead message
+                listEl.innerHTML = '';
+                await showPrereqPanel();
+                return;
+            }
+
+            // ── Happy path: capacity loaded ──
+            if (prereqEl) prereqEl.style.display = 'none';  // hide panel if user re-checked
+            if (btn3)    btn3.disabled = false;               // re-enable "Select Sprint Tasks"
+            state.resources.forEach(r => {
+                const loadClass = r.currentLoadPct > 90 ? 'red' : r.currentLoadPct > 70 ? 'amber' : '';
+                const initials  = (r.fullName || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const avatarHtml = r.avatarPath
+                    ? `<img class="sp-avatar" src="${r.avatarPath}" alt="${esc(r.fullName)}" />`
+                    : `<div class="sp-avatar-placeholder">${initials}</div>`;
+
+                const row = document.createElement('div');
+                row.className = 'sp-resource-row';
+                row.innerHTML = `
+                    <div class="sp-resource-name">
+                        ${avatarHtml}
+                        <div>
+                            <div style="font-weight:600;font-size:0.875rem">${esc(r.fullName)}</div>
+                            <div style="font-size:0.72rem;color:var(--text-secondary)">${esc(r.role ?? 'Team Member')}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:0.875rem;font-weight:600;color:var(--text-primary);text-align:center">${r.allocatedHours.toFixed(1)} hrs</div>
+                    <div>
+                        <div class="sp-load-bar">
+                            <div class="sp-load-fill ${loadClass}" style="width:${Math.min(r.currentLoadPct,100)}%"></div>
+                        </div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary);text-align:right;margin-top:2px">${r.currentLoadPct.toFixed(0)}% load</div>
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-secondary)">${(r.skills ?? []).slice(0,3).join(', ') || '—'}</div>`;
+                listEl.appendChild(row);
+            });
+        } catch (e) {
+            // API/network failure — re-enable button so user can retry via "Check Again"
+            if (btn3) btn3.disabled = false;
+            listEl.innerHTML = `<div style="color:var(--danger-color);padding:0.75rem 0;font-size:0.85rem"><i class="fas fa-triangle-exclamation"></i>&nbsp;${esc(e.message)}</div>`;
+        }
+    }
+
+    // ── STEP 2 — Prerequisite panel (shown when resources list is empty) ──────
+    async function showPrereqPanel() {
+        const panel = document.getElementById('sp-prereq-panel');
+        if (!panel) return;
+
+        // Show sprint window dates for reference
+        document.getElementById('sp-prereq-dates').textContent =
+            `${fmtDisplay(state.startDate)} → ${fmtDisplay(state.endDate)}`;
+
+        panel.style.display = 'block';
+
+        try {
+            const params = new URLSearchParams({ startDate: state.startDate, endDate: state.endDate });
+            const diag   = await api(
+                `/api/sprint-planner/capacity-diagnostics/${state.projectId}?${params}`, 'GET');
+            renderPrereqActions(diag.cause, diag.message);
+        } catch {
+            renderPrereqActions('UNKNOWN', 'Could not load capacity data.');
+        }
+    }
+
+    function renderPrereqActions(cause, message) {
+        const title   = document.getElementById('sp-prereq-title');
+        const msg     = document.getElementById('sp-prereq-msg');
+        const actions = document.getElementById('sp-prereq-actions');
+        if (!title || !msg || !actions) return;
+
+        msg.textContent = message ?? '';
+        actions.innerHTML = '';
+
+        // returnUrl lands the user back on this project's Sprints tab after saving.
+        // The Sprints tab uses Bootstrap data-bs-toggle="tab" href="#sprints" which
+        // is activated client-side by the hash — so the fragment works correctly.
+        const returnUrl = encodeURIComponent(
+            `/Projects/Details/${state.projectId}#sprints`);
+
+        if (cause === 'NO_ALLOCATIONS') {
+            title.textContent = 'No Team Members Allocated';
+            actions.innerHTML = `
+                <a class="sp-prereq-link" target="_blank"
+                   href="/Resource/Allocate?projectId=${state.projectId}&returnUrl=${returnUrl}">
+                    <i class="fas fa-user-plus"></i> Allocate Team to This Project
+                </a>`;
+        }
+        else if (cause === 'DATE_MISMATCH') {
+            title.textContent = 'Allocation Dates Don\'t Cover This Sprint';
+            actions.innerHTML = `
+                <a class="sp-prereq-link" target="_blank"
+                   href="/Resource/Allocate?projectId=${state.projectId}&returnUrl=${returnUrl}">
+                    <i class="fas fa-calendar-pen"></i> Manage Team Allocations
+                </a>
+                <button class="sp-prereq-link sp-prereq-link-secondary" onclick="spGoTo(1)" type="button">
+                    <i class="fas fa-arrow-left"></i> Adjust Sprint Dates (Step 1)
+                </button>`;
+        }
+        else {
+            title.textContent = 'Capacity Data Unavailable';
+            actions.innerHTML = `
+                <a class="sp-prereq-link" target="_blank"
+                   href="/Resource/Allocate?projectId=${state.projectId}&returnUrl=${returnUrl}">
+                    <i class="fas fa-users-gear"></i> Open Resource Module
+                </a>`;
+        }
+    }
+
+    // ── STEP 3 — AI task selection ─────────────────────────────────────────
+    async function step3Select() {
+        goTo(3);
+        const listEl = document.getElementById('sp-task-list');
+        listEl.innerHTML = '<div class="onboard-loading-wrapper" style="padding:2rem"><div class="ai-spinner" style="width:28px;height:28px"></div><span class="text-muted">AI is selecting optimal tasks…</span></div>';
+
+        try {
+            const data = await api('/api/sprint-planner/select-backlog', 'POST', {
+                projectId: state.projectId,
+                startDate: state.startDate,
+                endDate:   state.endDate,
+                totalCapacityHours: state.totalCapacity
+            });
+            state.tasks = data.suggestedTasks ?? [];
+            renderTaskList(listEl);
+            updateGauge();
+        } catch (e) {
+            listEl.innerHTML = `<div style="color:var(--danger-color);padding:0.75rem 0;font-size:0.85rem">${esc(e.message)}</div>`;
+        }
+    }
+
+    function renderTaskList(container) {
+        container.innerHTML = '';
+        if (!state.tasks.length) {
+            container.innerHTML = `
+                <div class="sp-prereq-alert mb-3" style="border-left-color: var(--primary-color);">
+                    <div class="sp-prereq-icon" style="color: var(--primary-color);">
+                        <i class="fas fa-circle-info"></i>
+                    </div>
+                    <div class="sp-prereq-body">
+                        <div class="sp-prereq-title">No Backlog Tasks Found</div>
+                        <p class="sp-prereq-msg">
+                            To generate AI task recommendations, you must have active backlog tasks for this project. Tasks must be approved (status "Approved") and pushed to the backlog.
+                        </p>
+                        <div style="margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <a class="sp-prereq-link" target="_blank" 
+                               href="/TaskItems/Create?projectId=${state.projectId}&isBacklog=true&status=Approved">
+                                <i class="fas fa-plus"></i> Create Pre-Approved Backlog Task
+                            </a>
+                            <a class="sp-prereq-link sp-prereq-link-secondary" target="_blank" 
+                               href="/TaskItems?projectId=${state.projectId}&showBacklog=true&proposalGoal=${encodeURIComponent(state.goal||'')}&proposalThemes=${encodeURIComponent((state.themes||[]).join(','))}">
+                                <i class="fas fa-list-check"></i> Approve & Move Tasks to Backlog
+                            </a>
+                        </div>
+                        <div style="margin-top: 0.75rem;">
+                            <button class="btn-ow-skip" onclick="step3Select()" type="button">
+                                <i class="fas fa-rotate-right"></i> Check Backlog Again
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            return;
+        }
+        state.tasks.forEach((task, idx) => {
+            const pClass = `ow-priority ow-priority-${(task.priority ?? 'medium').toLowerCase()}`;
+            const row = document.createElement('div');
+            row.className = `onboard-list-item${task.selected ? ' sp-task-selected' : ''}`;
+            row.dataset.idx = idx;
+            row.innerHTML = `
+                <input type="checkbox" class="item-checkbox" data-idx="${idx}" ${task.selected ? 'checked' : ''}>
+                <div class="item-content">
+                    <div class="item-title-row">
+                        <span class="item-title">${esc(task.title)}</span>
+                        <div class="item-meta" style="margin-top:0">
+                            <span class="${pClass}">${esc(task.priority)}</span>
+                            <span class="ai-child-hours">${(task.pertHours ?? 0).toFixed(1)}h</span>
+                            ${task.isNewTask ? '<span class="ai-generated-badge"><i class="fas fa-plus"></i> NEW</span>' : ''}
+                        </div>
+                    </div>
+                    ${task.description ? `<p class="item-desc">${esc(task.description)}</p>` : ''}
+                    ${task.rationale  ? `<p class="item-desc" style="font-style:italic;margin-top:0.2rem"><i class="fas fa-lightbulb"></i> ${esc(task.rationale)}</p>` : ''}
+                </div>`;
+
+            row.addEventListener('click', e => {
+                if (e.target.classList.contains('item-checkbox')) return;
+                const cb = row.querySelector('.item-checkbox');
+                cb.checked = !cb.checked;
+                toggleTask(idx, cb.checked, row);
+            });
+            row.querySelector('.item-checkbox').addEventListener('change', e => {
+                toggleTask(idx, e.target.checked, row);
+            });
+            container.appendChild(row);
+        });
+    }
+
+    function toggleTask(idx, checked, row) {
+        state.tasks[idx] = { ...state.tasks[idx], selected: checked };
+        row.classList.toggle('sp-task-selected', checked);
+        updateGauge();
+    }
+
+    function updateGauge() {
+        const selected = state.tasks.filter(t => t.selected);
+        const total    = selected.reduce((s, t) => s + (t.pertHours ?? 0), 0);
+        const cap      = state.totalCapacity || 1;
+        const pct      = Math.min((total / cap) * 100, 100);
+        const fill     = document.getElementById('sp-task-gauge-fill');
+        if (fill) {
+            fill.style.width = `${pct}%`;
+            fill.className   = 'sp-gauge-fill' + (pct > 95 ? ' danger' : pct > 80 ? ' amber' : '');
+        }
+        const txt = document.getElementById('sp-task-gauge-text');
+        if (txt) txt.textContent = `${total.toFixed(1)} / ${cap.toFixed(1)} hrs`;
+    }
+
+    // ── STEP 4 — AI assignment ─────────────────────────────────────────────
+    async function step4Assign() {
+        const selected = state.tasks.filter(t => t.selected);
+        if (!selected.length) { toast('Please select at least one task.', 'error'); return; }
+        goTo(4);
+
+        const listEl = document.getElementById('sp-assign-list');
+        listEl.innerHTML = '<div class="onboard-loading-wrapper" style="padding:2rem"><div class="ai-spinner" style="width:28px;height:28px"></div><span class="text-muted">AI is matching tasks to team members…</span></div>';
+
+        try {
+            state.assignments = await api('/api/sprint-planner/assign-tasks', 'POST', {
+                projectId: state.projectId,
+                tasks:     selected,
+                resources: state.resources
+            });
+            renderAssignList(listEl);
+        } catch (e) {
+            listEl.innerHTML = `<div style="color:var(--danger-color);padding:0.75rem 0;font-size:0.85rem">${esc(e.message)}</div>`;
+        }
+    }
+
+    function renderAssignList(container) {
+        container.innerHTML = '';
+        if (!state.assignments.length) {
+            container.innerHTML = '<p class="text-muted" style="padding:0.75rem 0;font-size:0.85rem">No assignments generated.</p>';
+            return;
+        }
+        state.assignments.forEach((a, idx) => {
+            const options = state.resources.map(r =>
+                `<option value="${esc(r.userId)}" ${r.userId === a.suggestedAssigneeId ? 'selected' : ''}>${esc(r.fullName)}</option>`
+            ).join('');
+
+            const row = document.createElement('div');
+            row.className = 'sp-assign-row';
+            row.innerHTML = `
+                <div>
+                    <div style="font-weight:600;font-size:0.875rem;color:var(--text-primary)">${esc(a.title)}</div>
+                    <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.1rem">${(a.taskPertHours ?? 0).toFixed(1)}h &middot; ${esc(a.priority)}</div>
+                    <div class="sp-assign-reason"><i class="fas fa-robot"></i>${esc(a.assignmentReason)}</div>
+                </div>
+                <select class="sp-assignee-select" data-assign-idx="${idx}">
+                    <option value="">— Unassigned —</option>
+                    ${options}
+                </select>
+                <span class="ai-child-hours" style="text-align:right">${(a.taskPertHours ?? 0).toFixed(1)}h</span>`;
+
+            row.querySelector('.sp-assignee-select').addEventListener('change', e => {
+                const sel = state.resources.find(r => r.userId === e.target.value);
+                state.assignments[idx] = {
+                    ...state.assignments[idx],
+                    suggestedAssigneeId:   sel?.userId ?? null,
+                    suggestedAssigneeName: sel?.fullName ?? null
+                };
+            });
+            container.appendChild(row);
+        });
+    }
+
+    // ── STEP 5 — Build review ──────────────────────────────────────────────
+    function buildReview() {
+        goTo(5);
+        state.sprintName = document.getElementById('sp-sprint-name').value || 'AI Sprint';
+        state.goal       = document.getElementById('sp-goal-text').textContent;
+
+        const selected   = state.tasks.filter(t => t.selected);
+        const totalHours = selected.reduce((s, t) => s + (t.pertHours ?? 0), 0);
+        const utilPct    = state.totalCapacity > 0 ? Math.round((totalHours / state.totalCapacity) * 100) : 0;
+
+        document.getElementById('rv-task-count').textContent   = selected.length;
+        document.getElementById('rv-total-hours').textContent  = totalHours.toFixed(1) + 'h';
+        document.getElementById('rv-utilization').textContent  = utilPct + '%';
+        document.getElementById('rv-goal-text').textContent    = state.goal;
+        document.getElementById('rv-sprint-name').textContent  = state.sprintName;
+        document.getElementById('rv-sprint-dates').textContent = `${fmtDisplay(state.startDate)} → ${fmtDisplay(state.endDate)}`;
+
+        const pct = Math.min(utilPct, 100);
+        const gf  = document.getElementById('rv-gauge-fill');
+        if (gf) { gf.style.width = `${pct}%`; gf.className = 'sp-gauge-fill' + (pct > 95 ? ' danger' : pct > 80 ? ' amber' : ''); }
+        const gt = document.getElementById('rv-gauge-text');
+        if (gt) gt.textContent = `${totalHours.toFixed(1)} / ${state.totalCapacity.toFixed(1)} hrs`;
+
+        const taskList = document.getElementById('rv-task-list');
+        taskList.innerHTML = '';
+        selected.forEach(task => {
+            const assign = state.assignments.find(a => a.taskId === task.taskId)
+                        ?? state.assignments.find(a => a.title  === task.title);
+            const row = document.createElement('div');
+            row.className = 'sp-review-task-row';
+            row.innerHTML = `
+                <div class="sp-review-task-name">${esc(task.title)}</div>
+                <div class="sp-review-assignee"><i class="fas fa-user-circle" style="color:var(--text-secondary)"></i>&nbsp;${esc(assign?.suggestedAssigneeName ?? '—')}</div>
+                <div style="text-align:center;color:var(--text-secondary)">${task.storyPoints ?? '—'}</div>
+                <div class="sp-review-hours">${(task.pertHours ?? 0).toFixed(1)}h</div>`;
+            taskList.appendChild(row);
+        });
+    }
+
+    // ── STEP 5 — Confirm & Save ────────────────────────────────────────────
+    async function confirmSave() {
+        const btn      = document.getElementById('sp-btn-confirm');
+        const selected = state.tasks.filter(t => t.selected);
+        if (!selected.length) { toast('No tasks selected.', 'error'); return; }
+
+        setBusy(btn, true, 'Saving…');
+        try {
+            const taskConfirms = selected.map(task => {
+                const assign = state.assignments.find(a => a.taskId === task.taskId)
+                            ?? state.assignments.find(a => a.title  === task.title);
+                return {
+                    taskId: task.taskId ?? null,
+                    title:  task.title,
+                    description:     task.description ?? null,
+                    priority:        task.priority ?? 'Medium',
+                    optimisticHours: task.optimisticHours ?? 0,
+                    mostLikelyHours: task.mostLikelyHours ?? 0,
+                    pessimisticHours:task.pessimisticHours ?? 0,
+                    estimatedHours:  task.pertHours ?? 0,
+                    assigneeId:      assign?.suggestedAssigneeId ?? null,
+                    isNewTask:       task.isNewTask ?? false
+                };
+            });
+            const result = await api('/api/sprint-planner/confirm', 'POST', {
+                projectId: state.projectId,
+                sprint: {
+                    name:                 state.sprintName || 'AI Sprint',
+                    startDate:            state.startDate,
+                    endDate:              state.endDate,
+                    goal:                 state.goal,
+                    plannedCapacityHours: state.totalCapacity,
+                    tasks:                taskConfirms
+                }
+            });
+            toast(`Sprint "${result.sprintName}" saved — ${result.tasksCreated + result.tasksAssigned} tasks!`, 'success');
+            setTimeout(() => window.location.reload(), 1200);
+        } catch (e) {
+            toast(e.message, 'error');
+            setBusy(btn, false);
+        }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function fmtDate(d) { return d.toISOString().slice(0, 10); }
+    function fmtDisplay(iso) { return new Date(iso).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+    function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function setBusy(btn, busy, label) {
+        if (!btn) return;
+        btn.disabled = busy;
+        if (busy) {
+            btn._orig = btn.innerHTML;
+            btn.innerHTML = `<span class="ai-spinner" style="display:inline-block;vertical-align:middle;margin-right:4px;border-color:rgba(255,255,255,.3);border-top-color:#fff"></span>${label ?? 'Loading…'}`;
+        } else {
+            btn.innerHTML = btn._orig ?? btn.innerHTML;
+        }
+    }
+    async function api(url, method, body) {
+        const opts = { method, headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': csrfToken } };
+        if (body && method !== 'GET') opts.body = JSON.stringify(body);
+        const res  = await fetch(url, opts);
+        const json = await res.json().catch(() => ({ message: res.statusText }));
+        if (!res.ok) throw new Error(json?.message ?? json?.title ?? `HTTP ${res.status}`);
+        return json;
+    }
+    let _toastTimer;
+    function toast(msg, type) {
+        clearTimeout(_toastTimer);
+        document.querySelectorAll('.sp-toast').forEach(t => t.remove());
+        const el = document.createElement('div');
+        el.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;background:${type==='error'?'var(--danger-color)':type==='success'?'var(--success-color)':'var(--text-primary)'};color:#fff;border-radius:8px;padding:.7rem 1.1rem;font-size:.85rem;font-weight:500;z-index:9999;display:flex;align-items:center;gap:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:380px;font-family:inherit;animation:sp-slide-in .2s ease`;
+        el.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-circle':type==='success'?'check-circle':'info-circle'}"></i> ${esc(msg)}`;
+        document.body.appendChild(el);
+        _toastTimer = setTimeout(() => el.remove(), 4500);
+    }
+
+    // ── Boot ─────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState !== 'loading') init();
+})();
+</script>
