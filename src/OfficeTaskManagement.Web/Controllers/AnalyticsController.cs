@@ -483,10 +483,10 @@ namespace OfficeTaskManagement.Controllers
             var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
             
             // Resolve permissions independently (no longer mutually exclusive)
-            var hasStrategic = await permSvc.HasPermissionAsync(User, Permissions.StrategicView);
-            var hasProjects = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage) || await permSvc.HasPermissionAsync(User, Permissions.ProjectsView);
-            var hasWorkflow = await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
-            var hasPersonal = true; // Everyone can see their own tasks
+            var hasStrategic = await permSvc.HasPermissionAsync(User, Permissions.DashboardStrategicView);
+            var hasProjects = await permSvc.HasPermissionAsync(User, Permissions.DashboardProjectsView);
+            var hasWorkflow = await permSvc.HasPermissionAsync(User, Permissions.DashboardWorkflowView);
+            var hasPersonal = await permSvc.HasPermissionAsync(User, Permissions.DashboardPersonalView);
 
             var vm = new DashboardViewModel
             {

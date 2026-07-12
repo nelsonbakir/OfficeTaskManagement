@@ -6,37 +6,49 @@
 }
 
 <div class="mb-4">
-    <h4 class="fw-bold mb-0">Personal Data</h4>
-    <p class="text-muted small">Manage your data and account export options.</p>
+    <h4 class="fw-bold mb-1">Personal Data</h4>
+    <p class="text-secondary mb-0" style="font-size: 0.9rem;">Manage your data and account export/deletion options.</p>
 </div>
-<!-- 
-<partial name="_StatusMessage" for="StatusMessage" /> -->
 
-<div class="alert alert-info border-0 shadow-sm mb-4" style="background: #f0f9ff; color: #0369a1;">
-    <div class="d-flex align-items-center">
-        <i class="fas fa-info-circle me-3 fs-4"></i>
-        <p class="mb-0 small">Your account contains personal data that you have provided to us. This page allows you to download or delete that data.</p>
+<div class="row g-4 align-items-start">
+    <!-- Contextual Left Column -->
+    <div class="col-12 col-md-4 col-lg-3 border-end-md pb-3 pb-md-0" style="border-right: 1px dashed var(--auth-border); text-align: center;">
+        <div class="py-2">
+            <i class="fas fa-user-shield text-primary mb-3" style="font-size: 3rem; opacity: 0.35; color: var(--auth-primary) !important;"></i>
+            <h6 class="fw-bold mb-1">Data & Privacy</h6>
+            <p class="text-secondary mb-0 px-2" style="font-size: 0.8rem; line-height: 1.4;">Your account contains personal details you provided. Under privacy compliance, you can request an export of your information or request total deletion.</p>
+        </div>
     </div>
-</div>
 
-<div class="card border-danger mb-4 overflow-hidden" style="border-radius: 12px; border-style: dashed !important;">
-    <div class="card-body bg-danger bg-opacity-10 py-4">
-        <h5 class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-2"></i> Danger Zone</h5>
-        <p class="text-danger-emphasis mb-0 small">
-            Deleting this data will <strong>permanently remove your account</strong>, and this action cannot be undone. All your project history and tasks will be lost.
-        </p>
+    <!-- Controls Right Column -->
+    <div class="col-12 col-md-8 col-lg-9">
+        <div class="alert alert-info border-0 shadow-sm mb-4" style="background: #F0F9FF; color: #0369A1; border-radius: 6px;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle me-3 fs-5"></i>
+                <p class="mb-0 small">This page allows you to download a JSON file containing all data associated with your profile or request the permanent deletion of your credentials.</p>
+            </div>
+        </div>
+
+        <div class="card border-danger mb-4 overflow-hidden" style="border-radius: 6px; border: 1.5px dashed #FCA5A5 !important;">
+            <div class="card-body bg-danger bg-opacity-10 py-3">
+                <h6 class="text-danger fw-bold mb-1"><i class="fas fa-exclamation-triangle me-2"></i> Danger Zone</h6>
+                <p class="text-danger-emphasis mb-0 small" style="color: #991B1B;">
+                    Deleting this data will <strong>permanently remove your account</strong>. This action is irreversible, and all your task history, comments, and project assignments will be deleted.
+                </p>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top" style="max-width: 600px;">
+            <form id="download-data" asp-page="DownloadPersonalData" method="post">
+                <button class="profile-btn-save mt-0" type="submit">
+                    <i class="fas fa-download me-2"></i> Download Data
+                </button>
+            </form>
+            <a id="delete" asp-page="DeletePersonalData" class="btn btn-outline-danger px-4 d-flex align-items-center" style="border-radius: 4px; font-weight: 600;">
+                <i class="fas fa-user-times me-2"></i> Delete Account
+            </a>
+        </div>
     </div>
-</div>
-
-<div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top">
-    <form id="download-data" asp-page="DownloadPersonalData" method="post">
-        <button class="profile-btn-save" type="submit">
-            <i class="fas fa-download me-2"></i> Download Data
-        </button>
-    </form>
-    <a id="delete" asp-page="DeletePersonalData" class="btn btn-outline-danger px-4 d-flex align-items-center" style="border-radius: 10px; font-weight: 600;">
-        <i class="fas fa-user-times me-2"></i> Delete Account
-    </a>
 </div>
 
 @section Scripts {

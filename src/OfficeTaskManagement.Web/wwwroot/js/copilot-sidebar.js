@@ -28,6 +28,10 @@
 
         if (!sidebar || !toggleBtn) return;
 
+        // Initialize WBS draft state from local storage
+        loadDraftFromStorage();
+        updateResumeButtonVisibility();
+
         // ── Mentions State ────────────────────────────────────────────────────────
         let mentions = []; // { type, id, label }
         let dropdownVisible = false;
@@ -368,7 +372,13 @@
                 // Final render
                 const wbsData = tryParseWbs(fullText);
                 if (wbsData) {
-                    bubble.innerHTML = renderWbsProposedCard(wbsData);
+                    const cleanText = cleanJsonFromText(fullText);
+                    bubble.innerHTML = renderMarkdown(cleanText || 'I have generated a proposed project plan below:');
+                    
+                    const cardHtml = renderWbsProposedCard(wbsData);
+                    const cardDiv = document.createElement('div');
+                    cardDiv.innerHTML = cardHtml;
+                    bubble.appendChild(cardDiv.firstElementChild);
                 } else {
                     bubble.innerHTML = renderMarkdown(fullText || '(no response)');
                 }
@@ -400,6 +410,33 @@
 
                 if (actions?.length) {
                     renderActions(actions);
+                    
+                    const draftAction = actions.find(a => (a.type || a.Type || a.actionType || '').startsWith('draft_'));
+                    if (draftAction) {
+                        const wbsDataId = "wbs-action-" + Date.now();
+                        const rawPayload = draftAction.payload || draftAction.Payload;
+                        const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+                        const args = typeof payload.args === 'string' ? JSON.parse(payload.args) : (payload.args ?? {});
+                        
+                        window[wbsDataId] = { projectId: args.projectId || 1, wbs: args.epics || [] };
+                        
+                        const openCard = document.createElement('div');
+                        openCard.className = 'copilot-wbs-card';
+                        openCard.style.marginTop = '0.75rem';
+                        openCard.innerHTML = `
+                            <div class="copilot-wbs-card__header">
+                                <span>🗺</span> AI Proposed Project Plan
+                            </div>
+                            <div class="copilot-wbs-card__title">Plan Ready for Review</div>
+                            <div class="copilot-wbs-card__actions">
+                                <button class="copilot-wbs-card-btn copilot-wbs-card-btn--primary" onclick="triggerWbsWizard('${wbsDataId}')">
+                                    Open WBS Planning Wizard
+                                </button>
+                            </div>
+                        `;
+                        bubble.appendChild(openCard);
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    }
                 } else {
                     actionsEl.style.display = 'none';
                 }
@@ -621,6 +658,123 @@
         // ── WBS Wizard Integration ───────────────────────────────────────────────
         let draftWbsState = { projectId: null, epics: [] };
 
+        function saveDraftToStorage() {
+            if (draftWbsState && draftWbsState.projectId) {
+                localStorage.setItem('copilot_wbs_draft_state', JSON.stringify(draftWbsState));
+            }
+            updateResumeButtonVisibility();
+        }
+
+        function clearDraftFromStorage() {
+            localStorage.removeItem('copilot_wbs_draft_state');
+            updateResumeButtonVisibility();
+        }
+
+        function loadDraftFromStorage() {
+            const saved = localStorage.getItem('copilot_wbs_draft_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed && parsed.projectId && Array.isArray(parsed.epics)) {
+                        draftWbsState = parsed;
+                        return true;
+                    }
+                } catch {
+                    localStorage.removeItem('copilot_wbs_draft_state');
+                }
+            }
+            return false;
+        }
+
+        function updateResumeButtonVisibility() {
+            const bar = document.getElementById('copilot-wbs-resume-bar');
+            if (!bar) return;
+            const saved = localStorage.getItem('copilot_wbs_draft_state');
+            if (saved) {
+                bar.style.display = 'flex';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function getWbsWizardCurrentStep() {
+            if (!draftWbsState || !draftWbsState.epics || draftWbsState.epics.length === 0) {
+                return 1;
+            }
+            const hasFeatures = draftWbsState.epics.some(e => e.features && e.features.length > 0);
+            if (!hasFeatures) {
+                return 1;
+            }
+            const hasStories = draftWbsState.epics.some(e => e.features && e.features.some(f => f.stories && f.stories.length > 0));
+            if (!hasStories) {
+                return 2;
+            }
+            return 3;
+        }
+
+        function resumeWbsWizard() {
+            const root = document.getElementById('wbs-wizard-editor-root');
+            if (!root) return;
+
+            const myModal = new bootstrap.Modal(document.getElementById('wbsWizardModal'));
+            myModal.show();
+            
+            const currentStep = getWbsWizardCurrentStep();
+            if (currentStep === 1) {
+                renderWbsWizardEpics(root);
+            } else if (currentStep === 2) {
+                renderWbsWizardFeatures(root);
+            } else {
+                renderWbsWizardStories(root);
+            }
+        }
+        
+        window.resumeWbsWizard = resumeWbsWizard;
+
+        function showWizardLoading(root, message) {
+            root.innerHTML = `
+                <div class="d-flex flex-column align-items-center justify-content-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="text-muted">${message}</h5>
+                    <p class="text-muted small">Please wait, this may take a moment...</p>
+                </div>
+            `;
+            const applyBtn = document.getElementById('wbs-wizard-apply-btn');
+            if (applyBtn) {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Generating...';
+            }
+            const addEpicBtn = document.getElementById('wbs-wizard-add-epic-btn');
+            if (addEpicBtn) addEpicBtn.style.display = 'none';
+        }
+
+        async function callAgentChatBackground(text) {
+            const resp = await fetch('/api/agent/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getAntiForgeryToken()
+                },
+                body: JSON.stringify({
+                    conversationId,
+                    userId: '',
+                    message: text,
+                    entityType: entityType,
+                    entityId: entityId ? parseInt(entityId) : null,
+                    mentions: [],
+                    projectContextId: getActiveProjectContextId(),
+                    displayMessage: null
+                })
+            });
+            if (!resp.ok) {
+                const err = await resp.text();
+                throw new Error(err || 'Background AI service failed.');
+            }
+            return await resp.json();
+        }
+
         function launchWbsWizard(action) {
             const rawPayload = action.payload || action.Payload;
             const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
@@ -637,12 +791,15 @@
             if (type === 'draft_epics') {
                 draftWbsState.projectId = args.projectId;
                 draftWbsState.epics = args.epics || [];
+                saveDraftToStorage();
                 renderWbsWizardEpics(root);
             } else if (type === 'draft_features') {
                 draftWbsState.epics = args.epics || [];
+                saveDraftToStorage();
                 renderWbsWizardFeatures(root);
             } else if (type === 'draft_stories_and_tasks') {
                 draftWbsState.epics = args.epics || [];
+                saveDraftToStorage();
                 renderWbsWizardStories(root);
             }
         }
@@ -656,30 +813,116 @@
                 const item = document.createElement('div');
                 item.className = 'list-group-item';
                 item.innerHTML = `
-                    <div class="mb-2"><strong><input type="text" class="form-control form-control-sm epic-name" data-idx="${idx}" value="${epic.name.replace(/"/g, '&quot;')}" /></strong></div>
-                    <div><textarea class="form-control form-control-sm epic-desc" data-idx="${idx}" rows="2">${epic.description || ''}</textarea></div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <input type="text" class="form-control form-control-sm epic-name me-2" data-idx="${idx}" value="${epic.name.replace(/"/g, '&quot;')}" style="font-weight: 600;" />
+                        <button type="button" class="btn btn-outline-danger btn-sm epic-delete-btn" data-idx="${idx}" title="Remove Epic">✕</button>
+                    </div>
+                    <div><textarea class="form-control form-control-sm epic-desc" data-idx="${idx}" rows="2" placeholder="Epic Description">${epic.description || ''}</textarea></div>
                 `;
+                
+                item.querySelector('.epic-delete-btn').onclick = () => {
+                    root.querySelectorAll('.epic-name').forEach(el => {
+                        const i = el.dataset.idx;
+                        if (i != idx) draftWbsState.epics[i].name = el.value;
+                    });
+                    root.querySelectorAll('.epic-desc').forEach(el => {
+                        const i = el.dataset.idx;
+                        if (i != idx) draftWbsState.epics[i].description = el.value;
+                    });
+
+                    draftWbsState.epics.splice(idx, 1);
+                    saveDraftToStorage();
+                    renderWbsWizardEpics(root);
+                };
+
                 list.appendChild(item);
             });
             root.appendChild(list);
 
+            const addEpicBtn = document.getElementById('wbs-wizard-add-epic-btn');
+            if (addEpicBtn) {
+                addEpicBtn.style.display = 'inline-block';
+                addEpicBtn.onclick = () => {
+                    root.querySelectorAll('.epic-name').forEach(el => draftWbsState.epics[el.dataset.idx].name = el.value);
+                    root.querySelectorAll('.epic-desc').forEach(el => draftWbsState.epics[el.dataset.idx].description = el.value);
+
+                    draftWbsState.epics.push({
+                        name: 'New Epic',
+                        description: '',
+                        features: []
+                    });
+                    saveDraftToStorage();
+                    renderWbsWizardEpics(root);
+                };
+            }
+
             const applyBtn = document.getElementById('wbs-wizard-apply-btn');
             applyBtn.textContent = 'Next: Draft Features';
-            applyBtn.onclick = () => {
+            applyBtn.disabled = false;
+            applyBtn.onclick = async () => {
                 root.querySelectorAll('.epic-name').forEach(el => draftWbsState.epics[el.dataset.idx].name = el.value);
                 root.querySelectorAll('.epic-desc').forEach(el => draftWbsState.epics[el.dataset.idx].description = el.value);
                 
-                const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('wbsWizardModal'));
-                bootstrapModal.hide();
+                saveDraftToStorage();
+
+                showWizardLoading(root, "Drafting Features for your Epics...");
                 
-                sendAiMessage(`Here are the approved Epics. Please use draft_features to generate Features for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``);
+                try {
+                    const prompt = `Here are the approved Epics. Please use draft_features to generate Features for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``;
+                    const response = await callAgentChatBackground(prompt);
+                    
+                    const action = response.actions?.find(a => (a.type || a.Type || a.actionType || '') === 'draft_features');
+                    if (action) {
+                        const rawPayload = action.payload || action.Payload;
+                        const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+                        const args = typeof payload.args === 'string' ? JSON.parse(payload.args) : (payload.args ?? {});
+                        
+                        draftWbsState.epics = args.epics || [];
+                        saveDraftToStorage();
+                        renderWbsWizardFeatures(root);
+                    } else {
+                        throw new Error("AI did not return the expected 'draft_features' action. Text response: " + response.message);
+                    }
+                } catch (err) {
+                    alert('Drafting features failed: ' + err.message);
+                    renderWbsWizardEpics(root);
+                }
             };
+        }
+
+        function saveFeaturesStateFromDom(root) {
+            const newFeaturesMap = draftWbsState.epics.map(() => []);
+
+            root.querySelectorAll('.feature-item').forEach(el => {
+                const name = el.querySelector('.feat-name').value;
+                const desc = el.querySelector('.feat-desc').value;
+                const newEpicIdx = parseInt(el.querySelector('.feat-epic-select').value, 10);
+                
+                const origEpicIdx = parseInt(el.dataset.e, 10);
+                const origFeatIdx = parseInt(el.dataset.f, 10);
+                const originalFeat = draftWbsState.epics[origEpicIdx].features[origFeatIdx];
+
+                const updatedFeature = {
+                    ...originalFeat,
+                    name: name,
+                    description: desc
+                };
+
+                newFeaturesMap[newEpicIdx].push(updatedFeature);
+            });
+
+            draftWbsState.epics.forEach((epic, idx) => {
+                epic.features = newFeaturesMap[idx];
+            });
         }
 
         function renderWbsWizardFeatures(root) {
             root.innerHTML = `<h5 class="mb-3 text-primary"><i class="fas fa-cubes"></i> Step 2: Review Features</h5>`;
             const list = document.createElement('div');
             
+            const addEpicBtn = document.getElementById('wbs-wizard-add-epic-btn');
+            if (addEpicBtn) addEpicBtn.style.display = 'none';
+
             draftWbsState.epics.forEach((epic, eIdx) => {
                 const epicCard = document.createElement('div');
                 epicCard.className = 'card mb-3 shadow-sm border-0';
@@ -697,64 +940,173 @@
                     item.dataset.e = eIdx;
                     item.dataset.f = fIdx;
                     item.innerHTML = `
-                        <div class="mb-1"><input type="text" class="form-control form-control-sm feat-name" value="${feat.name.replace(/"/g, '&quot;')}" /></div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <input type="text" class="form-control form-control-sm feat-name me-2" value="${feat.name.replace(/"/g, '&quot;')}" />
+                            <button type="button" class="btn btn-outline-danger btn-sm feat-delete-btn" title="Remove Feature">✕</button>
+                        </div>
                         <div class="mb-1"><input type="text" class="form-control form-control-sm feat-desc" value="${feat.description || ''}" placeholder="Description" /></div>
                         <div class="mb-1 row g-2 align-items-center">
                             <div class="col-auto"><span class="small text-muted">Parent Epic:</span></div>
                             <div class="col"><select class="form-select form-select-sm feat-epic-select">${epicOptions}</select></div>
                         </div>
                     `;
+
+                    item.querySelector('.feat-delete-btn').onclick = () => {
+                        saveFeaturesStateFromDom(root);
+                        draftWbsState.epics[eIdx].features.splice(fIdx, 1);
+                        saveDraftToStorage();
+                        renderWbsWizardFeatures(root);
+                    };
+
                     featList.appendChild(item);
                 });
                 epicCard.appendChild(featList);
+
+                const addFeatBtn = document.createElement('button');
+                addFeatBtn.type = 'button';
+                addFeatBtn.className = 'btn btn-outline-secondary btn-sm m-3';
+                addFeatBtn.style.fontSize = '0.75rem';
+                addFeatBtn.textContent = '➕ Add Feature';
+                addFeatBtn.onclick = () => {
+                    saveFeaturesStateFromDom(root);
+                    if (!epic.features) epic.features = [];
+                    epic.features.push({
+                        name: 'New Feature',
+                        description: '',
+                        stories: []
+                    });
+                    saveDraftToStorage();
+                    renderWbsWizardFeatures(root);
+                };
+                epicCard.appendChild(addFeatBtn);
+
                 list.appendChild(epicCard);
             });
             root.appendChild(list);
 
             const applyBtn = document.getElementById('wbs-wizard-apply-btn');
             applyBtn.textContent = 'Next: Draft Stories & Tasks';
-            applyBtn.onclick = () => {
-                const newFeaturesMap = draftWbsState.epics.map(() => []);
+            applyBtn.disabled = false;
+            applyBtn.onclick = async () => {
+                saveFeaturesStateFromDom(root);
+                saveDraftToStorage();
 
-                root.querySelectorAll('.feature-item').forEach(el => {
-                    const name = el.querySelector('.feat-name').value;
-                    const desc = el.querySelector('.feat-desc').value;
-                    const newEpicIdx = parseInt(el.querySelector('.feat-epic-select').value, 10);
+                showWizardLoading(root, "Drafting User Stories & PERT-estimated Tasks...");
+
+                try {
+                    const prompt = `Here are the approved Features. Please use draft_stories_and_tasks to generate User Stories, Test Cases, and PERT-estimated Tasks for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``;
+                    const response = await callAgentChatBackground(prompt);
                     
-                    const origEpicIdx = parseInt(el.dataset.e, 10);
-                    const origFeatIdx = parseInt(el.dataset.f, 10);
-                    const originalFeat = draftWbsState.epics[origEpicIdx].features[origFeatIdx];
-
-                    const updatedFeature = {
-                        ...originalFeat,
-                        name: name,
-                        description: desc
-                    };
-
-                    newFeaturesMap[newEpicIdx].push(updatedFeature);
-                });
-
-                draftWbsState.epics.forEach((epic, idx) => {
-                    epic.features = newFeaturesMap[idx];
-                });
-                
-                const bootstrapModal = bootstrap.Modal.getInstance(document.getElementById('wbsWizardModal'));
-                bootstrapModal.hide();
-                
-                sendAiMessage(`Here are the approved Features. Please use draft_stories_and_tasks to generate User Stories, Test Cases, and PERT-estimated Tasks for them:\n\`\`\`json\n${JSON.stringify({ projectId: draftWbsState.projectId, epics: draftWbsState.epics }, null, 2)}\n\`\`\``);
+                    const action = response.actions?.find(a => (a.type || a.Type || a.actionType || '') === 'draft_stories_and_tasks');
+                    if (action) {
+                        const rawPayload = action.payload || action.Payload;
+                        const payload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+                        const args = typeof payload.args === 'string' ? JSON.parse(payload.args) : (payload.args ?? {});
+                        
+                        draftWbsState.epics = args.epics || [];
+                        saveDraftToStorage();
+                        renderWbsWizardStories(root);
+                    } else {
+                        throw new Error("AI did not return the expected 'draft_stories_and_tasks' action. Text response: " + response.message);
+                    }
+                } catch (err) {
+                    alert('Drafting stories and tasks failed: ' + err.message);
+                    renderWbsWizardFeatures(root);
+                }
             };
         }
 
         function renderWbsWizardStories(root) {
             root.innerHTML = `<h5 class="mb-3 text-success"><i class="fas fa-check-circle"></i> Step 3: Final Review</h5>`;
-            const pre = document.createElement('pre');
-            pre.className = 'p-3 bg-dark text-white rounded small';
-            pre.style.maxHeight = '400px';
-            pre.textContent = JSON.stringify(draftWbsState.epics, null, 2);
-            root.appendChild(pre);
+            
+            const addEpicBtn = document.getElementById('wbs-wizard-add-epic-btn');
+            if (addEpicBtn) addEpicBtn.style.display = 'none';
+
+            let epicCount = draftWbsState.epics.length;
+            let featureCount = 0;
+            let storyCount = 0;
+            let taskCount = 0;
+            let totalEst = 0;
+
+            draftWbsState.epics.forEach(e => {
+                if (e.features) {
+                    featureCount += e.features.length;
+                    e.features.forEach(f => {
+                        if (f.stories) {
+                            storyCount += f.stories.length;
+                            f.stories.forEach(s => {
+                                if (s.tasks) {
+                                    taskCount += s.tasks.length;
+                                    s.tasks.forEach(t => {
+                                        const o = parseFloat(t.optimisticHours || t.optimistic) || 0;
+                                        const m = parseFloat(t.mostLikelyHours || t.mostLikely) || 0;
+                                        const p = parseFloat(t.pessimisticHours || t.pessimistic) || 0;
+                                        const pert = (o > 0 && m > 0 && p > 0) ? (o + 4*m + p) / 6 : (m || 0);
+                                        totalEst += pert;
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+
+            const summaryEl = document.createElement('div');
+            summaryEl.className = 'alert alert-success border-0 mb-3';
+            summaryEl.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <strong class="d-block" style="font-size: 1rem;">Ready to Commit Plan</strong>
+                        <span class="small text-muted">${epicCount} Epic(s) • ${featureCount} Feature(s) • ${storyCount} Story(ies) • ${taskCount} Task(s)</span>
+                    </div>
+                    <div class="text-end">
+                        <strong class="d-block text-success" style="font-size: 1.15rem;">${totalEst.toFixed(1)}h</strong>
+                        <span class="small text-muted">PERT Estimated Effort</span>
+                    </div>
+                </div>
+            `;
+            root.appendChild(summaryEl);
+
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'wbs-review-tree p-3 bg-white rounded border overflow-auto';
+            treeContainer.style.maxHeight = '300px';
+            
+            let treeHtml = '<ul style="list-style-type: none; padding-left: 0; margin-bottom: 0;">';
+            draftWbsState.epics.forEach(e => {
+                treeHtml += `<li class="mb-2"><strong>📁 Epic: ${escapeHtml(e.name)}</strong>`;
+                if (e.features?.length) {
+                    treeHtml += '<ul style="list-style-type: none; padding-left: 1.25rem; margin-top: 0.25rem;">';
+                    e.features.forEach(f => {
+                        treeHtml += `<li class="mb-1"><strong>📦 Feature: ${escapeHtml(f.name)}</strong>`;
+                        if (f.stories?.length) {
+                            treeHtml += '<ul style="list-style-type: none; padding-left: 1.25rem; margin-top: 0.15rem;">';
+                            f.stories.forEach(s => {
+                                treeHtml += `<li class="mb-1 text-muted"><span style="font-size: 0.85rem;">📝 User Story: ${escapeHtml(s.title)}</span>`;
+                                if (s.tasks?.length) {
+                                    treeHtml += '<ul style="list-style-type: none; padding-left: 1.25rem; margin-top: 0.15rem;">';
+                                    s.tasks.forEach(t => {
+                                        const m = parseFloat(t.mostLikelyHours || t.mostLikely) || 0;
+                                        treeHtml += `<li class="small text-muted">⚙ Task: ${escapeHtml(t.title)} (${m}h)</li>`;
+                                    });
+                                    treeHtml += '</ul>';
+                                }
+                                treeHtml += '</li>';
+                            });
+                            treeHtml += '</ul>';
+                        }
+                        treeHtml += '</li>';
+                    });
+                    treeHtml += '</ul>';
+                }
+                treeHtml += '</li>';
+            });
+            treeHtml += '</ul>';
+            treeContainer.innerHTML = treeHtml;
+            root.appendChild(treeContainer);
 
             const applyBtn = document.getElementById('wbs-wizard-apply-btn');
             applyBtn.textContent = 'Commit to Database';
+            applyBtn.disabled = false;
             applyBtn.onclick = async () => {
                 applyBtn.disabled = true;
                 applyBtn.textContent = 'Saving...';
@@ -774,6 +1126,8 @@
                     bootstrapModal.hide();
                     
                     appendMessage('ai', `✅ **WBS Creation Complete:**\n${result}`);
+                    
+                    clearDraftFromStorage();
                 } catch (err) {
                     alert('Save failed: ' + err.message);
                 } finally {
@@ -1213,7 +1567,11 @@
             const endIdx = text.lastIndexOf('}');
             if (startIdx === -1 || endIdx === -1 || startIdx >= endIdx) return null;
             
-            const jsonCandidate = text.substring(startIdx, endIdx + 1);
+            let jsonCandidate = text.substring(startIdx, endIdx + 1);
+            
+            // Clean trailing commas in arrays/objects which break JSON.parse
+            jsonCandidate = jsonCandidate.replace(/,\s*([\]}])/g, '$1');
+            
             try {
                 const obj = JSON.parse(jsonCandidate);
                 if (obj.name === 'bulk_create_wbs' && obj.arguments) {
@@ -1222,10 +1580,37 @@
                 if (obj.wbs && Array.isArray(obj.wbs)) {
                     return obj;
                 }
+                if (Array.isArray(obj.epics)) {
+                    return { projectId: obj.projectId || 1, wbs: obj.epics };
+                }
+                if (Array.isArray(obj)) {
+                    return { projectId: 1, wbs: obj };
+                }
             } catch (e) {
                 // Not WBS JSON
             }
             return null;
+        }
+
+        function cleanJsonFromText(text) {
+            if (!text) return '';
+            // Remove code blocks containing JSON
+            let clean = text.replace(/```json[\s\S]*?```/g, '');
+            clean = clean.replace(/```[\s\S]*?```/g, (match) => {
+                if (match.includes('{') && match.includes('}')) return '';
+                return match;
+            });
+            // If there's still raw JSON at the end
+            const startIdx = clean.indexOf('{');
+            const endIdx = clean.lastIndexOf('}');
+            if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+                const candidate = clean.substring(startIdx, endIdx + 1);
+                try {
+                    JSON.parse(candidate.replace(/,\s*([\]}])/g, '$1'));
+                    clean = clean.substring(0, startIdx) + clean.substring(endIdx + 1);
+                } catch {}
+            }
+            return clean.trim();
         }
 
         function renderWbsProposedCard(wbsData) {
@@ -1280,7 +1665,7 @@
                         <button class="copilot-wbs-card-btn copilot-wbs-card-btn--primary" onclick="triggerWbsWizard('${wbsDataId}')">
                             Modify & Apply Plan
                         </button>
-                        <button class="copilot-wbs-card-btn" style="border: 1px solid #cbd5e1; background: #fff; color: #475569;" onclick="this.closest('.copilot-wbs-card').remove()">
+                        <button class="copilot-wbs-card-btn" style="border: 1px solid #cbd5e1; background: #fff; color: #475569;" onclick="clearDraftFromStorage(); this.closest('.copilot-wbs-card').remove()">
                             Discard
                         </button>
                     </div>
@@ -1296,14 +1681,24 @@
         };
 
         function openWbsWizard(wbsData) {
-            currentWbsState = JSON.parse(JSON.stringify(wbsData.wbs || []));
-            activeProjectId = parseInt(wbsData.projectId) || getActiveProjectContextId() || 1;
-            
-            renderWbsEditor();
+            draftWbsState.projectId = parseInt(wbsData.projectId) || getActiveProjectContextId() || 1;
+            draftWbsState.epics = JSON.parse(JSON.stringify(wbsData.wbs || []));
+            saveDraftToStorage();
 
-            const modalEl = document.getElementById('wbsWizardModal');
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
+            const root = document.getElementById('wbs-wizard-editor-root');
+            if (!root) return;
+
+            const myModal = new bootstrap.Modal(document.getElementById('wbsWizardModal'));
+            myModal.show();
+            
+            const currentStep = getWbsWizardCurrentStep();
+            if (currentStep === 1) {
+                renderWbsWizardEpics(root);
+            } else if (currentStep === 2) {
+                renderWbsWizardFeatures(root);
+            } else {
+                renderWbsWizardStories(root);
+            }
         }
 
         function escapeHtmlAttr(str) {
@@ -1693,9 +2088,15 @@
                         if (role === 'ai') {
                             const wbsData = tryParseWbs(turn.text);
                             if (wbsData) {
-                                const aiMsgDiv = appendMessage('ai', '');
+                                const displayText = turn.displayText || turn.text;
+                                const cleanText = cleanJsonFromText(displayText);
+                                const aiMsgDiv = appendMessage('ai', cleanText || 'I have generated a proposed project plan below:');
                                 const bubble = aiMsgDiv.querySelector('.copilot-msg__bubble');
-                                bubble.innerHTML = renderWbsProposedCard(wbsData);
+                                
+                                const cardHtml = renderWbsProposedCard(wbsData);
+                                const cardDiv = document.createElement('div');
+                                cardDiv.innerHTML = cardHtml;
+                                bubble.appendChild(cardDiv.firstElementChild);
                             } else {
                                 appendMessage('ai', turn.displayText || turn.text);
                             }
@@ -1727,6 +2128,7 @@
             actionsEl.innerHTML = '';
             mentions = [];
             updateBackdrop();
+            updateResumeButtonVisibility();
         }
 
         // ── Failed Jobs Management ────────────────────────────────────────────────

@@ -14,7 +14,12 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using OfficeTaskManagement.Models;
+using OfficeTaskManagement.Services;
+
 
 namespace OfficeTaskManagement.Areas.Identity.Pages.Account
 {
@@ -101,7 +106,6 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account
 
             ReturnUrl = returnUrl;
         }
-
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
             returnUrl ??= Url.Content("~/");
@@ -110,15 +114,28 @@ namespace OfficeTaskManagement.Areas.Identity.Pages.Account
 
             if (ModelState.IsValid)
             {
-                // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-                var user = await _signInManager.UserManager.FindByEmailAsync(Input.UsernameOrEmail) 
-                           ?? await _signInManager.UserManager.FindByNameAsync(Input.UsernameOrEmail);
+                // Find user across all tenants
+                var user = await _signInManager.UserManager.Users.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(u => u.NormalizedEmail == Input.UsernameOrEmail.ToUpper() 
+                                           || u.NormalizedUserName == Input.UsernameOrEmail.ToUpper());
 
                 if (user == null)
                 {
                     ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                     return Page();
                 }
+
+                // Set tenant provider context and cookie before calling password sign-in
+                var tenantProvider = HttpContext.RequestServices.GetRequiredService<ITenantProvider>();
+                tenantProvider.SetTenant(user.TenantId);
+
+                Response.Cookies.Append("TenantId", user.TenantId, new CookieOptions
+                {
+                    Expires = DateTimeOffset.UtcNow.AddDays(14),
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Lax
+                });
 
                 var result = await _signInManager.PasswordSignInAsync(user.UserName, Input.Password, Input.RememberMe, lockoutOnFailure: false);
                 if (result.Succeeded)

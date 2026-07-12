@@ -4,7 +4,7 @@
 }
 
 <div class="metric-grid">
-    <div class="metric-card">
+    <div class="metric-card card-skin-neutral">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Total Task Flow
@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card card-skin-success">
         <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Task Completion
@@ -35,7 +35,7 @@
         </div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card card-skin-primary">
         <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             In Progress
@@ -45,11 +45,11 @@
         <div class="metric-subtext">active dev work</div>
     </div>
 
-    <div class="metric-card">
-        @{
-            int overcommitted = Model.SprintCapacities.Count(c => c.Delta < 0);
-            string scopeHealthColor = overcommitted > 0 ? "#E81123" : "#107C10";
-        }
+    @{
+        int overcommitted = Model.SprintCapacities.Count(c => c.Delta < 0);
+        string scopeHealthColor = overcommitted > 0 ? "#E81123" : "#107C10";
+    }
+    <div class="metric-card @(overcommitted > 0 ? "card-skin-danger" : "card-skin-success")">
         <div class="metric-icon" style="color: @scopeHealthColor;"><i class="fas fa-balance-scale"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Sprint Scope Health
@@ -70,10 +70,10 @@
         </div>
     </div>
 
-    <div class="metric-card">
-        @{
-            string overdueColor = metrics.OverdueTasks > 0 ? "#E81123" : "#107C10";
-        }
+    @{
+        string overdueColor = metrics.OverdueTasks > 0 ? "#E81123" : "#107C10";
+    }
+    <div class="metric-card @(metrics.OverdueTasks > 0 ? "card-skin-danger" : "card-skin-success")">
         <div class="metric-icon" style="color: @overdueColor;"><i class="fas fa-clock"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Overdue Tasks

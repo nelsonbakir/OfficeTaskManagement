@@ -8,41 +8,158 @@
     <div class="auth-card">
         <div class="auth-header">
             <h1><i class="fas fa-tasks"></i> TaskFlow</h1>
-            <p>Create a new account</p>
+            <p class="mb-0">Get started with modern task management</p>
         </div>
+
+        <!-- Registration Mode Tabs / Invitation Info Banner -->
+        @if (string.IsNullOrEmpty(Model.InviteCode))
+        {
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="tab-create" onclick="switchRegMode('create')">
+                    <i class="fas fa-building"></i> New Organization
+                </button>
+                <button type="button" class="auth-tab-btn" id="tab-join" onclick="switchRegMode('join')">
+                    <i class="fas fa-sign-in-alt"></i> Join Existing
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info border-0 mb-4 shadow-sm" style="background-color: #E1F0FC; border: 1.5px solid #C8E1F5 !important; color: #004B87; border-radius: 6px; padding: 1rem 1.25rem;">
+                <div class="d-flex align-items-center">
+                    <div class="me-3" style="font-size: 1.5rem;">
+                        <i class="fas fa-envelope-open-text"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Workspace Invitation</h6>
+                        <p class="mb-0" style="font-size: 0.9rem; line-height: 1.35;">You have been invited to join the workspace <strong>@Model.InvitedOrganizationName</strong>.</p>
+                    </div>
+                </div>
+            </div>
+        }
 
         <div asp-validation-summary="ModelOnly" class="auth-error-container" role="alert"></div>
 
         <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-            <div class="auth-form-group">
-                <label asp-for="Input.Email">Email Address</label>
-                <input asp-for="Input.Email" class="auth-form-control" autocomplete="username" aria-required="true" placeholder="your@email.com" required autofocus />
-                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            <input type="hidden" asp-for="Input.RegisterType" id="registerTypeInput" />
+            <input type="hidden" asp-for="InviteCode" />
+
+            <!-- Organization Details Row -->
+            <div class="row g-3">
+                <div class="col-12 col-md-6" id="group-org-name" style="@(!string.IsNullOrEmpty(Model.InviteCode) ? "display: none;" : "")">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.OrganizationName">Organization Name</label>
+                        <input asp-for="Input.OrganizationName" class="auth-form-control" placeholder="e.g. Acme Corp" id="Input_OrganizationName" />
+                        <span asp-validation-for="Input.OrganizationName" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="@(!string.IsNullOrEmpty(Model.InviteCode) ? "col-12" : "col-12 col-md-6")" id="group-org-slug-col">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.OrganizationSlug" id="label-org-slug">Organization Slug</label>
+                        <input asp-for="Input.OrganizationSlug" class="auth-form-control" placeholder="e.g. acme" required id="Input_OrganizationSlug" readonly="@(!string.IsNullOrEmpty(Model.InviteCode))" style="@(!string.IsNullOrEmpty(Model.InviteCode) ? "background-color: #F3F2F1; cursor: not-allowed;" : "")" />
+                        <span asp-validation-for="Input.OrganizationSlug" class="text-danger"></span>
+                    </div>
+                </div>
             </div>
 
-            <div class="auth-form-group">
-                <label asp-for="Input.Password">Password</label>
-                <input asp-for="Input.Password" class="auth-form-control" autocomplete="new-password" aria-required="true" placeholder="••••••••" required />
-                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            @if (string.IsNullOrEmpty(Model.InviteCode))
+            {
+                <div class="auth-form-group mt-2 mb-3" id="help-org-slug-container">
+                    <small class="text-muted" id="help-org-slug" style="display: block; font-size: 0.8rem; color: var(--auth-text-muted) !important;">This will be your custom portal identifier.</small>
+                </div>
+            }
+
+            <hr style="margin: 1.25rem 0; border: 0; border-top: 1px solid var(--auth-border);" />
+
+            <!-- User Full Name and Email -->
+            <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.FullName">Full Name</label>
+                        <input asp-for="Input.FullName" class="auth-form-control" placeholder="e.g. John Doe" required autofocus="@(!string.IsNullOrEmpty(Model.InviteCode))" />
+                        <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.Email">Email Address</label>
+                        <input asp-for="Input.Email" class="auth-form-control" autocomplete="username" placeholder="your@email.com" required readonly="@(!string.IsNullOrEmpty(Model.InviteCode))" style="@(!string.IsNullOrEmpty(Model.InviteCode) ? "background-color: #F3F2F1; cursor: not-allowed;" : "")" />
+                        <span asp-validation-for="Input.Email" class="text-danger"></span>
+                    </div>
+                </div>
             </div>
 
-            <div class="auth-form-group">
-                <label asp-for="Input.ConfirmPassword">Confirm Password</label>
-                <input asp-for="Input.ConfirmPassword" class="auth-form-control" autocomplete="new-password" aria-required="true" placeholder="••••••••" required />
-                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            <!-- Password and Confirm Password -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.Password">Password</label>
+                        <input asp-for="Input.Password" class="auth-form-control" autocomplete="new-password" placeholder="••••••••" required />
+                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="auth-form-group mb-0">
+                        <label asp-for="Input.ConfirmPassword">Confirm Password</label>
+                        <input asp-for="Input.ConfirmPassword" class="auth-form-control" autocomplete="new-password" placeholder="••••••••" required />
+                        <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                    </div>
+                </div>
             </div>
 
             <button id="registerSubmit" type="submit" class="auth-btn-primary">
-                <i class="fas fa-user-plus"></i> Register
+                <i class="fas fa-user-plus"></i> <span id="btn-text">@(string.IsNullOrEmpty(Model.InviteCode) ? "Register Organization" : "Join Workspace")</span>
             </button>
         </form>
 
         <div class="auth-footer">
-            <p>Already have an account? <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a></p>
+            <p class="mb-0">Already have an account? <a asp-page="./Login" asp-route-returnUrl="@Model.ReturnUrl">Sign in</a></p>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        function switchRegMode(mode) {
+            // Ignore tab switches if inviteCode is present
+            if ("@Model.InviteCode" !== "") return;
+
+            document.getElementById('registerTypeInput').value = mode;
+            
+            const btnCreate = document.getElementById('tab-create');
+            const btnJoin = document.getElementById('tab-join');
+            const groupOrgName = document.getElementById('group-org-name');
+            const groupOrgSlugCol = document.getElementById('group-org-slug-col');
+            const labelOrgSlug = document.getElementById('label-org-slug');
+            const helpOrgSlug = document.getElementById('help-org-slug');
+            const btnText = document.getElementById('btn-text');
+
+            if (mode === 'create') {
+                btnCreate.classList.add('active');
+                btnJoin.classList.remove('active');
+                groupOrgName.style.display = 'block';
+                groupOrgSlugCol.className = 'col-12 col-md-6';
+                labelOrgSlug.innerText = 'Organization Slug';
+                helpOrgSlug.innerText = 'This will be your custom portal identifier (letters, numbers, hyphens only).';
+                btnText.innerText = 'Register Organization';
+                document.getElementById('Input_OrganizationName').setAttribute('required', 'required');
+            } else {
+                btnCreate.classList.remove('active');
+                btnJoin.classList.add('active');
+                groupOrgName.style.display = 'none';
+                groupOrgSlugCol.className = 'col-12';
+                labelOrgSlug.innerText = 'Existing Organization Identifier';
+                helpOrgSlug.innerText = 'Enter the identifier of the organization you have been invited to join.';
+                btnText.innerText = 'Join Organization';
+                document.getElementById('Input_OrganizationName').removeAttribute('required');
+            }
+        }
+
+        // Initialize state on load based on model state
+        document.addEventListener('DOMContentLoaded', function() {
+            const val = document.getElementById('registerTypeInput').value || 'create';
+            switchRegMode(val);
+        });
+    </script>
 }

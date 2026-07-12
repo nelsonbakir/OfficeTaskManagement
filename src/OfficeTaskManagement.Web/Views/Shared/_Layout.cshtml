@@ -160,6 +160,12 @@
                             <span>User Management</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="Organization" asp-action="Index">
+                            <i class="fas fa-building"></i>
+                            <span>Organization Settings</span>
+                        </a>
+                    </li>
                 }
                 @if (await PermSvc.HasPermissionAsync(User, Permissions.RolesManage))
                 {

@@ -44,6 +44,7 @@ namespace OfficeTaskManagement.Data
         public DbSet<UserStory> UserStories { get; set; }
         public DbSet<TestCase> TestCases { get; set; }
         public DbSet<PortfolioDecision> PortfolioDecisions { get; set; }
+        public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
 
         // ── Workflow Engine (RACI) ───────────────────────────────────────────
         public DbSet<WorkflowTemplate> WorkflowTemplates { get; set; }

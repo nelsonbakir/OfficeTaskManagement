@@ -4,7 +4,7 @@
 }
 
 <div class="metric-grid">
-    <div class="metric-card">
+    <div class="metric-card card-skin-neutral">
         <div class="metric-icon"><i class="fas fa-folder"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Total Projects
@@ -14,7 +14,7 @@
         <div class="metric-subtext">@metrics.ActiveProjects active</div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card card-skin-neutral">
         <div class="metric-icon"><i class="fas fa-users"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Team Size
@@ -24,10 +24,10 @@
         <div class="metric-subtext">@metrics.AverageTeamUtilization.ToString("F0")% avg utilization</div>
     </div>
 
-    <div class="metric-card">
-        @{
-            string benchColor = Model.BenchResources.Count > 0 ? "#ff9800" : "#107C10";
-        }
+    @{
+        string benchColor = Model.BenchResources.Count > 0 ? "#ff9800" : "#107C10";
+    }
+    <div class="metric-card @(Model.BenchResources.Count > 0 ? "card-skin-warning" : "card-skin-success")">
         <div class="metric-icon" style="color: @benchColor;"><i class="fas fa-couch"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Bench Resources
@@ -37,7 +37,7 @@
         <div class="metric-subtext">under 30% utilization</div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card card-skin-primary">
         <div class="metric-icon"><i class="fas fa-tachometer-alt"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Avg Sprint Velocity
@@ -47,7 +47,7 @@
         <div class="metric-subtext">hours per sprint</div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card @(Model.ManagerMetrics.AtRiskTasks > 0 ? "card-skin-danger" : "card-skin-success")">
         <div class="metric-icon" style="color: #E81123;"><i class="fas fa-exclamation-triangle"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             At Risk Tasks
@@ -57,7 +57,7 @@
         <div class="metric-subtext">due within 3 days</div>
     </div>
 
-    <div class="metric-card">
+    <div class="metric-card @(Model.ManagerMetrics.OverdueTasks > 0 ? "card-skin-danger" : "card-skin-success")">
         <div class="metric-icon" style="color: #E81123;"><i class="fas fa-clock"></i></div>
         <div class="metric-label d-flex align-items-center gap-1">
             Overdue Tasks

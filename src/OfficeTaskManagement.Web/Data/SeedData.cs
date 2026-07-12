@@ -68,6 +68,28 @@ namespace OfficeTaskManagement.Data
             await SeedSampleDataAsync(context, userManager, serviceProvider);
         }
 
+        public static async Task SeedNewTenantAsync(IServiceProvider serviceProvider, string tenantId)
+        {
+            var roleManager = serviceProvider.GetRequiredService<RoleManager<AppRole>>();
+            var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
+            var tenantProvider = serviceProvider.GetRequiredService<ITenantProvider>();
+
+            var originalTenantId = tenantProvider.TenantId;
+            try
+            {
+                tenantProvider.SetTenant(tenantId);
+                await SeedPermissionGroupsAsync(context);
+                await SeedRolesAsync(roleManager, context);
+                await SeedAreasAsync(context);
+                await SeedPublicHolidaysAsync(context);
+            }
+            finally
+            {
+                tenantProvider.SetTenant(originalTenantId);
+            }
+        }
+
+
         // ── Permission Groups ─────────────────────────────────────────────────
 
         private static async Task SeedPermissionGroupsAsync(ApplicationDbContext context)
@@ -87,7 +109,7 @@ namespace OfficeTaskManagement.Data
                     Name        = "Project Management",
                     Description = "Create and manage projects, epics, features, and portfolio decisions.",
                     IsSystem    = true,
-                    Keys        = new[] { Permissions.ProjectsView, Permissions.ProjectsManage, Permissions.EpicsManage, Permissions.FeaturesManage, Permissions.StrategicView, Permissions.StrategicManage, Permissions.BudgetView, Permissions.BudgetManage }
+                    Keys        = new[] { Permissions.ProjectsView, Permissions.ProjectsManage, Permissions.EpicsManage, Permissions.FeaturesManage, Permissions.StrategicView, Permissions.StrategicManage, Permissions.BudgetView, Permissions.BudgetManage, Permissions.DashboardProjectsView, Permissions.DashboardStrategicView }
                 },
                 new
                 {
@@ -108,14 +130,14 @@ namespace OfficeTaskManagement.Data
                     Name        = "Work Management",
                     Description = "Create, edit, and manage tasks, sprints, and backlogs.",
                     IsSystem    = true,
-                    Keys        = new[] { Permissions.TasksManage, Permissions.SprintsManage }
+                    Keys        = new[] { Permissions.TasksManage, Permissions.SprintsManage, Permissions.DashboardPersonalView }
                 },
                 new
                 {
                     Name        = "Planning",
                     Description = "Manage user stories and workflow templates.",
                     IsSystem    = true,
-                    Keys        = new[] { Permissions.EpicsManage, Permissions.FeaturesManage, Permissions.WorkflowManage }
+                    Keys        = new[] { Permissions.EpicsManage, Permissions.FeaturesManage, Permissions.WorkflowManage, Permissions.DashboardWorkflowView }
                 },
                 new
                 {
@@ -129,14 +151,14 @@ namespace OfficeTaskManagement.Data
                     Name        = "Analytics & Insights",
                     Description = "Access analytics dashboard and AI-powered insights.",
                     IsSystem    = true,
-                    Keys        = new[] { Permissions.AnalyticsView, Permissions.AnalyticsAI }
+                    Keys        = new[] { Permissions.AnalyticsView, Permissions.AnalyticsAI, Permissions.DashboardPersonalView, Permissions.DashboardWorkflowView, Permissions.DashboardProjectsView, Permissions.DashboardStrategicView }
                 },
                 new
                 {
                     Name        = "Read Only",
                     Description = "View-only access. No create, edit, or delete operations.",
                     IsSystem    = true,
-                    Keys        = new[] { Permissions.ProjectsView, Permissions.AnalyticsView, Permissions.ResourcesView, Permissions.BudgetView }
+                    Keys        = new[] { Permissions.ProjectsView, Permissions.AnalyticsView, Permissions.ResourcesView, Permissions.BudgetView, Permissions.DashboardPersonalView, Permissions.DashboardProjectsView }
                 },
             };
 
@@ -452,15 +474,16 @@ namespace OfficeTaskManagement.Data
 
         private static async Task SeedAreasAsync(ApplicationDbContext context)
         {
-            if (!context.Areas.IgnoreQueryFilters().Any())
+            var tenantId = context.CurrentTenantId;
+            if (!context.Areas.Any(a => a.TenantId == tenantId))
             {
                 context.Areas.AddRange(new List<Area>
                 {
-                    new Area { Name = "Web API", TenantId = "default-tenant-id" },
-                    new Area { Name = "Frontend", TenantId = "default-tenant-id" },
-                    new Area { Name = "Database", TenantId = "default-tenant-id" },
-                    new Area { Name = "Mobile", TenantId = "default-tenant-id" },
-                    new Area { Name = "Full-stack", TenantId = "default-tenant-id" }
+                    new Area { Name = "Web API", TenantId = tenantId },
+                    new Area { Name = "Frontend", TenantId = tenantId },
+                    new Area { Name = "Database", TenantId = tenantId },
+                    new Area { Name = "Mobile", TenantId = tenantId },
+                    new Area { Name = "Full-stack", TenantId = tenantId }
                 });
                 await context.SaveChangesAsync();
             }
@@ -468,14 +491,15 @@ namespace OfficeTaskManagement.Data
 
         private static async Task SeedPublicHolidaysAsync(ApplicationDbContext context)
         {
-            if (!context.PublicHolidays.IgnoreQueryFilters().Any())
+            var tenantId = context.CurrentTenantId;
+            if (!context.PublicHolidays.Any(h => h.TenantId == tenantId))
             {
                 context.PublicHolidays.AddRange(new List<PublicHoliday>
                 {
-                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = "default-tenant-id" },
-                    new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = "default-tenant-id" },
-                    new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true, TenantId = "default-tenant-id" },
-                    new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false, TenantId = "default-tenant-id" }
+                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
+                    new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
+                    new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true, TenantId = tenantId },
+                    new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false, TenantId = tenantId }
                 });
                 await context.SaveChangesAsync();
             }

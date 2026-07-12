@@ -9,7 +9,7 @@
     <div class="auth-card">
         <div class="auth-header">
             <h1><i class="fas fa-tasks"></i> TaskFlow</h1>
-            <p>Sign in to your account</p>
+            <p>Sign in to your organization workspace</p>
         </div>
 
         <div asp-validation-summary="ModelOnly" class="auth-error-container" role="alert"></div>
@@ -17,7 +17,7 @@
         <form id="account" method="post">
             <div class="auth-form-group">
                 <label asp-for="Input.UsernameOrEmail">Username or Email</label>
-                <input asp-for="Input.UsernameOrEmail" class="auth-form-control" autocomplete="username" aria-required="true" placeholder="username or your@email.com" required autofocus />
+                <input asp-for="Input.UsernameOrEmail" class="auth-form-control" autocomplete="username" aria-required="true" placeholder="your@email.com" required autofocus />
                 <span asp-validation-for="Input.UsernameOrEmail" class="text-danger"></span>
             </div>
 
@@ -27,9 +27,12 @@
                 <span asp-validation-for="Input.Password" class="text-danger"></span>
             </div>
 
-            <div class="form-check mb-4">
-                <input class="form-check-input" asp-for="Input.RememberMe" />
-                <label class="form-check-label" asp-for="Input.RememberMe">Remember me</label>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; font-size: 0.9rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: var(--auth-text-muted); cursor: pointer;">
+                    <input class="form-check-input" asp-for="Input.RememberMe" style="margin: 0; cursor: pointer;" />
+                    Remember me
+                </label>
+                <a id="forgot-password" asp-page="./ForgotPassword" style="color: var(--auth-primary); font-weight: 600; text-decoration: none;">Forgot password?</a>
             </div>
 
             <button id="login-submit" type="submit" class="auth-btn-primary">
@@ -39,13 +42,10 @@
 
         <div class="auth-footer">
             <p>
-                <a id="forgot-password" asp-page="./ForgotPassword">Forgot your password?</a>
+                Don't have an account? <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register organization</a>
             </p>
-            <p>
-                Don't have an account? <a asp-page="./Register" asp-route-returnUrl="@Model.ReturnUrl">Register as a new user</a>
-            </p>
-            <p>
-                <a id="resend-confirmation" asp-page="./ResendEmailConfirmation">Resend email confirmation</a>
+            <p style="margin-top: 0.5rem; font-size: 0.85rem;">
+                <a id="resend-confirmation" asp-page="./ResendEmailConfirmation" style="color: var(--auth-text-muted);">Resend email confirmation</a>
             </p>
         </div>
     </div>

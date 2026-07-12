@@ -39,6 +39,12 @@ namespace OfficeTaskManagement.Models
         public const string AnalyticsView = "analytics.view";
         public const string AnalyticsAI   = "analytics.ai";
 
+        // ── Dashboard Groupings ────────────────────────────────────────────────
+        public const string DashboardPersonalView  = "dashboard.personal.view";
+        public const string DashboardWorkflowView  = "dashboard.workflow.view";
+        public const string DashboardProjectsView  = "dashboard.projects.view";
+        public const string DashboardStrategicView = "dashboard.strategic.view";
+
         // ── Strategic ─────────────────────────────────────────────────────────
         public const string StrategicView   = "strategic.view";
         public const string StrategicManage = "strategic.manage";
@@ -81,6 +87,7 @@ namespace OfficeTaskManagement.Models
             UsersView, UsersManage, RolesManage,
             ProjectsView, ProjectsManage,
             AnalyticsView, AnalyticsAI,
+            DashboardPersonalView, DashboardWorkflowView, DashboardProjectsView, DashboardStrategicView,
             StrategicView, StrategicManage,
             ResourcesView, ResourcesManage,
             SalaryView, SalaryManage,

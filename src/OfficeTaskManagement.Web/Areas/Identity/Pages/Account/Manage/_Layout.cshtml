@@ -1,33 +1,31 @@
 @{
-    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout !=  null)
+    if (ViewData.TryGetValue("ParentLayout", out var parentLayout) && parentLayout != null)
     {
         Layout = parentLayout.ToString();
     }
     else
     {
-        Layout = "/Areas/Identity/Pages/_Layout.cshtml";
+        Layout = "/Views/Shared/_Layout.cshtml";
     }
 }
 
 <div class="profile-container">
     <div class="profile-card">
-        <div class="profile-card-header">
+        <div class="profile-card-header" style="border-bottom: none; padding-bottom: 0.5rem;">
             <div>
                 <h1 class="h3 mb-1 fw-bold text-primary">Account Settings</h1>
                 <p class="text-muted mb-0 small">Manage your profile, security, and personal data.</p>
             </div>
             <div class="d-none d-md-block">
-                <i class="fas fa-user-cog fs-3 text-light-emphasis"></i>
+                <i class="fas fa-user-cog fs-3 text-light-emphasis" style="color: var(--auth-primary) !important; opacity: 0.35;"></i>
             </div>
         </div>
 
-        <div class="manage-layout-wrapper">
-            <aside>
-                <partial name="_ManageNav" />
-            </aside>
-            <main class="profile-content-area">
-                @RenderBody()
-            </main>
+        <!-- Horizontal Top Pivot Navigation -->
+        <partial name="_ManageNav" />
+
+        <div class="profile-content-area">
+            @RenderBody()
         </div>
     </div>
 </div>

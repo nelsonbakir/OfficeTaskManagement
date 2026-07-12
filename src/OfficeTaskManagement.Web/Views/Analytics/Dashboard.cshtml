@@ -26,13 +26,39 @@
     .metric-card {
         background: white;
         border: 1px solid #EDEBE9;
-        border-radius: 6px;
+        border-radius: 12px;
         padding: 1.5rem;
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.015);
+        position: relative;
+        overflow: hidden;
     }
 
     .metric-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
+    }
+
+    /* Soft Skin Tone & Gradient Styles */
+    .card-skin-primary {
+        background: linear-gradient(135deg, #F4F9FD 0%, #E6F2FC 100%);
+        border-color: #D2E3F7 !important;
+    }
+    .card-skin-success {
+        background: linear-gradient(135deg, #F3FBF7 0%, #E7F7EE 100%);
+        border-color: #D0EFE0 !important;
+    }
+    .card-skin-warning {
+        background: linear-gradient(135deg, #FFFDF5 0%, #FFF5E5 100%);
+        border-color: #FCEFC7 !important;
+    }
+    .card-skin-danger {
+        background: linear-gradient(135deg, #FFF5F5 0%, #FFEBEB 100%);
+        border-color: #FCD8D8 !important;
+    }
+    .card-skin-neutral {
+        background: linear-gradient(135deg, #FFF9F6 0%, #FFF0EA 100%);
+        border-color: #F5E3DB !important;
     }
 
     .metric-label {
