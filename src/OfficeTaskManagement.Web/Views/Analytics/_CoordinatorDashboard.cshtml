@@ -6,7 +6,10 @@
 <div class="metric-grid">
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label">Total Task Flow</div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            Total Task Flow
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoTotalTaskFlow" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@metrics.TotalTasks</p>
         <div class="metric-subtext">
             @if (metrics.UnassignedTasks > 0)
@@ -22,9 +25,9 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
-        <div class="metric-label d-flex justify-content-between align-items-center">
+        <div class="metric-label d-flex align-items-center gap-1">
             Task Completion
-            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
         <p class="metric-value">@metrics.TaskCompletionRate.ToString("F0")%</p>
         <div class="progress-bar">
@@ -34,18 +37,25 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
-        <div class="metric-label">In Progress</div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            In Progress
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoInProgressTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@metrics.InProgressTasks</p>
         <div class="metric-subtext">active dev work</div>
     </div>
 
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-balance-scale"></i></div>
-        <div class="metric-label">Sprint Scope Health</div>
         @{
             int overcommitted = Model.SprintCapacities.Count(c => c.Delta < 0);
+            string scopeHealthColor = overcommitted > 0 ? "#E81123" : "#107C10";
         }
-        <p class="metric-value" style="color: @(overcommitted > 0 ? "#E81123" : "#107C10");">
+        <div class="metric-icon" style="color: @scopeHealthColor;"><i class="fas fa-balance-scale"></i></div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            Sprint Scope Health
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoSprintCapacity" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
+        <p class="metric-value" style="color: @scopeHealthColor;">
             @(overcommitted > 0 ? $"{overcommitted} Over" : "Healthy")
         </p>
         <div class="metric-subtext">
@@ -61,12 +71,15 @@
     </div>
 
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-clock"></i></div>
-        <div class="metric-label d-flex justify-content-between align-items-center">
+        @{
+            string overdueColor = metrics.OverdueTasks > 0 ? "#E81123" : "#107C10";
+        }
+        <div class="metric-icon" style="color: @overdueColor;"><i class="fas fa-clock"></i></div>
+        <div class="metric-label d-flex align-items-center gap-1">
             Overdue Tasks
-            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoOverdueTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoOverdueTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value" style="color: @(metrics.OverdueTasks > 0 ? "#E81123" : "#107C10");">@metrics.OverdueTasks</p>
+        <p class="metric-value" style="color: @overdueColor;">@metrics.OverdueTasks</p>
         <div class="metric-subtext">past target deadlines</div>
     </div>
 </div>

@@ -6,11 +6,16 @@
 
 <div class="metric-grid">
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-money-bill-wave"></i></div>
-        <div class="metric-label">Project Budget Health</div>
+        @{
+            string varianceColor = costMetric != null ? (costMetric.CostVariance < 0 ? "#E81123" : "#107C10") : "#EDEBE9";
+        }
+        <div class="metric-icon" style="color: @varianceColor;"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            Project Budget Health
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoLabourCost" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         @if (costMetric != null)
         {
-            string varianceColor = costMetric.CostVariance < 0 ? "#E81123" : "#107C10";
             <p class="metric-value" style="color: @varianceColor; font-size: 1.6rem; font-weight: 700; margin-top: 5px;">
                 $@costMetric.CostVariance.ToString("N0")
             </p>
@@ -27,9 +32,9 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label d-flex justify-content-between align-items-center">
+        <div class="metric-label d-flex align-items-center gap-1">
             Project Completion
-            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
         <p class="metric-value">@metrics.ProjectCompletion.ToString("F0")%</p>
         <div class="progress-bar">
@@ -39,16 +44,19 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-rocket"></i></div>
-        <div class="metric-label">Active Sprints</div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            Active Sprints
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoActiveSprints" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.ProjectLeadMetrics.ActiveSprints</p>
         <div class="metric-subtext">@Model.ProjectLeadMetrics.TotalSprints total sprints</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
-        <div class="metric-label d-flex justify-content-between align-items-center">
+        <div class="metric-label d-flex align-items-center gap-1">
             In Progress
-            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoInProgressTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoInProgressTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
         <p class="metric-value">@Model.ProjectLeadMetrics.InProgressTasks</p>
         <div class="metric-subtext">@Model.ProjectLeadMetrics.TotalTasks total tasks</div>
@@ -56,16 +64,19 @@
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
-        <div class="metric-label">Completed Tasks</div>
+        <div class="metric-label d-flex align-items-center gap-1">
+            Completed Tasks
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoCompletedTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+        </div>
         <p class="metric-value">@Model.ProjectLeadMetrics.CompletedTasks</p>
-        <div class="metric-subtext">@(Model.ProjectLeadMetrics.TotalTasks > 0 ? ((Model.ProjectLeadMetrics.CompletedTasks * 100) / Model.ProjectLeadMetrics.TotalTasks).ToString("F0") : "0")% done</div>
+        <div class="metric-subtext">@((Model.ProjectLeadMetrics.TotalTasks > 0) ? ((Model.ProjectLeadMetrics.CompletedTasks * 100) / Model.ProjectLeadMetrics.TotalTasks).ToString("F0") : "0")% done</div>
     </div>
 
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-ban"></i></div>
-        <div class="metric-label d-flex justify-content-between align-items-center">
+        <div class="metric-icon" style="color: #E81123;"><i class="fas fa-ban"></i></div>
+        <div class="metric-label d-flex align-items-center gap-1">
             Blocked Tasks
-            <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoBlockedTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
+            <button class="btn btn-link p-0 text-muted lh-1" data-bs-toggle="modal" data-bs-target="#infoBlockedTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
         <p class="metric-value" style="color: #E81123;">@Model.ProjectLeadMetrics.BlockedTasks</p>
         <div class="metric-subtext">need attention</div>

@@ -551,3 +551,65 @@
         </div>
     </div>
 </div>
+
+<!-- Info: Total Task Flow -->
+<div class="modal fade" id="infoTotalTaskFlow" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Metric: Total Task Flow</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Total Task Flow:</strong> The count of all active tasks across all workflows and sprints in this project context.</p>
+                <p>Helps coordinate workload volume and progression.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Active Sprints -->
+<div class="modal fade" id="infoActiveSprints" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-primary me-2"></i>Metric: Active Sprints</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Active Sprints:</strong> Sprints that are currently running (their start date has passed, and they have not reached their end date or been completed).</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Completed Tasks -->
+<div class="modal fade" id="infoCompletedTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-success me-2"></i>Metric: Completed Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Completed Tasks:</strong> Tasks that have successfully passed all QA, peer reviews, and definition of done gates, moving to the 'Done' state.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: Remaining Capacity -->
+<div class="modal fade" id="infoRemainingCapacity" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-info me-2"></i>Metric: Remaining Capacity</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>Remaining Capacity:</strong> Calculated as <code>40 Hours - Current Weekly Workload</code>.</p>
+                <p>Represents the number of additional task hours you can safely take on for the current week without over-commitment.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info: To Do Tasks -->
+<div class="modal fade" id="infoToDoTasks" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light"><h5 class="modal-title"><i class="fas fa-info-circle text-secondary me-2"></i>Metric: To Do Tasks</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body" style="font-size: 0.9rem;">
+                <p><strong>To Do Tasks:</strong> Tasks that have been assigned to you but have not yet been started (still in 'ToDo' status).</p>
+            </div>
+        </div>
+    </div>
+</div>
