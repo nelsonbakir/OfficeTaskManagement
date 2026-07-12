@@ -182,14 +182,10 @@ public class AgentService : IAgentService
             if (!hasFunctionCall)
                 break;
 
-            // Build next turn with function responses
-            currentBody = new
+            object loopGenerationConfig;
+            if (model.Contains("thinking", StringComparison.OrdinalIgnoreCase))
             {
-                system_instruction = new { parts = new[] { new { text = systemInstruction } } },
-                contents = BuildContentsWithFunctionResponses(contents, candidates, functionResponses),
-                tools = AgentToolDefinitions.GetTools(),
-                tool_config = new { function_calling_config = new { mode = "AUTO" } },
-                generation_config = new
+                loopGenerationConfig = new
                 {
                     temperature = 0.3,
                     max_output_tokens = 2048,
@@ -197,7 +193,25 @@ public class AgentService : IAgentService
                     {
                         thinking_budget = 2048
                     }
-                }
+                };
+            }
+            else
+            {
+                loopGenerationConfig = new
+                {
+                    temperature = 0.3,
+                    max_output_tokens = 2048
+                };
+            }
+
+            // Build next turn with function responses
+            currentBody = new
+            {
+                system_instruction = new { parts = new[] { new { text = systemInstruction } } },
+                contents = BuildContentsWithFunctionResponses(contents, candidates, functionResponses),
+                tools = AgentToolDefinitions.GetTools(),
+                tool_config = new { function_calling_config = new { mode = "AUTO" } },
+                generation_config = loopGenerationConfig
             };
         }
 
@@ -441,6 +455,7 @@ public class AgentService : IAgentService
         sb.AppendLine("When creating items, always use the provided tools — never just describe what to do.");
         sb.AppendLine("Keep responses concise. Use markdown formatting.");
         sb.AppendLine("When referring to any existing Project, Epic, Feature, UserStory, Task, Sprint, or User, ALWAYS format it as @Type:Id:Name (e.g. @Epic:12:Authentication, @User:abc-123-xyz:John Doe, @Task:45:Setup DB). This allows the UI to render clickable links for the user.");
+        sb.AppendLine("When drafting a WBS or enhancing an existing project structure, ALWAYS check the current project WBS tree first using the `read_existing_wbs` tool. If the user wants to add items (e.g. Features/Stories) to an existing Epic or Feature, reuse the EXACT name of the existing Epic or Feature in the tool parameters. This allows the system to seamlessly link new items to the existing WBS hierarchy without creating duplicate parent entities.");
 
         // Inject live entity context from DB when an entity page is active
         if (!string.IsNullOrEmpty(request.EntityType) && request.EntityId.HasValue)

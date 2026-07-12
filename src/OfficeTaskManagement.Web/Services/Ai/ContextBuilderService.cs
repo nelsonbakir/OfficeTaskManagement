@@ -196,6 +196,10 @@ namespace OfficeTaskManagement.Services.Ai
                         ("Existing epics in this project",
                          await GetSiblingNamesAsync("epics", request.ProjectId.Value, ct)),
 
+                    "Project" when request.ProjectId.HasValue =>
+                        ("Existing epics in this project",
+                         await GetSiblingNamesAsync("epics", request.ProjectId.Value, ct)),
+
                     "Feature" when request.EpicId.HasValue =>
                         ("Existing features in this epic",
                          await GetSiblingNamesAsync("features", request.EpicId.Value, ct)),

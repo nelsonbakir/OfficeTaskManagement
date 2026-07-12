@@ -8,6 +8,12 @@ namespace OfficeTaskManagement.ViewModels.Analytics
     {
         public string UserRole { get; set; } = "Employee";
         
+        // Permission flags
+        public bool CanViewStrategic { get; set; }
+        public bool CanViewProjects { get; set; }
+        public bool CanViewWorkflow { get; set; }
+        public bool CanViewPersonal { get; set; }
+        
         // Filter selections
         public string? SelectedAssigneeId { get; set; }
         public int? SelectedProjectId { get; set; }

@@ -50,18 +50,20 @@ public class AgentStreamController : ControllerBase
         Response.Headers["Cache-Control"]     = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no"; // disable Nginx proxy buffering
 
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
         try
         {
             await foreach (var obj in _agent.StreamChatAsync(enriched, ct))
             {
-                var line  = JsonSerializer.Serialize(obj) + "\n";
+                var line  = JsonSerializer.Serialize(obj, options) + "\n";
                 var bytes = Encoding.UTF8.GetBytes(line);
                 await Response.Body.WriteAsync(bytes, ct);
                 await Response.Body.FlushAsync(ct);
             }
 
             // Write terminal sentinel so clients know the stream is complete
-            var done  = JsonSerializer.Serialize(new { done = true }) + "\n";
+            var done  = JsonSerializer.Serialize(new { done = true }, options) + "\n";
             await Response.Body.WriteAsync(Encoding.UTF8.GetBytes(done), ct);
             await Response.Body.FlushAsync(ct);
         }
@@ -74,7 +76,7 @@ public class AgentStreamController : ControllerBase
             _logger.LogError(ex, "AgentStreamController: unhandled error during streaming");
             try
             {
-                var errLine = JsonSerializer.Serialize(new { chunk = "\n\n⚠ An error occurred. Please try again." }) + "\n";
+                var errLine = JsonSerializer.Serialize(new { chunk = "\n\n⚠ An error occurred. Please try again." }, options) + "\n";
                 await Response.Body.WriteAsync(Encoding.UTF8.GetBytes(errLine), ct);
                 await Response.Body.FlushAsync(ct);
             }

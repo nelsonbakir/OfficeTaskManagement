@@ -59,6 +59,7 @@ public class AgentToolDispatcher
                 "read_project_tasks"          => await ReadProjectTasksAsync(args, ct),
                 "read_sprint_list"            => await ReadSprintListAsync(args, ct),
                 "read_project_status"         => await ReadProjectStatusAsync(args, ct),
+                "read_existing_wbs"           => await ReadExistingWbsAsync(args, ct),
                 // KF-2 Write tools
                 "create_project"              => await CreateProjectAsync(args, userId, tenantId, ct),
                 "assign_task"                 => await AssignTaskAsync(args, ct),
@@ -362,6 +363,44 @@ public class AgentToolDispatcher
         sb.AppendLine($"Total Estimated: {totalEst:F0}h | Total Actual: {totalActual:F0}h");
         if (project.ApprovedBudget.HasValue)
             sb.AppendLine($"Approved Budget: {project.ApprovedBudget:N0} BDT");
+
+        return sb.ToString();
+    }
+
+    // ── read_existing_wbs ──────────────────────────────────────────────────────
+    private async Task<string> ReadExistingWbsAsync(JsonElement args, CancellationToken ct)
+    {
+        var projectId = args.GetProperty("projectId").GetInt32();
+        var project = await _db.Projects.AsNoTracking().FirstOrDefaultAsync(p => p.Id == projectId, ct);
+        if (project == null) return $"Project {projectId} not found.";
+
+        var epics = await _db.Epics
+            .Where(e => e.ProjectId == projectId)
+            .Include(e => e.Features)
+            .OrderBy(e => e.Name)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        if (!epics.Any())
+            return $"Project \"{project.Name}\" currently has no Epics or WBS elements. You can draft new ones from scratch.";
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Existing WBS structure for project \"{project.Name}\" (ID={projectId}):");
+        foreach (var epic in epics)
+        {
+            sb.AppendLine($"- Epic: \"{epic.Name}\" (ID={epic.Id})");
+            if (epic.Features != null && epic.Features.Any())
+            {
+                foreach (var feature in epic.Features.OrderBy(f => f.Name))
+                {
+                    sb.AppendLine($"  - Feature: \"{feature.Name}\" (ID={feature.Id})");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  - (No Features)");
+            }
+        }
 
         return sb.ToString();
     }

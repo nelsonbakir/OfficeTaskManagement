@@ -265,4 +265,25 @@
             }
         });
     }
+
+    // Listen to tab changes to ensure FullCalendar updates size properly when its tab becomes visible
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabEl = document.getElementById('engagement-tab');
+        if (tabEl) {
+            tabEl.addEventListener('shown.bs.tab', function () {
+                if (calendar) {
+                    setTimeout(() => calendar.updateSize(), 50);
+                }
+            });
+        }
+        
+        // Also listen to main dashboard tabs for sub-charts
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function () {
+                if (calendar) {
+                    setTimeout(() => calendar.updateSize(), 50);
+                }
+            });
+        });
+    });
 </script>

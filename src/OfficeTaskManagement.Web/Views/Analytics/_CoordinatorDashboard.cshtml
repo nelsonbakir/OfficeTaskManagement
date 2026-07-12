@@ -1,11 +1,23 @@
-@model OfficeTaskManagement.ViewModels.Analytics.CoordinatorDashboard
+@model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
+@{
+    var metrics = Model.CoordinatorMetrics!;
+}
 
 <div class="metric-grid">
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-tasks"></i></div>
-        <div class="metric-label">Total Tasks</div>
-        <p class="metric-value">@Model.TotalTasks</p>
-        <div class="metric-subtext">@Model.UnassignedTasks unassigned</div>
+        <div class="metric-label">Total Task Flow</div>
+        <p class="metric-value">@metrics.TotalTasks</p>
+        <div class="metric-subtext">
+            @if (metrics.UnassignedTasks > 0)
+            {
+                <span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> @metrics.UnassignedTasks unassigned</span>
+            }
+            else
+            {
+                <span class="text-success"><i class="fas fa-check-circle"></i> All assigned</span>
+            }
+        </div>
     </div>
 
     <div class="metric-card">
@@ -14,31 +26,38 @@
             Task Completion
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value">@Model.TaskCompletionRate.ToString("F0")%</p>
+        <p class="metric-value">@metrics.TaskCompletionRate.ToString("F0")%</p>
         <div class="progress-bar">
-            <div class="progress-fill" style="width: @Model.TaskCompletionRate%"></div>
+            <div class="progress-fill" style="width: @metrics.TaskCompletionRate%"></div>
         </div>
-    </div>
-
-    <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-hourglass-start"></i></div>
-        <div class="metric-label">To Do</div>
-        <p class="metric-value">@Model.ToDoTasks</p>
-        <div class="metric-subtext">not started</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-hourglass-half"></i></div>
         <div class="metric-label">In Progress</div>
-        <p class="metric-value">@Model.InProgressTasks</p>
-        <div class="metric-subtext">active work</div>
+        <p class="metric-value">@metrics.InProgressTasks</p>
+        <div class="metric-subtext">active dev work</div>
     </div>
 
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-rocket"></i></div>
-        <div class="metric-label">Active Sprints</div>
-        <p class="metric-value">@Model.CurrentSprints</p>
-        <div class="metric-subtext">in progress</div>
+        <div class="metric-icon"><i class="fas fa-balance-scale"></i></div>
+        <div class="metric-label">Sprint Scope Health</div>
+        @{
+            int overcommitted = Model.SprintCapacities.Count(c => c.Delta < 0);
+        }
+        <p class="metric-value" style="color: @(overcommitted > 0 ? "#E81123" : "#107C10");">
+            @(overcommitted > 0 ? $"{overcommitted} Over" : "Healthy")
+        </p>
+        <div class="metric-subtext">
+            @if (overcommitted > 0)
+            {
+                <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Sprints overcommitted</span>
+            }
+            else
+            {
+                <span>Sprints fit team capacity</span>
+            }
+        </div>
     </div>
 
     <div class="metric-card">
@@ -47,10 +66,99 @@
             Overdue Tasks
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoOverdueTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value" style="color: #E81123;">@Model.OverdueTasks</p>
-        <div class="metric-subtext">need attention</div>
+        <p class="metric-value" style="color: @(metrics.OverdueTasks > 0 ? "#E81123" : "#107C10");">@metrics.OverdueTasks</p>
+        <div class="metric-subtext">past target deadlines</div>
     </div>
 </div>
+
+<!-- Sprint Capacity Planning -->
+<div class="section-header">
+    <i class="fas fa-balance-scale"></i>
+    <h2>Active Sprint Capacity Planning</h2>
+</div>
+
+@if(!Model.SprintCapacities.Any())
+{
+    <div class="empty-state">
+        <i class="fas fa-info-circle"></i>
+        <p>No active sprints to plan capacity</p>
+    </div>
+}
+else
+{
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sprint</th>
+                    <th>Planned Capacity</th>
+                    <th>Task Demand</th>
+                    <th>Delta / Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach(var cap in Model.SprintCapacities)
+                {
+                    <tr>
+                        <td><strong>@cap.SprintName</strong></td>
+                        <td>@cap.PlannedCapacity.ToString("0") hrs</td>
+                        <td>@cap.TaskDemand.ToString("0.0") hrs</td>
+                        <td>
+                            @if(cap.Delta < 0)
+                            {
+                                <span class="badge" style="background: #FDE7E9; color: #A4262C; font-weight: 600;">@Math.Abs(cap.Delta).ToString("0.0") hrs Overcommitted</span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background: #DFF6DD; color: #107C10; font-weight: 600;">+@cap.Delta.ToString("0") hrs Available</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- Blockers & Stuck Tasks -->
+<div class="section-header">
+    <i class="fas fa-ban"></i>
+    <h2>Blockers &amp; Paused Tasks (@metrics.Blockers.Count)</h2>
+</div>
+
+@if (metrics.Blockers.Any())
+{
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Task Title</th>
+                    <th>Assignee</th>
+                    <th>Paused Date</th>
+                    <th>Blocker Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var blocker in metrics.Blockers)
+                {
+                    <tr>
+                        <td><strong>@blocker.TaskTitle</strong></td>
+                        <td>@blocker.AssigneeName</td>
+                        <td>@blocker.CreatedDate.ToString("MMM dd, yyyy")</td>
+                        <td><span class="text-danger"><i class="fas fa-comment-dots"></i> @blocker.BlockedReason</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <i class="fas fa-check-circle" style="color: #107C10;"></i>
+        <p>No active blockers identified</p>
+    </div>
+}
 
 <!-- Sprint Progress -->
 <div class="section-header">
@@ -58,9 +166,9 @@
     <h2>Sprint Progress</h2>
 </div>
 
-@if (Model.SprintProgress.Any())
+@if (metrics.SprintProgress.Any())
 {
-    @foreach (var sprint in Model.SprintProgress)
+    @foreach (var sprint in metrics.SprintProgress)
     {
         <div class="list-item">
             <div class="list-item-content" style="flex: 1;">
@@ -90,9 +198,9 @@ else
     <h2>Upcoming Deadlines (Next 7 Days)</h2>
 </div>
 
-@if (Model.UpcomingDeadlines.Any())
+@if (metrics.UpcomingDeadlines.Any())
 {
-    @foreach (var task in Model.UpcomingDeadlines)
+    @foreach (var task in metrics.UpcomingDeadlines)
     {
         <div class="list-item">
             <div class="list-item-content">

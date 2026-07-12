@@ -481,68 +481,72 @@ namespace OfficeTaskManagement.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var userRoles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
-            var isManager = await permSvc.HasPermissionAsync(User, Permissions.StrategicView);
-            var isProjectLead = !isManager && await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage);
-            var isCoordinator = !isManager && !isProjectLead && await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
-            var isEmployee = !isManager && !isProjectLead && !isCoordinator;
+            
+            // Resolve permissions independently (no longer mutually exclusive)
+            var hasStrategic = await permSvc.HasPermissionAsync(User, Permissions.StrategicView);
+            var hasProjects = await permSvc.HasPermissionAsync(User, Permissions.ProjectsManage) || await permSvc.HasPermissionAsync(User, Permissions.ProjectsView);
+            var hasWorkflow = await permSvc.HasPermissionAsync(User, Permissions.WorkflowManage);
+            var hasPersonal = true; // Everyone can see their own tasks
 
             var vm = new DashboardViewModel
             {
                 SelectedAssigneeId = assigneeId,
                 SelectedProjectId = projectId,
-                UserRole = userRoles.FirstOrDefault() ?? "Employee"
+                UserRole = userRoles.FirstOrDefault() ?? "Employee",
+                CanViewStrategic = hasStrategic,
+                CanViewProjects = hasProjects,
+                CanViewWorkflow = hasWorkflow,
+                CanViewPersonal = hasPersonal
             };
 
-            // MANAGER DASHBOARD
-            if (isManager)
+            // 1. Portfolio Overview (Strategic metrics)
+            if (hasStrategic)
             {
                 vm.ManagerMetrics = await GetManagerMetrics(assigneeId, projectId);
-                var assigneesList = await _context.Users
-                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
-                    .ToListAsync();
-                var projectsList = await _context.Projects.ToListAsync();
-                vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
-                vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
             }
-            // PROJECT LEAD DASHBOARD
-            else if (isProjectLead)
+
+            // 2. Project Performance (Lead metrics)
+            if (hasProjects)
             {
-                var userProjects = await _context.Projects
-                    .Where(p => p.CreatedById == userId)
-                    .Select(p => p.Id)
-                    .ToListAsync();
+                var projectIds = (hasStrategic || hasWorkflow)
+                    ? await _context.Projects.Select(p => p.Id).ToListAsync()
+                    : await _context.Projects.Where(p => p.CreatedById == userId).Select(p => p.Id).ToListAsync();
 
-                vm.ProjectLeadMetrics = await GetProjectLeadMetrics(userId, userProjects);
-
-                var assigneesList = await _context.Users
-                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
-                    .ToListAsync();
-                var projectsList = await _context.Projects.Where(p => p.CreatedById == userId).ToListAsync();
-                vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
-                vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
+                vm.ProjectLeadMetrics = await GetProjectLeadMetrics(userId, projectIds, projectId);
             }
-            // COORDINATOR DASHBOARD
-            else if (isCoordinator)
+
+            // 3. Workflow Coordination (Coordinator metrics)
+            if (hasWorkflow)
             {
                 vm.CoordinatorMetrics = await GetCoordinatorMetrics();
-                var assigneesList = await _context.Users
-                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
-                    .ToListAsync();
-                var projectsList = await _context.Projects.ToListAsync();
-                vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
-                vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
             }
-            // EMPLOYEE DASHBOARD
-            else if (isEmployee)
+
+            // 4. My Work (Employee metrics)
+            if (hasPersonal)
             {
                 var user = await _context.Users.FindAsync(userId);
                 vm.EmployeeMetrics = await GetEmployeeMetrics(userId, user?.FullName ?? "Employee");
             }
 
-            if (isManager || isProjectLead || isCoordinator)
+            // Populate filtering lists if the user can view any management pane
+            if (hasStrategic || hasProjects || hasWorkflow)
             {
+                var assigneesList = await _context.Users
+                    .Where(u => u.ResourceProfile != null && u.ResourceProfile.IsResource)
+                    .ToListAsync();
+                
+                var projectsListQuery = _context.Projects.AsQueryable();
+                if (!hasStrategic && !hasWorkflow && hasProjects)
+                {
+                    projectsListQuery = projectsListQuery.Where(p => p.CreatedById == userId);
+                }
+                var projectsList = await projectsListQuery.ToListAsync();
+
+                vm.Assignees = new SelectList(assigneesList, "Id", "Email", assigneeId);
+                vm.Projects = new SelectList(projectsList, "Id", "Name", projectId);
+
                 vm.IncludeUnifiedAnalytics = true;
-                await PopulateUnifiedAnalyticsAsync(vm, userId!, isManager, isProjectLead);
+                await PopulateUnifiedAnalyticsAsync(vm, userId!, hasStrategic, hasProjects);
             }
 
             return View("Dashboard", vm);
@@ -798,7 +802,7 @@ namespace OfficeTaskManagement.Controllers
             return metrics;
         }
 
-        private async Task<ProjectLeadDashboard> GetProjectLeadMetrics(string userId, List<int> projectIds)
+        private async Task<ProjectLeadDashboard> GetProjectLeadMetrics(string userId, List<int> projectIds, int? selectedProjectId = null)
         {
             var metrics = new ProjectLeadDashboard();
 
@@ -809,7 +813,9 @@ namespace OfficeTaskManagement.Controllers
 
             if (projects.Count > 0)
             {
-                var firstProject = projects.First();
+                var firstProject = (selectedProjectId.HasValue && projectIds.Contains(selectedProjectId.Value))
+                    ? projects.FirstOrDefault(p => p.Id == selectedProjectId.Value) ?? projects.First()
+                    : projects.First();
                 metrics.ProjectId = firstProject.Id;
                 metrics.ProjectName = firstProject.Name;
 
@@ -932,6 +938,19 @@ namespace OfficeTaskManagement.Controllers
                     DaysRemaining = Math.Max(0, daysRemaining)
                 });
             }
+
+            // Populate blockers / paused tasks
+            metrics.Blockers = allTasks
+                .Where(t => t.IsPaused)
+                .Select(t => new BlockerMetric
+                {
+                    TaskId = t.Id,
+                    TaskTitle = t.Title,
+                    BlockedReason = t.PauseReason ?? "Paused by manager",
+                    AssigneeName = t.Assignee?.FullName ?? "Unassigned",
+                    CreatedDate = t.PausedAt?.Date ?? DateTime.Today
+                })
+                .ToList();
 
             // Upcoming deadlines
             var upcomingTasks = allTasks

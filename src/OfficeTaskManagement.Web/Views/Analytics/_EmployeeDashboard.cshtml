@@ -1,11 +1,29 @@
 @model OfficeTaskManagement.ViewModels.Analytics.EmployeeDashboard
 
+<div class="mb-4">
+    <h3 class="fw-bold" style="color: #252424;"><i class="fas fa-hands-helping text-primary me-2"></i>Welcome back, @Model.EmployeeName!</h3>
+    <p class="text-muted small">Here is your workload and active task list for today.</p>
+</div>
+
 <div class="metric-grid">
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-user"></i></div>
-        <div class="metric-label">Your Name</div>
-        <p class="metric-value" style="font-size: 1.2rem;">@Model.EmployeeName</p>
-        <div class="metric-subtext">@Model.MyProjects.Count projects</div>
+        <div class="metric-icon"><i class="fas fa-battery-half"></i></div>
+        <div class="metric-label">Remaining Capacity</div>
+        @{
+            decimal remaining = 40m - Model.CurrentWeekload;
+            string capacityColor = remaining < 0 ? "#E81123" : remaining < 8 ? "#ff9800" : "#107C10";
+        }
+        <p class="metric-value" style="color: @capacityColor;">@remaining.ToString("F1")h</p>
+        <div class="metric-subtext">
+            @if (remaining < 0)
+            {
+                <span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Overloaded (Max 40h)</span>
+            }
+            else
+            {
+                <span>Available for tasks</span>
+            }
+        </div>
     </div>
 
     <div class="metric-card">
@@ -47,7 +65,7 @@
             Current Workload
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCurrentWorkload" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value">@Model.CurrentWeekload.ToString("F1")</p>
+        <p class="metric-value" style="color: @(Model.CurrentWeekload > 45m ? "#E81123" : "#0078D4")">@Model.CurrentWeekload.ToString("F1")</p>
         <div class="metric-subtext">hours of work</div>
     </div>
 </div>
@@ -55,21 +73,27 @@
 <!-- My Projects -->
 <div class="section-header">
     <i class="fas fa-folder-open"></i>
-    <h2>My Projects (@Model.MyProjects.Count)</h2>
+    <h2>My Allocated Projects (@Model.MyProjects.Count)</h2>
 </div>
 
 @if (Model.MyProjects.Any())
 {
-    @foreach (var project in Model.MyProjects)
-    {
-        <div class="list-item">
-            <div class="list-item-content">
-                <h3>@project</h3>
-                <p><i class="fas fa-folder"></i> Project</p>
+    <div class="row row-cols-1 row-cols-md-3 g-3">
+        @foreach (var project in Model.MyProjects)
+        {
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm" style="border-radius: 8px; border: 1px solid #EDEBE9 !important; padding: 0.5rem;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title mb-0 fw-bold" style="color: #252424; font-size: 0.95rem;">@project</h6>
+                            <span class="badge" style="background-color: #D1ECF1; color: #0C5460; font-size: 0.7rem; font-weight: 600;">Active</span>
+                        </div>
+                        <p class="text-muted small mb-0"><i class="fas fa-folder me-1"></i> Allocated Project</p>
+                    </div>
+                </div>
             </div>
-            <span class="status-badge status-active">Active</span>
-        </div>
-    }
+        }
+    </div>
 }
 else
 {

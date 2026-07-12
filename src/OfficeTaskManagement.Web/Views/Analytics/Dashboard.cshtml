@@ -225,22 +225,85 @@
     </h1>
 </div>
 
-@if (Model.ManagerMetrics != null)
-{
-    <partial name="_ManagerDashboard" model="Model.ManagerMetrics" />
+@{
+    bool firstActive = false;
 }
-else if (Model.ProjectLeadMetrics != null)
-{
-    <partial name="_ProjectLeadDashboard" model="Model.ProjectLeadMetrics" />
+
+<ul class="nav nav-tabs mb-0 border-bottom-0" id="dashboardTabs" role="tablist" style="gap: 5px;">
+    @if (Model.CanViewPersonal && Model.EmployeeMetrics != null)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold px-4 py-2 border-0" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-user-circle me-2 text-primary"></i>My Work</button>
+        </li>
+        firstActive = true;
+    }
+    @if (Model.CanViewWorkflow && Model.CoordinatorMetrics != null)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="workflow-tab" data-bs-toggle="tab" data-bs-target="#workflow-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-people-arrows me-2 text-success"></i>Workflow Coordination</button>
+        </li>
+        firstActive = true;
+    }
+    @if (Model.CanViewProjects && Model.ProjectLeadMetrics != null)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-folder-open me-2 text-info"></i>Project Performance</button>
+        </li>
+        firstActive = true;
+    }
+    @if (Model.CanViewStrategic && Model.ManagerMetrics != null)
+    {
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="strategic-tab" data-bs-toggle="tab" data-bs-target="#strategic-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-crown me-2 text-warning"></i>Portfolio Overview</button>
+        </li>
+    }
+</ul>
+
+<style>
+    .nav-tabs .nav-link.active {
+        background-color: #ffffff !important;
+        border: 1px solid #EDEBE9 !important;
+        border-bottom: 2px solid #0078D4 !important;
+        color: #0078D4 !important;
+    }
+    .nav-tabs .nav-link:not(.active):hover {
+        background-color: #EDEBE9 !important;
+    }
+</style>
+
+@{
+    firstActive = false;
 }
-else if (Model.CoordinatorMetrics != null)
-{
-    <partial name="_CoordinatorDashboard" model="Model.CoordinatorMetrics" />
-}
-else if (Model.EmployeeMetrics != null)
-{
-    <partial name="_EmployeeDashboard" model="Model.EmployeeMetrics" />
-}
+
+<div class="tab-content" id="dashboardTabsContent" style="background: #ffffff; border: 1px solid #EDEBE9; border-radius: 0 0 8px 8px; padding: 2rem; min-height: 400px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02); margin-bottom: 2rem;">
+    @if (Model.CanViewPersonal && Model.EmployeeMetrics != null)
+    {
+        <div class="tab-pane fade show active" id="personal-panel" role="tabpanel">
+            <partial name="_EmployeeDashboard" model="Model.EmployeeMetrics" />
+        </div>
+        firstActive = true;
+    }
+    @if (Model.CanViewWorkflow && Model.CoordinatorMetrics != null)
+    {
+        <div class="tab-pane fade @(!firstActive ? "show active" : "")" id="workflow-panel" role="tabpanel">
+            <partial name="_CoordinatorDashboard" model="Model" />
+        </div>
+        firstActive = true;
+    }
+    @if (Model.CanViewProjects && Model.ProjectLeadMetrics != null)
+    {
+        <div class="tab-pane fade @(!firstActive ? "show active" : "")" id="projects-panel" role="tabpanel">
+            <partial name="_ProjectLeadDashboard" model="Model" />
+        </div>
+        firstActive = true;
+    }
+    @if (Model.CanViewStrategic && Model.ManagerMetrics != null)
+    {
+        <div class="tab-pane fade @(!firstActive ? "show active" : "")" id="strategic-panel" role="tabpanel">
+            <partial name="_ManagerDashboard" model="Model" />
+        </div>
+    }
+</div>
 
 @if (Model.IncludeUnifiedAnalytics)
 {

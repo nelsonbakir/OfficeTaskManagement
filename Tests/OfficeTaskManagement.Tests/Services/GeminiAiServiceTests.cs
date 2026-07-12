@@ -330,6 +330,7 @@ namespace OfficeTaskManagement.Tests.Services
             {
                 Id = 101,
                 Title = "Selected Task 1",
+                Status = OfficeTaskManagement.Models.Enums.TaskStatus.Approved,
                 IsBacklog = true,
                 TenantId = "test-tenant",
                 ProjectId = project.Id

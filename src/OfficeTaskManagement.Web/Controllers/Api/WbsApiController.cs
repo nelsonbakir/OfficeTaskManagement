@@ -42,18 +42,51 @@ public class WbsApiController : ControllerBase
             var epicName = epicEl.TryGetProperty("name", out var en) ? en.GetString() ?? "Unnamed Epic" : "Unnamed Epic";
             var epicDesc = epicEl.TryGetProperty("description", out var ed) ? ed.GetString() : null;
 
-            var epic = new Epic
+            var targetProjectId = projectId;
+            if (epicEl.TryGetProperty("projectId", out var epicProjProp) && epicProjProp.ValueKind == JsonValueKind.Number)
             {
-                ProjectId   = projectId,
-                Name        = epicName,
-                Description = epicDesc,
-                CreatedById = userId,
-                CreatedAt   = DateTime.UtcNow,
-                TenantId    = tenantId
-            };
-            _db.Epics.Add(epic);
-            await _db.SaveChangesAsync(ct); // flush to get epic.Id
-            epicCount++;
+                targetProjectId = epicProjProp.GetInt32();
+            }
+
+            // Check if there is an existing Epic with this ID or name in the project
+            Epic? epic = null;
+            if (epicEl.TryGetProperty("id", out var epicIdProp) && epicIdProp.ValueKind == JsonValueKind.Number)
+            {
+                var epicId = epicIdProp.GetInt32();
+                epic = await _db.Epics.FirstOrDefaultAsync(e => e.Id == epicId && e.TenantId == tenantId, ct);
+            }
+            if (epic == null)
+            {
+                epic = await _db.Epics
+                    .FirstOrDefaultAsync(e => e.ProjectId == targetProjectId && e.Name.ToLower() == epicName.ToLower() && e.TenantId == tenantId, ct);
+            }
+
+            if (epic == null)
+            {
+                epic = new Epic
+                {
+                    ProjectId   = targetProjectId,
+                    Name        = epicName,
+                    Description = epicDesc,
+                    CreatedById = userId,
+                    CreatedAt   = DateTime.UtcNow,
+                    TenantId    = tenantId
+                };
+                _db.Epics.Add(epic);
+                await _db.SaveChangesAsync(ct); // flush to get epic.Id
+                epicCount++;
+            }
+            else
+            {
+                if (epic.Description != epicDesc || epic.ProjectId != targetProjectId || epic.Name != epicName)
+                {
+                    epic.Description = epicDesc;
+                    epic.ProjectId = targetProjectId;
+                    epic.Name = epicName;
+                    _db.Epics.Update(epic);
+                    await _db.SaveChangesAsync(ct);
+                }
+            }
 
             if (!epicEl.TryGetProperty("features", out var featuresEl) ||
                 featuresEl.ValueKind != JsonValueKind.Array) continue;
@@ -63,18 +96,45 @@ public class WbsApiController : ControllerBase
                 var featName = featEl.TryGetProperty("name", out var fn) ? fn.GetString() ?? "Unnamed Feature" : "Unnamed Feature";
                 var featDesc = featEl.TryGetProperty("description", out var fd) ? fd.GetString() : null;
 
-                var feature = new Feature
+                // Check if there is an existing Feature with this ID or name under this Epic
+                Feature? feature = null;
+                if (featEl.TryGetProperty("id", out var featIdProp) && featIdProp.ValueKind == JsonValueKind.Number)
                 {
-                    EpicId      = epic.Id,
-                    Name        = featName,
-                    Description = featDesc,
-                    CreatedById = userId,
-                    CreatedAt   = DateTime.UtcNow,
-                    TenantId    = tenantId
-                };
-                _db.Features.Add(feature);
-                await _db.SaveChangesAsync(ct);
-                featureCount++;
+                    var featId = featIdProp.GetInt32();
+                    feature = await _db.Features.FirstOrDefaultAsync(f => f.Id == featId && f.TenantId == tenantId, ct);
+                }
+                if (feature == null)
+                {
+                    feature = await _db.Features
+                        .FirstOrDefaultAsync(f => f.EpicId == epic.Id && f.Name.ToLower() == featName.ToLower() && f.TenantId == tenantId, ct);
+                }
+
+                if (feature == null)
+                {
+                    feature = new Feature
+                    {
+                        EpicId      = epic.Id,
+                        Name        = featName,
+                        Description = featDesc,
+                        CreatedById = userId,
+                        CreatedAt   = DateTime.UtcNow,
+                        TenantId    = tenantId
+                    };
+                    _db.Features.Add(feature);
+                    await _db.SaveChangesAsync(ct);
+                    featureCount++;
+                }
+                else
+                {
+                    if (feature.Description != featDesc || feature.EpicId != epic.Id || feature.Name != featName)
+                    {
+                        feature.Description = featDesc;
+                        feature.EpicId = epic.Id;
+                        feature.Name = featName;
+                        _db.Features.Update(feature);
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
 
                 if (!featEl.TryGetProperty("stories", out var storiesEl) ||
                     storiesEl.ValueKind != JsonValueKind.Array) continue;
@@ -85,19 +145,47 @@ public class WbsApiController : ControllerBase
                     var desc  = storyEl.TryGetProperty("description", out var sd) ? sd.GetString() : null;
                     var ac    = storyEl.TryGetProperty("acceptanceCriteria", out var acd) ? acd.GetString() : null;
 
-                    var story = new UserStory
+                    // Check if there is an existing UserStory with this ID or title under this Feature
+                    UserStory? story = null;
+                    if (storyEl.TryGetProperty("id", out var storyIdProp) && storyIdProp.ValueKind == JsonValueKind.Number)
                     {
-                        FeatureId          = feature.Id,
-                        Title              = title,
-                        Description        = desc,
-                        AcceptanceCriteria = ac,
-                        CreatedById        = userId,
-                        CreatedAt          = DateTime.UtcNow,
-                        TenantId           = tenantId
-                    };
-                    _db.UserStories.Add(story);
-                    await _db.SaveChangesAsync(ct);
-                    storyCount++;
+                        var storyId = storyIdProp.GetInt32();
+                        story = await _db.UserStories.FirstOrDefaultAsync(us => us.Id == storyId && us.TenantId == tenantId, ct);
+                    }
+                    if (story == null)
+                    {
+                        story = await _db.UserStories
+                            .FirstOrDefaultAsync(us => us.FeatureId == feature.Id && us.Title.ToLower() == title.ToLower() && us.TenantId == tenantId, ct);
+                    }
+
+                    if (story == null)
+                    {
+                        story = new UserStory
+                        {
+                            FeatureId          = feature.Id,
+                            Title              = title,
+                            Description        = desc,
+                            AcceptanceCriteria = ac,
+                            CreatedById        = userId,
+                            CreatedAt          = DateTime.UtcNow,
+                            TenantId           = tenantId
+                        };
+                        _db.UserStories.Add(story);
+                        await _db.SaveChangesAsync(ct);
+                        storyCount++;
+                    }
+                    else
+                    {
+                        if (story.Description != desc || story.AcceptanceCriteria != ac || story.FeatureId != feature.Id || story.Title != title)
+                        {
+                            story.Description = desc;
+                            story.AcceptanceCriteria = ac;
+                            story.FeatureId = feature.Id;
+                            story.Title = title;
+                            _db.UserStories.Update(story);
+                            await _db.SaveChangesAsync(ct);
+                        }
+                    }
 
                     if (storyEl.TryGetProperty("testCases", out var testCasesEl) && testCasesEl.ValueKind == JsonValueKind.Array)
                     {

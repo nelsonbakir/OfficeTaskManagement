@@ -50,14 +50,14 @@ namespace OfficeTaskManagement.Tests.Services
             }
         }
 
-        private AgentService CreateService(string provider = "Ollama", string? apiKey = null, string apiType = "OpenAI")
+        private AgentService CreateService(string provider = "Ollama", string? apiKey = null, string apiType = "OpenAI", string model = "gemini-2.5-pro")
         {
             var config = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     { "Gemini:Provider", provider },
                     { "Gemini:ApiKey", apiKey },
-                    { "Gemini:CopilotModel", "gemini-2.5-pro" },
+                    { "Gemini:CopilotModel", model },
                     { "Gemini:OllamaUrl", "http://localhost:11434" },
                     { "Gemini:OllamaModel", "gemma4:12b-it-q4_k_m" },
                     { "Gemini:OpenVINOUrl", "http://localhost:8000/v1" },
@@ -357,6 +357,208 @@ namespace OfficeTaskManagement.Tests.Services
             Assert.NotNull(conv);
             Assert.Equal("Project", conv.EntityType);
             Assert.Equal(10, conv.EntityId);
+        }
+
+        [Fact]
+        public async Task ChatAsync_WithGeminiProvider_ThinkingModel_SendsThinkingConfigInAllTurns()
+        {
+            // Arrange
+            var service = CreateService("Gemini", apiKey: "test-key", model: "gemini-2.0-flash-thinking-exp");
+            var request = new AgentChatRequest(
+                ConversationId: Guid.NewGuid().ToString(),
+                UserId: "user-1",
+                TenantId: _db.CurrentTenantId,
+                Message: "Calculate PERT",
+                EntityType: null,
+                EntityId: null,
+                ProjectContextId: null,
+                Mentions: null
+            );
+
+            var response1 = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = new[]
+                            {
+                                new
+                                {
+                                    functionCall = new
+                                    {
+                                        name = "calculate_pert",
+                                        args = new { optimistic = 1, mostLikely = 3, pessimistic = 5 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var response2 = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = new[]
+                            {
+                                new
+                                {
+                                    text = "The PERT average is 3."
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var httpResponse1 = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(response1), System.Text.Encoding.UTF8, "application/json")
+            };
+            var httpResponse2 = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(response2), System.Text.Encoding.UTF8, "application/json")
+            };
+
+            var sentPayloads = new List<string>();
+            var responses = new Queue<HttpResponseMessage>(new[] { httpResponse1, httpResponse2 });
+
+            _httpHandlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req => req.RequestUri.ToString().Contains("generativelanguage.googleapis.com")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .Returns((HttpRequestMessage req, CancellationToken ct) =>
+                {
+                    if (req.Content != null)
+                    {
+                        var contentStr = req.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();
+                        sentPayloads.Add(contentStr);
+                    }
+                    return Task.FromResult(responses.Dequeue());
+                });
+
+            // Act
+            var result = await service.ChatAsync(request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Contains("The PERT average is 3.", result.Message);
+            Assert.Equal(2, sentPayloads.Count);
+
+            // Both requests should have thinking_config
+            Assert.Contains("thinking_config", sentPayloads[0]);
+            Assert.Contains("thinking_config", sentPayloads[1]);
+        }
+
+        [Fact]
+        public async Task ChatAsync_WithGeminiProvider_NonThinkingModel_DoesNotSendThinkingConfigInAnyTurn()
+        {
+            // Arrange
+            var service = CreateService("Gemini", apiKey: "test-key", model: "gemma-4-31b-it");
+            var request = new AgentChatRequest(
+                ConversationId: Guid.NewGuid().ToString(),
+                UserId: "user-1",
+                TenantId: _db.CurrentTenantId,
+                Message: "Calculate PERT",
+                EntityType: null,
+                EntityId: null,
+                ProjectContextId: null,
+                Mentions: null
+            );
+
+            var response1 = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = new[]
+                            {
+                                new
+                                {
+                                    functionCall = new
+                                    {
+                                        name = "calculate_pert",
+                                        args = new { optimistic = 1, mostLikely = 3, pessimistic = 5 }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var response2 = new
+            {
+                candidates = new[]
+                {
+                    new
+                    {
+                        content = new
+                        {
+                            parts = new[]
+                            {
+                                new
+                                {
+                                    text = "The PERT average is 3."
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var httpResponse1 = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(response1), System.Text.Encoding.UTF8, "application/json")
+            };
+            var httpResponse2 = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(response2), System.Text.Encoding.UTF8, "application/json")
+            };
+
+            var sentPayloads = new List<string>();
+            var responses = new Queue<HttpResponseMessage>(new[] { httpResponse1, httpResponse2 });
+
+            _httpHandlerMock.Protected()
+                .Setup<Task<HttpResponseMessage>>(
+                    "SendAsync",
+                    ItExpr.Is<HttpRequestMessage>(req => req.RequestUri.ToString().Contains("generativelanguage.googleapis.com")),
+                    ItExpr.IsAny<CancellationToken>()
+                )
+                .Returns((HttpRequestMessage req, CancellationToken ct) =>
+                {
+                    if (req.Content != null)
+                    {
+                        var contentStr = req.Content.ReadAsStringAsync(ct).GetAwaiter().GetResult();
+                        sentPayloads.Add(contentStr);
+                    }
+                    return Task.FromResult(responses.Dequeue());
+                });
+
+            // Act
+            var result = await service.ChatAsync(request);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Contains("The PERT average is 3.", result.Message);
+            Assert.Equal(2, sentPayloads.Count);
+
+            // Neither request should have thinking_config
+            Assert.DoesNotContain("thinking_config", sentPayloads[0]);
+            Assert.DoesNotContain("thinking_config", sentPayloads[1]);
         }
     }
 }

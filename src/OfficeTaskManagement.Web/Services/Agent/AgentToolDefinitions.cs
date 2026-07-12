@@ -29,6 +29,7 @@ public static class AgentToolDefinitions
                 ReadProjectTasksTool(),
                 ReadSprintListTool(),
                 ReadProjectStatusTool(),
+                ReadExistingWbsTool(),
                 // KF-2: Write tools
                 CreateProjectTool(),
                 AssignTaskTool(),
@@ -221,6 +222,21 @@ public static class AgentToolDefinitions
         }
     };
 
+    private static object ReadExistingWbsTool() => new
+    {
+        name = "read_existing_wbs",
+        description = "Returns the existing Work Breakdown Structure (WBS) tree for the project, showing existing Epics and Features. Use this to understand the current project structure before drafting new or enhanced features/epics.",
+        parameters = new
+        {
+            type = "object",
+            properties = new
+            {
+                projectId = new { type = "integer", description = "The project ID to fetch the WBS tree for" }
+            },
+            required = new[] { "projectId" }
+        }
+    };
+
     // ── KF-2 Write Tools ──────────────────────────────────────────────────────
 
     private static object CreateProjectTool() => new
@@ -276,6 +292,7 @@ public static class AgentToolDefinitions
                         type = "object",
                         properties = new
                         {
+                            id = new { type = "integer", description = "Optional: Database ID of this Epic if it already exists" },
                             name = new { type = "string" },
                             description = new { type = "string" }
                         }
@@ -305,6 +322,7 @@ public static class AgentToolDefinitions
                         type = "object",
                         properties = new
                         {
+                            id = new { type = "integer", description = "Optional: Database ID of this Epic if it already exists" },
                             name = new { type = "string" },
                             description = new { type = "string" },
                             features = new
@@ -315,6 +333,7 @@ public static class AgentToolDefinitions
                                     type = "object",
                                     properties = new
                                     {
+                                        id = new { type = "integer", description = "Optional: Database ID of this Feature if it already exists" },
                                         name = new { type = "string" },
                                         description = new { type = "string" }
                                     }
@@ -347,6 +366,7 @@ public static class AgentToolDefinitions
                         type = "object",
                         properties = new
                         {
+                            id = new { type = "integer", description = "Optional: Database ID of this Epic if it already exists" },
                             name = new { type = "string" },
                             description = new { type = "string" },
                             features = new
@@ -357,6 +377,7 @@ public static class AgentToolDefinitions
                                     type = "object",
                                     properties = new
                                     {
+                                        id = new { type = "integer", description = "Optional: Database ID of this Feature if it already exists" },
                                         name = new { type = "string" },
                                         description = new { type = "string" },
                                         stories = new
@@ -367,6 +388,7 @@ public static class AgentToolDefinitions
                                                 type = "object",
                                                 properties = new
                                                 {
+                                                    id = new { type = "integer", description = "Optional: Database ID of this User Story if it already exists" },
                                                     title = new { type = "string" },
                                                     description = new { type = "string" },
                                                     acceptanceCriteria = new { type = "string" },

@@ -1,11 +1,28 @@
-@model OfficeTaskManagement.ViewModels.Analytics.ProjectLeadDashboard
+@model OfficeTaskManagement.ViewModels.Analytics.DashboardViewModel
+@{
+    var metrics = Model.ProjectLeadMetrics!;
+    var costMetric = Model.ProjectCosts.FirstOrDefault(c => c.ProjectName == metrics.ProjectName);
+}
 
 <div class="metric-grid">
     <div class="metric-card">
-        <div class="metric-icon"><i class="fas fa-folder-open"></i></div>
-        <div class="metric-label">Project Name</div>
-        <p class="metric-value" style="font-size: 1.2rem;">@Model.ProjectName</p>
-        <div class="metric-subtext">@Model.TeamSize team members</div>
+        <div class="metric-icon"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="metric-label">Project Budget Health</div>
+        @if (costMetric != null)
+        {
+            string varianceColor = costMetric.CostVariance < 0 ? "#E81123" : "#107C10";
+            <p class="metric-value" style="color: @varianceColor; font-size: 1.6rem; font-weight: 700; margin-top: 5px;">
+                $@costMetric.CostVariance.ToString("N0")
+            </p>
+            <div class="metric-subtext">
+                PV: $@costMetric.PlannedValuePV.ToString("N0") • EAC: $@costMetric.BottomUpEstimateEAC.ToString("N0")
+            </div>
+        }
+        else
+        {
+            <p class="metric-value" style="font-size: 1.5rem; font-weight: 700; margin-top: 5px;">$0</p>
+            <div class="metric-subtext">No cost tracking data</div>
+        }
     </div>
 
     <div class="metric-card">
@@ -14,17 +31,17 @@
             Project Completion
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoCompletionRate" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value">@Model.ProjectCompletion.ToString("F0")%</p>
+        <p class="metric-value">@metrics.ProjectCompletion.ToString("F0")%</p>
         <div class="progress-bar">
-            <div class="progress-fill" style="width: @Model.ProjectCompletion%"></div>
+            <div class="progress-fill" style="width: @metrics.ProjectCompletion%"></div>
         </div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-rocket"></i></div>
         <div class="metric-label">Active Sprints</div>
-        <p class="metric-value">@Model.ActiveSprints</p>
-        <div class="metric-subtext">@Model.TotalSprints total sprints</div>
+        <p class="metric-value">@Model.ProjectLeadMetrics.ActiveSprints</p>
+        <div class="metric-subtext">@Model.ProjectLeadMetrics.TotalSprints total sprints</div>
     </div>
 
     <div class="metric-card">
@@ -33,15 +50,15 @@
             In Progress
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoInProgressTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value">@Model.InProgressTasks</p>
-        <div class="metric-subtext">@Model.TotalTasks total tasks</div>
+        <p class="metric-value">@Model.ProjectLeadMetrics.InProgressTasks</p>
+        <div class="metric-subtext">@Model.ProjectLeadMetrics.TotalTasks total tasks</div>
     </div>
 
     <div class="metric-card">
         <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
         <div class="metric-label">Completed Tasks</div>
-        <p class="metric-value">@Model.CompletedTasks</p>
-        <div class="metric-subtext">@(Model.TotalTasks > 0 ? ((Model.CompletedTasks * 100) / Model.TotalTasks).ToString("F0") : "0")% done</div>
+        <p class="metric-value">@Model.ProjectLeadMetrics.CompletedTasks</p>
+        <div class="metric-subtext">@(Model.ProjectLeadMetrics.TotalTasks > 0 ? ((Model.ProjectLeadMetrics.CompletedTasks * 100) / Model.ProjectLeadMetrics.TotalTasks).ToString("F0") : "0")% done</div>
     </div>
 
     <div class="metric-card">
@@ -50,10 +67,60 @@
             Blocked Tasks
             <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#infoBlockedTasks" title="Information"><i class="fas fa-info-circle" style="font-size: 0.8rem;"></i></button>
         </div>
-        <p class="metric-value" style="color: #E81123;">@Model.BlockedTasks</p>
+        <p class="metric-value" style="color: #E81123;">@Model.ProjectLeadMetrics.BlockedTasks</p>
         <div class="metric-subtext">need attention</div>
     </div>
 </div>
+
+<!-- Project Cost details -->
+@if (costMetric != null)
+{
+    <div class="section-header">
+        <i class="fas fa-money-bill-wave"></i>
+        <h2>PMP Cost &amp; EVM Performance Summary</h2>
+    </div>
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>EVM Parameter</th>
+                    <th>Value</th>
+                    <th>Meaning &amp; Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Planned Value (PV)</strong></td>
+                    <td>$@costMetric.PlannedValuePV.ToString("N0")</td>
+                    <td>Scheduled budget allocated to resource schedules.</td>
+                </tr>
+                <tr>
+                    <td><strong>Estimate At Completion (EAC)</strong></td>
+                    <td>$@costMetric.BottomUpEstimateEAC.ToString("N0")</td>
+                    <td>Projected actual cost based on task estimates.</td>
+                </tr>
+                <tr>
+                    <td><strong>Cost Variance (CV)</strong></td>
+                    <td>
+                        <span class="badge @(costMetric.CostVariance >= 0 ? "bg-success" : "bg-danger")">
+                            $@costMetric.CostVariance.ToString("N0")
+                        </span>
+                    </td>
+                    <td>
+                        @if(costMetric.CostVariance >= 0)
+                        {
+                            <span class="text-success"><i class="fas fa-check-circle"></i> Under Budget / Healthy Buffer</span>
+                        }
+                        else
+                        {
+                            <span class="text-danger"><i class="fas fa-exclamation-triangle"></i> Over Budget / Reduce Scope or Allocations</span>
+                        }
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+}
 
 <!-- Advanced Analytics -->
 <div class="analytics-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; margin-top: 20px;">
@@ -82,7 +149,7 @@
         // Task Status Chart
         var ctxStatus = document.getElementById('taskStatusChartLead');
         if (ctxStatus) {
-            var statusData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TaskStatusDistribution));
+            var statusData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProjectLeadMetrics.TaskStatusDistribution));
             new Chart(ctxStatus.getContext('2d'), {
                 type: 'doughnut',
                 data: {
@@ -100,7 +167,7 @@
         // Workload Chart
         var ctxWorkload = document.getElementById('workloadChartLead');
         if (ctxWorkload) {
-            var workloadData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.EmployeeWorkload));
+            var workloadData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ProjectLeadMetrics.EmployeeWorkload));
             new Chart(ctxWorkload.getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -131,7 +198,7 @@
     <h2>Team Members</h2>
 </div>
 
-@if (Model.TeamMetrics.Any())
+@if (Model.ProjectLeadMetrics.TeamMetrics.Any())
 {
     <div class="table-card">
         <table>
@@ -144,7 +211,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var member in Model.TeamMetrics)
+                @foreach (var member in Model.ProjectLeadMetrics.TeamMetrics)
                 {
                     <tr>
                         <td><strong>@member.MemberName</strong></td>
@@ -176,7 +243,7 @@ else
     <h2>Sprint Status</h2>
 </div>
 
-@if (Model.SprintMetrics.Any())
+@if (Model.ProjectLeadMetrics.SprintMetrics.Any())
 {
     <div class="table-card">
         <table>
@@ -191,7 +258,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var sprint in Model.SprintMetrics)
+                @foreach (var sprint in Model.ProjectLeadMetrics.SprintMetrics)
                 {
                     <tr>
                         <td><strong>@sprint.SprintName</strong></td>
