@@ -36,17 +36,21 @@ namespace OfficeTaskManagement.Data
                     Identifier = "taskflow"
                 };
                 context.Set<Tenant>().Add(defaultTenant);
+            }
 
-                var acmeTenant = new Tenant
+            var acmeTenant = await context.Set<Tenant>().FirstOrDefaultAsync(t => t.Identifier == "acme");
+            if (acmeTenant == null)
+            {
+                acmeTenant = new Tenant
                 {
                     Id = "acme-tenant-id",
                     Name = "Acme Inc",
                     Identifier = "acme"
                 };
                 context.Set<Tenant>().Add(acmeTenant);
-
-                await context.SaveChangesAsync();
             }
+
+            await context.SaveChangesAsync();
 
             // Set the active tenant context for the rest of the seeding process
             tenantProvider.SetTenant(defaultTenant.Id);
@@ -475,16 +479,19 @@ namespace OfficeTaskManagement.Data
         private static async Task SeedAreasAsync(ApplicationDbContext context)
         {
             var tenantId = context.CurrentTenantId;
-            if (!context.Areas.Any(a => a.TenantId == tenantId))
+            var areaNames = new[] { "Web API", "Frontend", "Database", "Mobile", "Full-stack" };
+            var existingNames = await context.Areas
+                .Where(a => a.TenantId == tenantId && areaNames.Contains(a.Name))
+                .Select(a => a.Name)
+                .ToListAsync();
+
+            var toAdd = areaNames.Where(name => !existingNames.Contains(name))
+                .Select(name => new Area { Name = name, TenantId = tenantId })
+                .ToList();
+
+            if (toAdd.Any())
             {
-                context.Areas.AddRange(new List<Area>
-                {
-                    new Area { Name = "Web API", TenantId = tenantId },
-                    new Area { Name = "Frontend", TenantId = tenantId },
-                    new Area { Name = "Database", TenantId = tenantId },
-                    new Area { Name = "Mobile", TenantId = tenantId },
-                    new Area { Name = "Full-stack", TenantId = tenantId }
-                });
+                context.Areas.AddRange(toAdd);
                 await context.SaveChangesAsync();
             }
         }
@@ -492,17 +499,31 @@ namespace OfficeTaskManagement.Data
         private static async Task SeedPublicHolidaysAsync(ApplicationDbContext context)
         {
             var tenantId = context.CurrentTenantId;
-            if (!context.PublicHolidays.Any(h => h.TenantId == tenantId))
+            var holidayDefs = new[]
             {
-                context.PublicHolidays.AddRange(new List<PublicHoliday>
+                new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
+                new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
+                new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true, TenantId = tenantId },
+                new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false, TenantId = tenantId }
+            };
+
+            foreach (var h in holidayDefs)
+            {
+                var existing = await context.PublicHolidays
+                    .FirstOrDefaultAsync(x => x.Name == h.Name && x.TenantId == tenantId);
+                if (existing == null)
                 {
-                    new PublicHoliday { Name = "Independence Day", FromDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 26, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
-                    new PublicHoliday { Name = "Victory Day",      FromDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 12, 16, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = true, TenantId = tenantId },
-                    new PublicHoliday { Name = "May Day",          FromDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  ToDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),  IsFixedDate = true, TenantId = tenantId },
-                    new PublicHoliday { Name = "Eid-ul-Fitr",      FromDate = new DateTime(2026, 3, 20, 0, 0, 0, DateTimeKind.Utc), ToDate = new DateTime(2026, 3, 22, 0, 0, 0, DateTimeKind.Utc), IsFixedDate = false, TenantId = tenantId }
-                });
-                await context.SaveChangesAsync();
+                    context.PublicHolidays.Add(h);
+                }
+                else
+                {
+                    existing.FromDate = h.FromDate;
+                    existing.ToDate = h.ToDate;
+                    existing.IsFixedDate = h.IsFixedDate;
+                    context.PublicHolidays.Update(existing);
+                }
             }
+            await context.SaveChangesAsync();
         }
 
         private static async Task SeedSampleDataAsync(
@@ -510,11 +531,6 @@ namespace OfficeTaskManagement.Data
             UserManager<User> userManager,
             IServiceProvider serviceProvider)
         {
-            if (await context.Projects.IgnoreQueryFilters().AnyAsync())
-            {
-                return; // Already seeded
-            }
-
             var tenantProvider = serviceProvider.GetRequiredService<ITenantProvider>();
             var resourceService = serviceProvider.GetRequiredService<IResourceService>();
             var workflowEngine = serviceProvider.GetRequiredService<IWorkflowEngineService>();
@@ -540,7 +556,10 @@ namespace OfficeTaskManagement.Data
             pmProfile.Department = "PMO";
             context.Entry(pmProfile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(pmProfile.Id, SalaryType.MonthlySalary, 180000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == pmProfile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(pmProfile.Id, SalaryType.MonthlySalary, 180000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // Luke Carter (Lead)
             var leadProfile = await resourceService.GetOrCreateProfileAsync(leadUser.Id);
@@ -549,7 +568,10 @@ namespace OfficeTaskManagement.Data
             leadProfile.Department = "Engineering";
             context.Entry(leadProfile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(leadProfile.Id, SalaryType.MonthlySalary, 160000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == leadProfile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(leadProfile.Id, SalaryType.MonthlySalary, 160000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // David Evans (Senior Dev)
             var dev1Profile = await resourceService.GetOrCreateProfileAsync(dev1.Id);
@@ -558,7 +580,10 @@ namespace OfficeTaskManagement.Data
             dev1Profile.Department = "Engineering";
             context.Entry(dev1Profile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(dev1Profile.Id, SalaryType.MonthlySalary, 130000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == dev1Profile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(dev1Profile.Id, SalaryType.MonthlySalary, 130000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // Diana Prince (Mid Dev)
             var dev2Profile = await resourceService.GetOrCreateProfileAsync(dev2.Id);
@@ -567,7 +592,10 @@ namespace OfficeTaskManagement.Data
             dev2Profile.Department = "Engineering";
             context.Entry(dev2Profile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(dev2Profile.Id, SalaryType.MonthlySalary, 90000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == dev2Profile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(dev2Profile.Id, SalaryType.MonthlySalary, 90000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // Devin Smith (Junior Dev)
             var dev3Profile = await resourceService.GetOrCreateProfileAsync(dev3.Id);
@@ -576,7 +604,10 @@ namespace OfficeTaskManagement.Data
             dev3Profile.Department = "Engineering";
             context.Entry(dev3Profile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(dev3Profile.Id, SalaryType.HourlyRate, 400m, DateTime.UtcNow.AddMonths(-6), "Initial contract rate", pmUser.Id, billRate: 800m);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == dev3Profile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(dev3Profile.Id, SalaryType.HourlyRate, 400m, DateTime.UtcNow.AddMonths(-6), "Initial contract rate", pmUser.Id, billRate: 800m);
+            }
 
             // Quincy Adams (QA Lead)
             var qa1Profile = await resourceService.GetOrCreateProfileAsync(qa1.Id);
@@ -585,7 +616,10 @@ namespace OfficeTaskManagement.Data
             qa1Profile.Department = "Quality Assurance";
             context.Entry(qa1Profile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(qa1Profile.Id, SalaryType.MonthlySalary, 110000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == qa1Profile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(qa1Profile.Id, SalaryType.MonthlySalary, 110000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // Queen Latifa (QA Analyst)
             var qa2Profile = await resourceService.GetOrCreateProfileAsync(qa2.Id);
@@ -594,7 +628,10 @@ namespace OfficeTaskManagement.Data
             qa2Profile.Department = "Quality Assurance";
             context.Entry(qa2Profile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(qa2Profile.Id, SalaryType.MonthlySalary, 75000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == qa2Profile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(qa2Profile.Id, SalaryType.MonthlySalary, 75000m, DateTime.UtcNow.AddMonths(-12), "Annual salary", pmUser.Id);
+            }
 
             // Add Skills
             var skills = new List<ResourceSkill>
@@ -608,7 +645,20 @@ namespace OfficeTaskManagement.Data
                 new ResourceSkill { ResourceProfileId = qa1Profile.Id, SkillName = "Quality Assurance", ProficiencyLevel = ProficiencyLevel.Expert, TenantId = "default-tenant-id" },
                 new ResourceSkill { ResourceProfileId = qa2Profile.Id, SkillName = "Quality Assurance", ProficiencyLevel = ProficiencyLevel.Intermediate, TenantId = "default-tenant-id" }
             };
-            context.ResourceSkills.AddRange(skills);
+            foreach (var skill in skills)
+            {
+                var existing = await context.ResourceSkills.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(s => s.ResourceProfileId == skill.ResourceProfileId && s.SkillName == skill.SkillName && s.TenantId == skill.TenantId);
+                if (existing == null)
+                {
+                    context.ResourceSkills.Add(skill);
+                }
+                else
+                {
+                    existing.ProficiencyLevel = skill.ProficiencyLevel;
+                    context.ResourceSkills.Update(existing);
+                }
+            }
             await context.SaveChangesAsync();
 
             // Add leave/availability blocks
@@ -624,11 +674,16 @@ namespace OfficeTaskManagement.Data
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
             };
-            context.ResourceAvailabilityBlocks.Add(leaveBlock);
-            await context.SaveChangesAsync();
+            var existingBlock = await context.ResourceAvailabilityBlocks.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(b => b.UserId == dev2.Id && b.StartDate == leaveBlock.StartDate && b.TenantId == "default-tenant-id");
+            if (existingBlock == null)
+            {
+                context.ResourceAvailabilityBlocks.Add(leaveBlock);
+                await context.SaveChangesAsync();
+            }
 
             // 3. Projects
-            var project1 = new Project
+            var project1 = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Alpha Cloud Migration",
                 Description = "Migrate legacy on-premise infrastructure and services to secure AWS cloud environments.",
@@ -646,9 +701,9 @@ namespace OfficeTaskManagement.Data
                 BudgetSetAt = DateTime.UtcNow.AddDays(-28),
                 BudgetSetById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var project2 = new Project
+            var project2 = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Beta Mobile Redesign",
                 Description = "Re-architect the user portal for iOS and Android platforms using modern hybrid frameworks.",
@@ -665,9 +720,9 @@ namespace OfficeTaskManagement.Data
                 BudgetSetAt = DateTime.UtcNow.AddDays(-18),
                 BudgetSetById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var project3 = new Project
+            var project3 = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Gamma AI Recommendation Engine",
                 Description = "Develop an advanced predictive recommendation algorithm to enhance user dashboard engagement.",
@@ -682,9 +737,9 @@ namespace OfficeTaskManagement.Data
                 CreatedAt = DateTime.UtcNow.AddDays(-10),
                 BudgetMode = BudgetMode.NotSet,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var project4 = new Project
+            var project4 = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Delta Legacy Offboarding",
                 Description = "Decommission outdated servers, migrate archive data, and clean up inactive databases.",
@@ -697,13 +752,13 @@ namespace OfficeTaskManagement.Data
                 CreatedAt = DateTime.UtcNow.AddDays(-5),
                 BudgetMode = BudgetMode.NotSet,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var project5 = new Project
+            var project5 = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Omega Portal Release",
                 Description = "The Q1 release covering new authentication portals and self-service dashboards.",
-                StrategicStatus = ProjectStrategicStatus.Active, // completed status is represented as active with close updates
+                StrategicStatus = ProjectStrategicStatus.Active,
                 StrategicStatusReason = "Successfully delivered and signed off by key client stakeholders.",
                 StrategicStatusChangedAt = DateTime.UtcNow.AddDays(-15),
                 StrategicStatusChangedById = pmUser.Id,
@@ -712,13 +767,10 @@ namespace OfficeTaskManagement.Data
                 CreatedAt = DateTime.UtcNow.AddDays(-60),
                 BudgetMode = BudgetMode.NotSet,
                 TenantId = "default-tenant-id"
-            };
-
-            context.Projects.AddRange(project1, project2, project3, project4, project5);
-            await context.SaveChangesAsync();
+            });
 
             // Portfolio Decisions
-            context.PortfolioDecisions.AddRange(new List<PortfolioDecision>
+            var decisions = new List<PortfolioDecision>
             {
                 new PortfolioDecision
                 {
@@ -747,10 +799,27 @@ namespace OfficeTaskManagement.Data
                     MadeAt = DateTime.UtcNow.AddDays(-5),
                     TenantId = "default-tenant-id"
                 }
-            });
+            };
+            foreach (var d in decisions)
+            {
+                var existing = await context.PortfolioDecisions.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.ProjectId == d.ProjectId && x.DecisionType == d.DecisionType && x.TenantId == d.TenantId);
+                if (existing == null)
+                {
+                    context.PortfolioDecisions.Add(d);
+                }
+                else
+                {
+                    existing.Notes = d.Notes;
+                    existing.MadeById = d.MadeById;
+                    existing.MadeAt = d.MadeAt;
+                    context.PortfolioDecisions.Update(existing);
+                }
+            }
+            await context.SaveChangesAsync();
 
             // Other Costs (Non-Labor)
-            context.ProjectOtherCosts.AddRange(new List<ProjectOtherCost>
+            var otherCosts = new List<ProjectOtherCost>
             {
                 new ProjectOtherCost
                 {
@@ -788,10 +857,28 @@ namespace OfficeTaskManagement.Data
                     CreatedAt = DateTime.UtcNow.AddDays(-18),
                     TenantId = "default-tenant-id"
                 }
-            });
+            };
+            foreach (var cost in otherCosts)
+            {
+                var existing = await context.ProjectOtherCosts.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.ProjectId == cost.ProjectId && x.Description == cost.Description && x.TenantId == cost.TenantId);
+                if (existing == null)
+                {
+                    context.ProjectOtherCosts.Add(cost);
+                }
+                else
+                {
+                    existing.Category = cost.Category;
+                    existing.EstimatedAmount = cost.EstimatedAmount;
+                    existing.Frequency = cost.Frequency;
+                    existing.PlannedDate = cost.PlannedDate;
+                    context.ProjectOtherCosts.Update(existing);
+                }
+            }
+            await context.SaveChangesAsync();
 
-            // Project Resource Allocations (for labor cost PV and heatmap calculations)
-            context.ProjectResourceAllocations.AddRange(new List<ProjectResourceAllocation>
+            // Project Resource Allocations
+            var allocations = new List<ProjectResourceAllocation>
             {
                 new ProjectResourceAllocation
                 {
@@ -845,11 +932,28 @@ namespace OfficeTaskManagement.Data
                     AllocatedAt = DateTime.UtcNow.AddDays(-10),
                     TenantId = "default-tenant-id"
                 }
-            });
+            };
+            foreach (var alloc in allocations)
+            {
+                var existing = await context.ProjectResourceAllocations.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.ProjectId == alloc.ProjectId && x.UserId == alloc.UserId && x.TenantId == alloc.TenantId);
+                if (existing == null)
+                {
+                    context.ProjectResourceAllocations.Add(alloc);
+                }
+                else
+                {
+                    existing.AllocationPercentage = alloc.AllocationPercentage;
+                    existing.StartDate = alloc.StartDate;
+                    existing.EndDate = alloc.EndDate;
+                    existing.ProjectRole = alloc.ProjectRole;
+                    context.ProjectResourceAllocations.Update(existing);
+                }
+            }
             await context.SaveChangesAsync();
 
             // Sprints for Alpha Cloud Migration
-            var sprint1 = new Sprint
+            var sprint1 = await GetOrCreateSprintAsync(context, new Sprint
             {
                 ProjectId = project1.Id,
                 Name = "Sprint 1: AWS Foundation Setup",
@@ -857,9 +961,9 @@ namespace OfficeTaskManagement.Data
                 EndDate = DateTime.UtcNow.Date.AddDays(-15),
                 IsActive = false,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var sprint2 = new Sprint
+            var sprint2 = await GetOrCreateSprintAsync(context, new Sprint
             {
                 ProjectId = project1.Id,
                 Name = "Sprint 2: Database Migration & Pipelines",
@@ -867,9 +971,9 @@ namespace OfficeTaskManagement.Data
                 EndDate = DateTime.UtcNow.Date.AddDays(0), // Active
                 IsActive = true,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var sprint3 = new Sprint
+            var sprint3 = await GetOrCreateSprintAsync(context, new Sprint
             {
                 ProjectId = project1.Id,
                 Name = "Sprint 3: API Service Deployment",
@@ -877,51 +981,44 @@ namespace OfficeTaskManagement.Data
                 EndDate = DateTime.UtcNow.Date.AddDays(14),
                 IsActive = false,
                 TenantId = "default-tenant-id"
-            };
-
-            context.Sprints.AddRange(sprint1, sprint2, sprint3);
-            await context.SaveChangesAsync();
+            });
 
             // Epics
-            var epic1 = new Epic
+            var epic1 = await GetOrCreateEpicAsync(context, new Epic
             {
                 ProjectId = project1.Id,
                 Name = "Cloud Infrastructure & VPC Setup",
                 Description = "Establish secure network topologies, gateways, subnets, and AWS accounts.",
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var epic2 = new Epic
+            var epic2 = await GetOrCreateEpicAsync(context, new Epic
             {
                 ProjectId = project1.Id,
                 Name = "Database Migration & Schema Sync",
                 Description = "Establish RDS instances, synchronize schemas, and perform secure data migrations.",
                 TenantId = "default-tenant-id"
-            };
-            context.Epics.AddRange(epic1, epic2);
-            await context.SaveChangesAsync();
+            });
 
             // Features
-            var feature1 = new Feature
+            var feature1 = await GetOrCreateFeatureAsync(context, new Feature
             {
                 EpicId = epic1.Id,
                 Name = "VPC Topology & Route Tables",
                 Description = "Configure public/private subnets and route mappings.",
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var feature2 = new Feature
+            var feature2 = await GetOrCreateFeatureAsync(context, new Feature
             {
                 EpicId = epic2.Id,
                 Name = "PostgreSQL RDS Setup",
                 Description = "Deploy highly available RDS instances and secure parameter groups.",
                 TenantId = "default-tenant-id"
-            };
-            context.Features.AddRange(feature1, feature2);
-            await context.SaveChangesAsync();
+            });
 
             // User Stories
-            var userStory1 = new UserStory
+            var userStory1 = await GetOrCreateUserStoryAsync(context, new UserStory
             {
                 FeatureId = feature1.Id,
                 Title = "Deploy infrastructure via Terraform templates",
@@ -929,9 +1026,9 @@ namespace OfficeTaskManagement.Data
                 AcceptanceCriteria = "Terraform applies with zero errors; VPC contains 2 public and 2 private subnets.",
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var userStory2 = new UserStory
+            var userStory2 = await GetOrCreateUserStoryAsync(context, new UserStory
             {
                 FeatureId = feature2.Id,
                 Title = "RDS replica configuration & failover testing",
@@ -939,43 +1036,56 @@ namespace OfficeTaskManagement.Data
                 AcceptanceCriteria = "Primary failover triggered manually completes and app reconnects automatically.",
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
-            context.UserStories.AddRange(userStory1, userStory2);
-            await context.SaveChangesAsync();
+            });
 
             // Test Cases
-            var testCase1 = new TestCase
+            var testCases = new List<TestCase>
             {
-                UserStoryId = userStory1.Id,
-                Title = "Verify Terraform syntax validation",
-                Steps = "1. cd terraform/\n2. terraform init\n3. terraform validate",
-                ExpectedResult = "Success, clean output.",
-                IsPassed = true,
-                TenantId = "default-tenant-id"
+                new TestCase
+                {
+                    UserStoryId = userStory1.Id,
+                    Title = "Verify Terraform syntax validation",
+                    Steps = "1. cd terraform/\n2. terraform init\n3. terraform validate",
+                    ExpectedResult = "Success, clean output.",
+                    IsPassed = true,
+                    TenantId = "default-tenant-id"
+                },
+                new TestCase
+                {
+                    UserStoryId = userStory2.Id,
+                    Title = "Trigger manual RDS failover",
+                    Steps = "1. Navigate to AWS Console.\n2. Trigger reboot with failover on postgres-db.\n3. Measure application downtime.",
+                    ExpectedResult = "Application reconnects within 30 seconds; no lost data.",
+                    IsPassed = true,
+                    TenantId = "default-tenant-id"
+                }
             };
-
-            var testCase2 = new TestCase
+            foreach (var tc in testCases)
             {
-                UserStoryId = userStory2.Id,
-                Title = "Trigger manual RDS failover",
-                Steps = "1. Navigate to AWS Console.\n2. Trigger reboot with failover on postgres-db.\n3. Measure application downtime.",
-                ExpectedResult = "Application reconnects within 30 seconds; no lost data.",
-                IsPassed = true,
-                TenantId = "default-tenant-id"
-            };
-            context.TestCases.AddRange(testCase1, testCase2);
+                var existing = await context.TestCases.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.UserStoryId == tc.UserStoryId && x.Title == tc.Title && x.TenantId == tc.TenantId);
+                if (existing == null)
+                {
+                    context.TestCases.Add(tc);
+                }
+                else
+                {
+                    existing.Steps = tc.Steps;
+                    existing.ExpectedResult = tc.ExpectedResult;
+                    existing.IsPassed = tc.IsPassed;
+                    context.TestCases.Update(existing);
+                }
+            }
             await context.SaveChangesAsync();
 
             // 4. Workflow Template
-            var wt = new WorkflowTemplate
+            var wt = await GetOrCreateWorkflowTemplateAsync(context, new WorkflowTemplate
             {
                 Name = "Standard Dev Pipeline",
                 Description = "Standard 5-stage pipeline with Development, Review, and QA Gates.",
                 IsActive = true,
                 TenantId = "default-tenant-id"
-            };
-            context.WorkflowTemplates.Add(wt);
-            await context.SaveChangesAsync();
+            });
 
             var devRole = await context.Roles.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Name == "Developer");
             var qaRole = await context.Roles.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Name == "QA Engineer");
@@ -1049,11 +1159,30 @@ namespace OfficeTaskManagement.Data
                     TenantId = "default-tenant-id"
                 }
             };
-            context.WorkflowStages.AddRange(stages);
+            foreach (var s in stages)
+            {
+                var existing = await context.WorkflowStages.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.WorkflowTemplateId == s.WorkflowTemplateId && x.Name == s.Name && x.TenantId == s.TenantId);
+                if (existing == null)
+                {
+                    context.WorkflowStages.Add(s);
+                }
+                else
+                {
+                    existing.Order = s.Order;
+                    existing.GateType = s.GateType;
+                    existing.DefaultRoleTitle = s.DefaultRoleTitle;
+                    existing.RoleId = s.RoleId;
+                    existing.DependencyType = s.DependencyType;
+                    existing.LagHours = s.LagHours;
+                    existing.DefinitionOfDone = s.DefinitionOfDone;
+                    context.WorkflowStages.Update(existing);
+                }
+            }
             await context.SaveChangesAsync();
 
             // Work Package Parent Task
-            var parentTask = new TaskItem
+            var parentTask = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Deploy PostgreSQL RDS High-Availability Cluster",
                 Description = "Complete setup and failover automation for PostgreSQL RDS deployment.",
@@ -1069,12 +1198,16 @@ namespace OfficeTaskManagement.Data
                 AccountableUserId = pmUser.Id,
                 IsBacklog = false,
                 TenantId = "default-tenant-id"
-            };
-            context.Tasks.Add(parentTask);
-            await context.SaveChangesAsync();
+            });
 
             // Spawn Workflow stages using WorkflowEngineService
-            await workflowEngine.SpawnWorkflowSubTasksAsync(parentTask.Id, wt.Id);
+            var alreadyHasSubtasks = await context.Tasks.IgnoreQueryFilters()
+                .AnyAsync(t => t.ParentTaskId == parentTask.Id && t.TenantId == "default-tenant-id");
+
+            if (!alreadyHasSubtasks)
+            {
+                await workflowEngine.SpawnWorkflowSubTasksAsync(parentTask.Id, wt.Id);
+            }
 
             // Fetch spawned tasks and update progress
             var subTasks = await context.Tasks
@@ -1142,7 +1275,7 @@ namespace OfficeTaskManagement.Data
             }
 
             // Standalone completed tasks in Sprint 1
-            var taskCompleted1 = new TaskItem
+            var taskCompleted1 = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Establish AWS Organization and Root Accounts",
                 Description = "Complete initial AWS root account config and configure MFA.",
@@ -1157,9 +1290,9 @@ namespace OfficeTaskManagement.Data
                 CreatedById = pmUser.Id,
                 CompletedAt = DateTime.UtcNow.AddDays(-20),
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var taskCompleted2 = new TaskItem
+            var taskCompleted2 = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Draft Cloud Network Security Policies",
                 Description = "Compile PMP compliance documentation for network boundaries.",
@@ -1174,12 +1307,10 @@ namespace OfficeTaskManagement.Data
                 CreatedById = pmUser.Id,
                 CompletedAt = DateTime.UtcNow.AddDays(-18),
                 TenantId = "default-tenant-id"
-            };
-
-            context.Tasks.AddRange(taskCompleted1, taskCompleted2);
+            });
 
             // Standalone tasks in Sprint 2 (Active)
-            var taskToDo = new TaskItem
+            var taskToDo = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Configure IAM Users and Policy Groups",
                 Description = "Define role-based read/write access policies for development teams.",
@@ -1192,9 +1323,9 @@ namespace OfficeTaskManagement.Data
                 EstimatedHours = 6,
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var taskPaused = new TaskItem
+            var taskPaused = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Configure SSL Certs on AWS Load Balancer",
                 Description = "Pending domain validation from client IT side.",
@@ -1211,9 +1342,9 @@ namespace OfficeTaskManagement.Data
                 PausedById = pmUser.Id,
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var taskTested = new TaskItem
+            var taskTested = await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "VPC Peering connection to Legacy DB subnet",
                 Description = "Create peering connection and configure routing/firewalls.",
@@ -1226,12 +1357,10 @@ namespace OfficeTaskManagement.Data
                 EstimatedHours = 12,
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
-
-            context.Tasks.AddRange(taskToDo, taskPaused, taskTested);
+            });
 
             // Backlog tasks
-            var backlogTask1 = new TaskItem
+            await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Establish Disaster Recovery backup strategy",
                 Description = "PMP Chapter 11 Risk management plan for RDS failover replication.",
@@ -1242,9 +1371,9 @@ namespace OfficeTaskManagement.Data
                 IsBacklog = true,
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
+            });
 
-            var backlogTask2 = new TaskItem
+            await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Perform AWS cost billing dashboard optimization",
                 Description = "Create billing alert rules and resource tag constraints.",
@@ -1255,13 +1384,10 @@ namespace OfficeTaskManagement.Data
                 IsBacklog = true,
                 CreatedById = pmUser.Id,
                 TenantId = "default-tenant-id"
-            };
-
-            context.Tasks.AddRange(backlogTask1, backlogTask2);
-            await context.SaveChangesAsync();
+            });
 
             // Task Comments
-            context.TaskComments.AddRange(new List<TaskComment>
+            var comments = new List<TaskComment>
             {
                 new TaskComment
                 {
@@ -1279,7 +1405,16 @@ namespace OfficeTaskManagement.Data
                     CreatedAt = DateTime.UtcNow.AddDays(-1),
                     TenantId = "default-tenant-id"
                 }
-            });
+            };
+            foreach (var comment in comments)
+            {
+                var existing = await context.TaskComments.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(x => x.TaskId == comment.TaskId && x.UserId == comment.UserId && x.CommentText == comment.CommentText && x.TenantId == comment.TenantId);
+                if (existing == null)
+                {
+                    context.TaskComments.Add(comment);
+                }
+            }
             await context.SaveChangesAsync();
 
             // ── 5. Acme Tenant Data (Isolation Verification) ─────────────────
@@ -1299,9 +1434,12 @@ namespace OfficeTaskManagement.Data
             acmeDevProfile.Department = "Product";
             context.Entry(acmeDevProfile).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            await resourceService.RecordSalaryChangeAsync(acmeDevProfile.Id, SalaryType.MonthlySalary, 100000m, DateTime.UtcNow.AddMonths(-3), "Acme hire", acmeAdmin.Id);
+            if (!context.SalaryHistories.Any(sh => sh.ResourceProfileId == acmeDevProfile.Id))
+            {
+                await resourceService.RecordSalaryChangeAsync(acmeDevProfile.Id, SalaryType.MonthlySalary, 100000m, DateTime.UtcNow.AddMonths(-3), "Acme hire", acmeAdmin.Id);
+            }
 
-            var acmeProject = new Project
+            var acmeProject = await GetOrCreateProjectAsync(context, new Project
             {
                 Name = "Acme Web Portal Setup",
                 Description = "Configure initial public website and developer docs.",
@@ -1313,11 +1451,9 @@ namespace OfficeTaskManagement.Data
                 BudgetSetAt = DateTime.UtcNow.AddDays(-8),
                 BudgetSetById = acmeAdmin.Id,
                 TenantId = "acme-tenant-id"
-            };
-            context.Projects.Add(acmeProject);
-            await context.SaveChangesAsync();
+            });
 
-            var acmeSprint = new Sprint
+            var acmeSprint = await GetOrCreateSprintAsync(context, new Sprint
             {
                 ProjectId = acmeProject.Id,
                 Name = "Acme Sprint 1: Setup",
@@ -1325,11 +1461,9 @@ namespace OfficeTaskManagement.Data
                 EndDate = DateTime.UtcNow.Date.AddDays(9),
                 IsActive = true,
                 TenantId = "acme-tenant-id"
-            };
-            context.Sprints.Add(acmeSprint);
-            await context.SaveChangesAsync();
+            });
 
-            var acmeTask = new TaskItem
+            await GetOrCreateTaskItemAsync(context, new TaskItem
             {
                 Title = "Acme Web Landing Page Mockup",
                 Description = "Design a basic static page layout using Figma.",
@@ -1342,9 +1476,7 @@ namespace OfficeTaskManagement.Data
                 EstimatedHours = 15,
                 CreatedById = acmeAdmin.Id,
                 TenantId = "acme-tenant-id"
-            };
-            context.Tasks.Add(acmeTask);
-            await context.SaveChangesAsync();
+            });
 
             // Set tenant context back to default for safety
             tenantProvider.SetTenant("default-tenant-id");
@@ -1383,6 +1515,150 @@ namespace OfficeTaskManagement.Data
             }
 
             return user;
+        }
+
+        private static async Task<Project> GetOrCreateProjectAsync(ApplicationDbContext context, Project target)
+        {
+            var existing = await context.Projects.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(p => p.Name == target.Name && p.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.Projects.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            existing.StrategicStatus = target.StrategicStatus;
+            existing.StrategicStatusReason = target.StrategicStatusReason;
+            existing.StrategicStatusChangedAt = target.StrategicStatusChangedAt;
+            existing.StrategicStatusChangedById = target.StrategicStatusChangedById;
+            existing.IsOnExecutiveRadar = target.IsOnExecutiveRadar;
+            existing.RequiredSkills = target.RequiredSkills;
+            existing.BudgetMode = target.BudgetMode;
+            existing.ApprovedBudget = target.ApprovedBudget;
+            existing.ContingencyReserve = target.ContingencyReserve;
+            existing.BudgetSetAt = target.BudgetSetAt;
+            existing.BudgetSetById = target.BudgetSetById;
+            context.Projects.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<Sprint> GetOrCreateSprintAsync(ApplicationDbContext context, Sprint target)
+        {
+            var existing = await context.Sprints.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(s => s.ProjectId == target.ProjectId && s.Name == target.Name && s.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.Sprints.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.StartDate = target.StartDate;
+            existing.EndDate = target.EndDate;
+            existing.IsActive = target.IsActive;
+            context.Sprints.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<Epic> GetOrCreateEpicAsync(ApplicationDbContext context, Epic target)
+        {
+            var existing = await context.Epics.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.ProjectId == target.ProjectId && e.Name == target.Name && e.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.Epics.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            context.Epics.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<Feature> GetOrCreateFeatureAsync(ApplicationDbContext context, Feature target)
+        {
+            var existing = await context.Features.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(f => f.EpicId == target.EpicId && f.Name == target.Name && f.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.Features.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            context.Features.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<UserStory> GetOrCreateUserStoryAsync(ApplicationDbContext context, UserStory target)
+        {
+            var existing = await context.UserStories.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(us => us.FeatureId == target.FeatureId && us.Title == target.Title && us.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.UserStories.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            existing.AcceptanceCriteria = target.AcceptanceCriteria;
+            context.UserStories.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<WorkflowTemplate> GetOrCreateWorkflowTemplateAsync(ApplicationDbContext context, WorkflowTemplate target)
+        {
+            var existing = await context.WorkflowTemplates.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(w => w.Name == target.Name && w.TenantId == target.TenantId);
+            if (existing == null)
+            {
+                context.WorkflowTemplates.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            existing.IsActive = target.IsActive;
+            context.WorkflowTemplates.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
+        }
+
+        private static async Task<TaskItem> GetOrCreateTaskItemAsync(ApplicationDbContext context, TaskItem target)
+        {
+            var existing = await context.Tasks.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(t => t.Title == target.Title && t.ProjectId == target.ProjectId && t.TenantId == target.TenantId && t.ParentTaskId == target.ParentTaskId);
+            if (existing == null)
+            {
+                context.Tasks.Add(target);
+                await context.SaveChangesAsync();
+                return target;
+            }
+            existing.Description = target.Description;
+            existing.Status = target.Status;
+            existing.Type = target.Type;
+            existing.Priority = target.Priority;
+            existing.SprintId = target.SprintId;
+            existing.EpicId = target.EpicId;
+            existing.FeatureId = target.FeatureId;
+            existing.UserStoryId = target.UserStoryId;
+            existing.AccountableUserId = target.AccountableUserId;
+            existing.IsBacklog = target.IsBacklog;
+            existing.AssigneeId = target.AssigneeId;
+            existing.EstimatedHours = target.EstimatedHours;
+            existing.ActualHours = target.ActualHours;
+            existing.CompletedAt = target.CompletedAt;
+            existing.IsPaused = target.IsPaused;
+            existing.PauseReason = target.PauseReason;
+            existing.PausedAt = target.PausedAt;
+            existing.PausedById = target.PausedById;
+            context.Tasks.Update(existing);
+            await context.SaveChangesAsync();
+            return existing;
         }
     }
 }

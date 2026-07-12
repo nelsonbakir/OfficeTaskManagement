@@ -24,8 +24,8 @@
     }
 
     .metric-card {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1.5rem;
         transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -39,30 +39,30 @@
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.04);
     }
 
-    /* Soft Skin Tone & Gradient Styles */
+    /* Soft Skin Tone & Gradient Styles - Translucent for Native Theme Support */
     .card-skin-primary {
-        background: linear-gradient(135deg, #F4F9FD 0%, #E6F2FC 100%);
-        border-color: #D2E3F7 !important;
+        background: linear-gradient(135deg, rgba(0, 120, 212, 0.04) 0%, rgba(0, 120, 212, 0.12) 100%);
+        border-color: rgba(0, 120, 212, 0.25) !important;
     }
     .card-skin-success {
-        background: linear-gradient(135deg, #F3FBF7 0%, #E7F7EE 100%);
-        border-color: #D0EFE0 !important;
+        background: linear-gradient(135deg, rgba(16, 124, 16, 0.04) 0%, rgba(16, 124, 16, 0.12) 100%);
+        border-color: rgba(16, 124, 16, 0.25) !important;
     }
     .card-skin-warning {
-        background: linear-gradient(135deg, #FFFDF5 0%, #FFF5E5 100%);
-        border-color: #FCEFC7 !important;
+        background: linear-gradient(135deg, rgba(255, 185, 0, 0.04) 0%, rgba(255, 185, 0, 0.12) 100%);
+        border-color: rgba(255, 185, 0, 0.25) !important;
     }
     .card-skin-danger {
-        background: linear-gradient(135deg, #FFF5F5 0%, #FFEBEB 100%);
-        border-color: #FCD8D8 !important;
+        background: linear-gradient(135deg, rgba(232, 17, 35, 0.04) 0%, rgba(232, 17, 35, 0.12) 100%);
+        border-color: rgba(232, 17, 35, 0.25) !important;
     }
     .card-skin-neutral {
-        background: linear-gradient(135deg, #FFF9F6 0%, #FFF0EA 100%);
-        border-color: #F5E3DB !important;
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.04) 0%, rgba(245, 158, 11, 0.12) 100%);
+        border-color: rgba(245, 158, 11, 0.25) !important;
     }
 
     .metric-label {
-        color: #605E5C;
+        color: var(--text-secondary);
         font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -72,13 +72,13 @@
     .metric-value {
         font-size: 2rem;
         font-weight: 700;
-        color: #0078D4;
+        color: var(--primary-color);
         margin: 0;
     }
 
     .metric-subtext {
         font-size: 0.85rem;
-        color: #A19F9D;
+        color: var(--text-secondary);
         margin-top: 0.5rem;
     }
 
@@ -87,7 +87,7 @@
         top: 1rem;
         right: 1rem;
         font-size: 2rem;
-        color: #EDEBE9;
+        color: var(--border-color);
         opacity: 0.5;
     }
 
@@ -98,7 +98,7 @@
 
     .progress-bar {
         height: 6px;
-        background: #F3F2F1;
+        background: var(--light-bg);
         border-radius: 3px;
         overflow: hidden;
         margin-top: 0.75rem;
@@ -106,7 +106,7 @@
 
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #0078D4, #50E6FF);
+        background: linear-gradient(90deg, var(--primary-color), #50E6FF);
         border-radius: 3px;
         transition: width 0.3s ease;
     }
@@ -117,24 +117,24 @@
         gap: 1rem;
         margin: 2rem 0 1.5rem 0;
         padding-bottom: 1rem;
-        border-bottom: 2px solid #EDEBE9;
+        border-bottom: 2px solid var(--border-color);
     }
 
     .section-header h2 {
         font-size: 1.3rem;
         font-weight: 600;
         margin: 0;
-        color: #252424;
+        color: var(--text-primary);
     }
 
     .section-header i {
         font-size: 1.5rem;
-        color: #0078D4;
+        color: var(--primary-color);
     }
 
     .table-card {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         overflow: hidden;
         margin-bottom: 2rem;
@@ -146,15 +146,15 @@
     }
 
     .table-card thead {
-        background: #F3F2F1;
-        border-bottom: 1px solid #EDEBE9;
+        background: var(--light-bg);
+        border-bottom: 1px solid var(--border-color);
     }
 
     .table-card th {
         padding: 1rem;
         text-align: left;
         font-weight: 600;
-        color: #252424;
+        color: var(--text-primary);
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -162,12 +162,12 @@
 
     .table-card td {
         padding: 1rem;
-        border-bottom: 1px solid #EDEBE9;
-        color: #605E5C;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-secondary);
     }
 
     .table-card tbody tr:hover {
-        background: #F9F8F8;
+        background: rgba(0, 120, 212, 0.02);
     }
 
     .status-badge {
@@ -199,8 +199,8 @@
     }
 
     .list-item {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 4px;
         padding: 1rem;
         margin-bottom: 0.75rem;
@@ -217,7 +217,7 @@
     .list-item-content h3 {
         font-size: 0.95rem;
         font-weight: 600;
-        color: #252424;
+        color: var(--text-primary);
         margin: 0 0 0.25rem 0;
     }
 
@@ -259,41 +259,41 @@
     @if (Model.CanViewPersonal && Model.EmployeeMetrics != null)
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold px-4 py-2 border-0" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-user-circle me-2 text-primary"></i>My Work</button>
+            <button class="nav-link active fw-bold px-4 py-2 border-0" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: var(--light-bg); color: var(--text-secondary);"><i class="fas fa-user-circle me-2 text-primary"></i>My Work</button>
         </li>
         firstActive = true;
     }
     @if (Model.CanViewWorkflow && Model.CoordinatorMetrics != null)
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="workflow-tab" data-bs-toggle="tab" data-bs-target="#workflow-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-people-arrows me-2 text-success"></i>Workflow Coordination</button>
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="workflow-tab" data-bs-toggle="tab" data-bs-target="#workflow-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: var(--light-bg); color: var(--text-secondary);"><i class="fas fa-people-arrows me-2 text-success"></i>Workflow Coordination</button>
         </li>
         firstActive = true;
     }
     @if (Model.CanViewProjects && Model.ProjectLeadMetrics != null)
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-folder-open me-2 text-info"></i>Project Performance</button>
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="projects-tab" data-bs-toggle="tab" data-bs-target="#projects-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: var(--light-bg); color: var(--text-secondary);"><i class="fas fa-folder-open me-2 text-info"></i>Project Performance</button>
         </li>
         firstActive = true;
     }
     @if (Model.CanViewStrategic && Model.ManagerMetrics != null)
     {
         <li class="nav-item" role="presentation">
-            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="strategic-tab" data-bs-toggle="tab" data-bs-target="#strategic-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: #f3f2f1; color: #323130;"><i class="fas fa-crown me-2 text-warning"></i>Portfolio Overview</button>
+            <button class="nav-link @(!firstActive ? "active" : "") fw-bold px-4 py-2 border-0" id="strategic-tab" data-bs-toggle="tab" data-bs-target="#strategic-panel" type="button" role="tab" style="border-radius: 6px 6px 0 0; background: var(--light-bg); color: var(--text-secondary);"><i class="fas fa-crown me-2 text-warning"></i>Portfolio Overview</button>
         </li>
     }
 </ul>
 
 <style>
     .nav-tabs .nav-link.active {
-        background-color: #ffffff !important;
-        border: 1px solid #EDEBE9 !important;
-        border-bottom: 2px solid #0078D4 !important;
-        color: #0078D4 !important;
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
+        border-bottom: 2px solid var(--primary-color) !important;
+        color: var(--primary-color) !important;
     }
     .nav-tabs .nav-link:not(.active):hover {
-        background-color: #EDEBE9 !important;
+        background-color: var(--light-bg) !important;
     }
 </style>
 
@@ -301,7 +301,7 @@
     firstActive = false;
 }
 
-<div class="tab-content" id="dashboardTabsContent" style="background: #ffffff; border: 1px solid #EDEBE9; border-radius: 0 0 8px 8px; padding: 2rem; min-height: 400px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02); margin-bottom: 2rem;">
+<div class="tab-content" id="dashboardTabsContent" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 0 0 8px 8px; padding: 2rem; min-height: 400px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02); margin-bottom: 2rem;">
     @if (Model.CanViewPersonal && Model.EmployeeMetrics != null)
     {
         <div class="tab-pane fade show active" id="personal-panel" role="tabpanel">

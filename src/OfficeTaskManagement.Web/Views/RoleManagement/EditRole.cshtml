@@ -40,7 +40,7 @@
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="IsSystemRole" />
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                 <div class="card-header bg-transparent border-bottom py-3">
                     <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Role Details</h6>
                 </div>
@@ -78,7 +78,7 @@
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm mb-4">
+            <div class="card border-0 shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                 <div class="card-header bg-transparent border-bottom py-3">
                     <h6 class="mb-0 fw-bold"><i class="fas fa-palette me-2 text-primary"></i>Visual Identity</h6>
                 </div>
@@ -106,7 +106,7 @@
                                     <label class="icon-option" title="@icon">
                                         <input type="radio" name="Icon" value="@icon" @(icon == Model.Icon ? "checked" : "") hidden />
                                         <span class="d-flex align-items-center justify-content-center rounded icon-swatch"
-                                              style="width:36px;height:36px;background:#f8f9fa;cursor:pointer;border:2px solid transparent;transition:all 0.15s;">
+                                              style="width:36px;height:36px;background:var(--light-bg);cursor:pointer;border:2px solid transparent;transition:all 0.15s;">
                                             <i class="@icon text-secondary"></i>
                                         </span>
                                     </label>
@@ -114,7 +114,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mt-3 p-3 rounded" style="background:#f8f9fa;">
+                    <div class="mt-3 p-3 rounded" style="background:var(--light-bg);">
                         <small class="text-muted d-block mb-2">Preview:</small>
                         <span id="rolePreviewBadge" class="badge rounded-pill fs-6 px-3 py-2" style="background-color:@Model.Color;">
                             <i id="rolePreviewIcon" class="@Model.Icon me-2"></i>
@@ -135,7 +135,7 @@
 
     <!-- Permission Groups -->
     <div class="col-lg-5">
-        <div class="card border-0 shadow-sm" style="position:sticky;top:80px;">
+        <div class="card border-0 shadow-sm" style="position:sticky;top:80px; background: var(--bg-surface); border: 1px solid var(--border-color);">
             <div class="card-header bg-transparent border-bottom py-3">
                 <h6 class="mb-0 fw-bold"><i class="fas fa-key me-2 text-primary"></i>Permission Groups</h6>
                 <small class="text-muted">Changes take effect on the user's next login</small>
@@ -182,9 +182,9 @@
 
 <style>
     .color-swatch.active, .color-option input:checked + .color-swatch { border-color: #000 !important; transform:scale(1.2); }
-    .icon-swatch.active, .icon-option input:checked + .icon-swatch { border-color:#0d6efd!important;background:#e8f0fe!important; }
-    .permission-group-item:hover { background:#f8f9fa; }
-    .permission-group-item:has(input:checked) { background:#e8f0fe; }
+    .icon-swatch.active, .icon-option input:checked + .icon-swatch { border-color:var(--primary-color)!important;background:rgba(0, 120, 212, 0.1)!important; }
+    .permission-group-item:hover { background:var(--light-bg); }
+    .permission-group-item:has(input:checked) { background:rgba(0, 120, 212, 0.08); }
 </style>
 
 @section Scripts {
@@ -192,7 +192,7 @@
     function toggleGroupCard(el) {
         const cb = el.querySelector('input[type=checkbox]');
         cb.checked = !cb.checked;
-        el.style.background = cb.checked ? '#e8f0fe' : '';
+        el.style.background = cb.checked ? 'rgba(0, 120, 212, 0.08)' : '';
     }
     const nameInput = document.getElementById('roleName');
     const previewBadge = document.getElementById('rolePreviewBadge');

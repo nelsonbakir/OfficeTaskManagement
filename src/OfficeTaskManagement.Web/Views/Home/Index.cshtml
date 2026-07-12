@@ -1,8 +1,533 @@
 @{
-    ViewData["Title"] = "Home Page";
+    Layout = "_PublicLayout";
+    ViewData["Title"] = "TaskFlow - AI-Driven Enterprise Task Management";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<!-- Glowing backgrounds -->
+<div class="position-relative">
+    <div class="landing-bg-glow"></div>
+    <div class="landing-bg-glow-right"></div>
 </div>
+
+<!-- Hero Section -->
+<section id="hero" class="hero-section container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="badge-pill-gradient fade-in-up">
+                <i class="fas fa-robot text-primary"></i> Powered by Gemini AI & Stage-Gate Governance
+            </div>
+            <h1 class="hero-title fade-in-up delay-1">
+                Orchestrate Workflows.<br>
+                Optimize Capacity.<br>
+                <span class="gradient-text">AI-Driven Success.</span>
+            </h1>
+            <p class="hero-subtitle fade-in-up delay-2">
+                TaskFlow is a next-generation project governance platform that connects your codebase to your backlog. Manage resources with RACI matrices, automate approval gates, plan team capacities, and calibrate AI estimations against real-world progress.
+            </p>
+            <div class="d-flex justify-content-center gap-3 fade-in-up delay-3">
+                <a class="btn btn-landing-primary" asp-area="Identity" asp-page="/Account/Register">
+                    Get Started Free <i class="fas fa-arrow-right ms-2"></i>
+                </a>
+                <a class="btn btn-landing-secondary" href="#sandbox">
+                    Explore Interactive Sandbox
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Sandbox Section -->
+<section id="sandbox" class="sandbox-section container">
+    <div class="section-header">
+        <span class="text-primary fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 1px;">Interactive Showcase</span>
+        <h2>Experience TaskFlow in Action</h2>
+        <p>Switch tabs to explore how TaskFlow integrates AI and governance into your day-to-day operations.</p>
+    </div>
+
+    <div class="sandbox-container">
+        <!-- Tabs -->
+        <div class="sandbox-tabs">
+            <button class="sandbox-tab-btn active" data-target="#sandbox-onboarding">
+                <i class="fas fa-magic"></i> AI Project Onboarding
+            </button>
+            <button class="sandbox-tab-btn" data-target="#sandbox-raci">
+                <i class="fas fa-shield-alt"></i> RACI & Stage-Gates
+            </button>
+            <button class="sandbox-tab-btn" data-target="#sandbox-capacity">
+                <i class="fas fa-chart-gantt"></i> Capacity & Load
+            </button>
+            <button class="sandbox-tab-btn" data-target="#sandbox-reports">
+                <i class="fas fa-file-invoice"></i> PM Risk Radar & Reports
+            </button>
+        </div>
+
+        <!-- Panes -->
+        <!-- Tab 1: AI Onboarding console simulation -->
+        <div class="sandbox-pane active" id="sandbox-onboarding">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-5">
+                    <h3 class="mb-3">Codebase-First Initiation</h3>
+                    <p class="text-secondary mb-3">Initialize complex projects instantly by importing your Git repository. TaskFlow's AI parses your codebase and builds the entire hierarchy:</p>
+                    <ul class="list-unstyled text-secondary">
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Generates Epics for major modules</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Creates User Stories mapped to user requirements</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Seeds WBS tasks and test cases automatically</li>
+                    </ul>
+                    <a class="btn btn-landing-primary mt-3" asp-area="Identity" asp-page="/Account/Register">Try Onboarding Wizard</a>
+                </div>
+                <div class="col-lg-7">
+                    <div class="mockup-window">
+                        <div class="mockup-header">
+                            <div class="mockup-dots">
+                                <span class="mockup-dot red"></span>
+                                <span class="mockup-dot yellow"></span>
+                                <span class="mockup-dot green"></span>
+                            </div>
+                            <span class="mockup-title">onboard_wizard.log</span>
+                            <span style="width: 40px;"></span>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="mockup-console" id="consoleLogs">
+                                <div class="console-line info">[INFO] Initializing Git clone for project 'eCommerce-API'...</div>
+                                <div class="console-line info">[INFO] Git repository successfully cloned. Analyzing codebase structure...</div>
+                                <div class="console-line info">[INFO] 24 controllers and 15 business services detected.</div>
+                                <div class="console-line success">[AI] Extracting project Epics...</div>
+                                <div class="console-line success">  -> Created Epic: Authentication & Auth (OAuth2/JWT)</div>
+                                <div class="console-line success">  -> Created Epic: Cart & Checkout Payment Gateway Integration</div>
+                                <div class="console-line success">[AI] Generating User Stories for Cart & Checkout Epic...</div>
+                                <div class="console-line success">  -> Mapped User Story: As a shopper, I want to securely pay via Stripe...</div>
+                                <div class="console-line info">[INFO] Generating sub-tasks and automated unit test cases...</div>
+                                <div class="console-line success">[AI] Created 18 tasks with initial RACI matrix assignments.</div>
+                                <div class="console-line success">[SUCCESS] Codebase onboarding complete! Project structural accuracy calibrated at 96.8%.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: RACI Kanban -->
+        <div class="sandbox-pane" id="sandbox-raci">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-5">
+                    <h3 class="mb-3">RACI Workflow Engine</h3>
+                    <p class="text-secondary mb-3">Enforce process quality and security with RACI-based gate controls. Every task requires designated personnel before moving forward:</p>
+                    <ul class="list-unstyled text-secondary">
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> <strong>Responsible:</strong> Assigned developers doing the work</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> <strong>Accountable:</strong> Approver who sign-offs the stage-gate</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> <strong>Consulted / Informed:</strong> Kept in loop automatically</li>
+                    </ul>
+                    <span class="badge bg-danger bg-opacity-10 text-danger p-2 border border-danger border-opacity-20 d-inline-flex align-items-center gap-2 mt-2">
+                        <i class="fas fa-ban"></i> Stage-Gate: Blocked until Accountable user signs off
+                    </span>
+                </div>
+                <div class="col-lg-7">
+                    <div class="mockup-window">
+                        <div class="mockup-header">
+                            <div class="mockup-dots">
+                                <span class="mockup-dot red"></span>
+                                <span class="mockup-dot yellow"></span>
+                                <span class="mockup-dot green"></span>
+                            </div>
+                            <span class="mockup-title">RACI Governance Board</span>
+                            <span style="width: 40px;"></span>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="mockup-kanban-board">
+                                <!-- Col 1 -->
+                                <div class="mockup-kanban-col">
+                                    <div class="mockup-col-header">To Do <span>(2)</span></div>
+                                    <div class="mockup-kanban-card">
+                                        <div class="mb-1"><span class="mockup-card-raci r">R</span> Setup Stripe SDK</div>
+                                        <span class="text-muted" style="font-size: 0.7rem;">Assigned: Alice</span>
+                                    </div>
+                                    <div class="mockup-kanban-card">
+                                        <div class="mb-1"><span class="mockup-card-raci c">C</span> API Docs Review</div>
+                                        <span class="text-muted" style="font-size: 0.7rem;">Assigned: Charlie</span>
+                                    </div>
+                                </div>
+                                <!-- Col 2 -->
+                                <div class="mockup-kanban-col">
+                                    <div class="mockup-col-header">In Progress <span>(1)</span></div>
+                                    <div class="mockup-kanban-card" style="border-left: 2px solid var(--primary);">
+                                        <div class="mb-1"><span class="mockup-card-raci r">R</span> Database Migration</div>
+                                        <span class="text-muted" style="font-size: 0.7rem;">Assigned: Bob</span>
+                                    </div>
+                                </div>
+                                <!-- Col 3 -->
+                                <div class="mockup-kanban-col" style="background: rgba(239, 68, 68, 0.05); border: 1px dashed rgba(239, 68, 68, 0.2);">
+                                    <div class="mockup-col-header text-danger">Stage Gate <span>(1)</span></div>
+                                    <div class="mockup-kanban-card" style="border: 1px solid var(--danger);">
+                                        <div class="mb-1 fw-semibold text-danger"><i class="fas fa-lock me-1"></i> Payment gateway integration</div>
+                                        <div class="text-muted" style="font-size: 0.7rem; margin-bottom: 4px;">Awaiting signature: David</div>
+                                        <span class="badge bg-danger bg-opacity-20 text-danger" style="font-size: 0.65rem;">A-RACI SIGN-OFF REQUIRED</span>
+                                    </div>
+                                </div>
+                                <!-- Col 4 -->
+                                <div class="mockup-kanban-col">
+                                    <div class="mockup-col-header">Done <span>(4)</span></div>
+                                    <div class="mockup-kanban-card">
+                                        <div class="mb-1 text-decoration-line-through text-muted"><span class="mockup-card-raci i">I</span> Schema Design</div>
+                                        <span class="text-success" style="font-size: 0.7rem;"><i class="fas fa-check-circle"></i> Approved</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Capacity planning -->
+        <div class="sandbox-pane" id="sandbox-capacity">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-5">
+                    <h3 class="mb-3">Capacity & Workload Planning</h3>
+                    <p class="text-secondary mb-3">Maximize velocity and prevent team burnout with our resource planning dashboard. It measures exact capacities using sprint variables:</p>
+                    <ul class="list-unstyled text-secondary">
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Visual load heatmaps per resource</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Detects overallocations & holiday collisions</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Smart recommendations to balance workloads</li>
+                    </ul>
+                    <div class="p-3 bg-white bg-opacity-5 rounded border border-light border-opacity-10 mt-3">
+                        <span class="text-warning fw-semibold"><i class="fas fa-lightbulb me-1"></i> Smart Advice:</span>
+                        <p class="text-secondary mb-0 mt-1" style="font-size: 0.85rem;">Alice is overloaded with 48 planned hours. Move 'API Authentication Setup' (10h) to Bob to balance team capacity.</p>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="mockup-window">
+                        <div class="mockup-header">
+                            <div class="mockup-dots">
+                                <span class="mockup-dot red"></span>
+                                <span class="mockup-dot yellow"></span>
+                                <span class="mockup-dot green"></span>
+                            </div>
+                            <span class="mockup-title">Resource Allocation Grid</span>
+                            <span style="width: 40px;"></span>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="d-flex flex-column gap-3">
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-semibold">Alice (Senior Dev)</span>
+                                        <span class="text-danger fw-bold">120% Load (Overloaded)</span>
+                                    </div>
+                                    <div class="mockup-capacity-bar">
+                                        <div class="mockup-capacity-fill overload"></div>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Tasks: Checkout API (30h), Setup Stripe (18h)</span>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-semibold">Bob (Mid Dev)</span>
+                                        <span class="text-success fw-semibold">75% Load (Optimal)</span>
+                                    </div>
+                                    <div class="mockup-capacity-bar">
+                                        <div class="mockup-capacity-fill optimal"></div>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Tasks: Database Migration (12h), Schema Updates (18h)</span>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="fw-semibold">Charlie (Junior Dev)</span>
+                                        <span class="text-warning fw-semibold">40% Load (Underutilized)</span>
+                                    </div>
+                                    <div class="mockup-capacity-bar">
+                                        <div class="mockup-capacity-fill underload"></div>
+                                    </div>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Tasks: API Docs Review (16h)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Reports and Radar -->
+        <div class="sandbox-pane" id="sandbox-reports">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-5">
+                    <h3 class="mb-3">PM Risk Radar & Reports</h3>
+                    <p class="text-secondary mb-3">Our continuous Risk Radar background scanner runs every 30 minutes to flag projects drifting off schedule, resource bottlenecks, and budget overflows:</p>
+                    <ul class="list-unstyled text-secondary">
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Scans tasks for lag scheduling issues</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Measures real-time AI accuracy calibrations</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-primary me-2"></i> Generates detailed status reports via QuestPDF</li>
+                    </ul>
+                    <a class="btn btn-landing-primary mt-3" asp-area="Identity" asp-page="/Account/Register">
+                        <i class="fas fa-download me-2"></i> Try PDF Status Export
+                    </a>
+                </div>
+                <div class="col-lg-7">
+                    <div class="mockup-window">
+                        <div class="mockup-header">
+                            <div class="mockup-dots">
+                                <span class="mockup-dot red"></span>
+                                <span class="mockup-dot yellow"></span>
+                                <span class="mockup-dot green"></span>
+                            </div>
+                            <span class="mockup-title">Risk Radar Advisory Terminal</span>
+                            <span style="width: 40px;"></span>
+                        </div>
+                        <div class="mockup-body">
+                            <div class="p-3 rounded mb-3" style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2);">
+                                <span class="text-warning fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> PM RISK RADAR WARNING</span>
+                                <p class="text-secondary mb-0 mt-1" style="font-size: 0.85rem;">Project 'eCommerce-API' shows a 4-day lag drift on the checkout integration sprint due to Alice's capacity overload.</p>
+                            </div>
+                            <div class="mockup-raci-table-wrapper">
+                                <table class="mockup-raci-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Insight Type</th>
+                                            <th>Status</th>
+                                            <th>Calibrated AI Accuracy</th>
+                                            <th>Action Suggested</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-semibold">Sprint Predictability</td>
+                                            <td><span class="badge bg-warning bg-opacity-20 text-warning">Medium Risk</span></td>
+                                            <td class="text-success font-monospace">94.2%</td>
+                                            <td>Activate Lag Scheduling</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">Burnout Metrics</td>
+                                            <td><span class="badge bg-danger bg-opacity-20 text-danger">High Risk</span></td>
+                                            <td class="text-success font-monospace">98.5%</td>
+                                            <td>Re-allocate checkout tasks</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-semibold">Technical Debt</td>
+                                            <td><span class="badge bg-success bg-opacity-20 text-success">Healthy</span></td>
+                                            <td class="text-success font-monospace">91.0%</td>
+                                            <td>No action needed</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Grid Section -->
+<section id="features" class="features-section container">
+    <div class="section-header">
+        <span class="text-primary fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 1px;">Core Engine Modules</span>
+        <h2>Enterprise-Grade Governance</h2>
+        <p>Built with robust features to deliver projects on time, on budget, and within compliance bounds.</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Feature 1 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-magic"></i>
+                </div>
+                <h3>Codebase-First Initiation</h3>
+                <p>Clones Git repositories to automatically extract epics, user stories, and tasks, building a clean Work Breakdown Structure (WBS) in seconds.</p>
+            </div>
+        </div>
+        <!-- Feature 2 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <h3>AI Calibrated Estimations</h3>
+                <p>Estimates task durations via Gemini RAG context. A nightly feedback loop calibrates the estimation models by comparing planned hours against actuals.</p>
+            </div>
+        </div>
+        <!-- Feature 3 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3>RACI Workflow Governance</h3>
+                <p>Enforces process compliance using stage-gate workflow transitions. Custom validators guarantee that the Accountable officer authorizes releases.</p>
+            </div>
+        </div>
+        <!-- Feature 4 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-chart-gantt"></i>
+                </div>
+                <h3>Visual Capacity Planning</h3>
+                <p>Maps resources against active project loads, tracking sprints, holiday buffers, and capacity limits to balance workloads and maximize throughput.</p>
+            </div>
+        </div>
+        <!-- Feature 5 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-satellite-dish"></i>
+                </div>
+                <h3>Proactive Risk Radar</h3>
+                <p>A background scanner checking team health metrics every 30 minutes, automatically notifying you of sprint delay signals and resource bottlenecks.</p>
+            </div>
+        </div>
+        <!-- Feature 6 -->
+        <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+                <div class="feature-icon-wrapper">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <h3>QuestPDF Export Engine</h3>
+                <p>Generates professional PDF project status reports with derived Earned Value projections, plus Microsoft Excel format sheet exports via ClosedXML.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack Section -->
+<section id="tech-stack" class="tech-section">
+    <div class="container">
+        <div class="section-header">
+            <span class="text-primary fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 1px;">Infrastructure</span>
+            <h2>Modern Enterprise Tech Stack</h2>
+            <p>TaskFlow is engineered on high-performance frameworks, ensuring scalability, velocity, and AI compatibility.</p>
+        </div>
+
+        <div class="tech-grid">
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fab fa-microsoft"></i>
+                </div>
+                <span>.NET 10 & MVC</span>
+            </div>
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fas fa-database"></i>
+                </div>
+                <span>EF Core & SQLite/Pg</span>
+            </div>
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <span>Gemini RAG (Vector)</span>
+            </div>
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fas fa-cloud"></i>
+                </div>
+                <span>AWS S3 Media</span>
+            </div>
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fas fa-file-pdf"></i>
+                </div>
+                <span>QuestPDF Reports</span>
+            </div>
+            <div class="tech-item">
+                <div class="tech-logo-wrapper">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <span>ClosedXML Export</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FAQs Section -->
+<section id="faqs" class="faq-section container">
+    <div class="section-header">
+        <span class="text-primary fw-bold text-uppercase" style="font-size: 0.85rem; letter-spacing: 1px;">Information</span>
+        <h2>Frequently Asked Questions</h2>
+        <p>Learn more about how TaskFlow governs and scales project deliverables.</p>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="accordion faq-accordion" id="faqAccordion">
+                <!-- FAQ 1 -->
+                <div class="accordion-item">
+                    <h3 class="accordion-header" id="headingOne">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                            How does the codebase-first project onboarding work?
+                        </button>
+                    </h3>
+                    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            When you point TaskFlow to a Git repository, the system clones it locally and runs a semantic syntax scanner. Our integrated Gemini AI service maps modules, structures, and business files to generate a structured backlog of Epics, User Stories, and tasks, alongside test cases.
+                        </div>
+                    </div>
+                </div>
+                <!-- FAQ 2 -->
+                <div class="accordion-item">
+                    <h3 class="accordion-header" id="headingTwo">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                            What is RACI and how does it affect workflow transitions?
+                        </button>
+                    </h3>
+                    <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            RACI defines roles for tasks: Responsible (who performs the work), Accountable (who approves the work), Consulted (who is consulted), and Informed (who is kept up to date). Stage-gates prevent cards from moving past approval gates (e.g. from Review to Done) unless signed off by the Accountable officer.
+                        </div>
+                    </div>
+                </div>
+                <!-- FAQ 3 -->
+                <div class="accordion-item">
+                    <h3 class="accordion-header" id="headingThree">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                            What does "nightly calibration" mean for AI estimations?
+                        </button>
+                    </h3>
+                    <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            When AI estimates tasks, it stores the initial forecast. As tasks are completed, developers log actual hours. Every night, TaskFlow runs a background calibration service that computes estimation accuracy ratios and retrains/optimizes prompts to continuously improve Gemini's forecasting.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action (CTA) Section -->
+<section class="cta-section container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="cta-card">
+                <h2>Accelerate Your Project Deliveries Today</h2>
+                <p>Sign up now to experience codebase-first task onboarding, RACI matrix gates, visual capacity planning, and automated status reporting.</p>
+                <a class="btn btn-landing-primary px-5 py-3" asp-area="Identity" asp-page="/Account/Register">
+                    Create a Free Account <i class="fas fa-arrow-right ms-2"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Interactive sandbox tab switching
+            $('.sandbox-tab-btn').click(function() {
+                var target = $(this).data('target');
+                
+                // Toggle active class on tab buttons
+                $('.sandbox-tab-btn').removeClass('active');
+                $(this).addClass('active');
+                
+                // Toggle active class on panes with animation
+                $('.sandbox-pane').removeClass('active');
+                $(target).addClass('active');
+            });
+            
+            // Console simulation auto scroll
+            var consoleObj = document.getElementById("consoleLogs");
+            if (consoleObj) {
+                consoleObj.scrollTop = consoleObj.scrollHeight;
+            }
+        });
+    </script>
+}

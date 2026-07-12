@@ -3,8 +3,8 @@
 
 <style>
     .sprint-detail-header {
-        background: white;
-        border-bottom: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-color);
         padding: 2rem;
         margin: -2rem -2rem 2rem -2rem;
         border-radius: 6px 6px 0 0;
@@ -14,7 +14,7 @@
         font-size: 2rem;
         font-weight: 600;
         margin: 0 0 1.5rem 0;
-        color: #252424;
+        color: var(--text-primary);
     }
 
     .detail-grid {
@@ -30,7 +30,7 @@
     }
 
     .detail-label {
-        color: #605E5C;
+        color: var(--text-secondary);
         font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -38,7 +38,7 @@
     }
 
     .detail-value {
-        color: #252424;
+        color: var(--text-primary);
         font-weight: 500;
         font-size: 1.1rem;
     }
@@ -58,8 +58,8 @@
     }
 
     .status-badge.inactive {
-        background: #E8E8E8;
-        color: #605E5C;
+        background: var(--light-bg);
+        color: var(--text-secondary);
     }
 
     .back-button {
@@ -67,8 +67,8 @@
     }
 
     .tasks-section {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 2rem;
         margin-top: 2rem;
@@ -79,7 +79,7 @@
         font-weight: 600;
         margin: 0 0 1.5rem 0;
         padding-bottom: 1rem;
-        border-bottom: 1px solid #EDEBE9;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .task-list {
@@ -89,10 +89,10 @@
     }
 
     .task-row {
-        background: #F3F2F1;
+        background: var(--light-bg);
         padding: 1rem;
         border-radius: 4px;
-        border-left: 3px solid #0078D4;
+        border-left: 3px solid var(--primary-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -100,7 +100,7 @@
     }
 
     .task-row:hover {
-        background: #EDEBE9;
+        background: var(--border-color);
         transform: translateX(4px);
     }
 
@@ -110,13 +110,13 @@
 
     .task-title {
         font-weight: 600;
-        color: #252424;
+        color: var(--text-primary);
         margin-bottom: 0.25rem;
     }
 
     .task-meta {
         font-size: 0.85rem;
-        color: #605E5C;
+        color: var(--text-secondary);
         display: flex;
         align-items: center;
         gap: 0.75rem;
@@ -124,16 +124,17 @@
     }
 
     .task-meta i {
-        color: #0078D4;
+        color: var(--primary-color);
     }
 
     .task-status {
         padding: 0.25rem 0.75rem;
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 3px;
         font-size: 0.75rem;
         font-weight: 600;
+        color: var(--text-primary);
     }
 
     .task-actions {
@@ -144,9 +145,9 @@
     .task-action-btn {
         padding: 0.5rem 0.75rem;
         border-radius: 4px;
-        border: 1px solid #EDEBE9;
-        background: white;
-        color: #0078D4;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--primary-color);
         text-decoration: none;
         font-size: 0.85rem;
         cursor: pointer;
@@ -154,20 +155,20 @@
     }
 
     .task-action-btn:hover {
-        background: white;
-        color: #005A9E;
-        border-color: #0078D4;
+        background: var(--light-bg);
+        color: var(--primary-dark);
+        border-color: var(--primary-color);
     }
 
     .empty-tasks {
         text-align: center;
         padding: 2rem;
-        color: #605E5C;
+        color: var(--text-secondary);
     }
 
     .empty-tasks i {
         font-size: 2rem;
-        color: #EDEBE9;
+        color: var(--border-color);
         display: block;
         margin-bottom: 0.5rem;
     }
@@ -177,7 +178,7 @@
         gap: 0.75rem;
         margin-top: 1.5rem;
         padding-top: 1.5rem;
-        border-top: 1px solid #EDEBE9;
+        border-top: 1px solid var(--border-color);
     }
 
     .action-buttons a, .action-buttons button {
@@ -191,32 +192,32 @@
     }
 
     .action-buttons .btn-primary {
-        background: #0078D4;
+        background: var(--primary-color);
         color: white;
     }
 
     .action-buttons .btn-primary:hover {
-        background: #005A9E;
+        background: var(--primary-dark);
     }
 
     .action-buttons .btn-secondary {
-        background: white;
-        border: 1px solid #EDEBE9;
-        color: #252424;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
     }
 
     .action-buttons .btn-secondary:hover {
-        background: #F3F2F1;
+        background: var(--light-bg);
     }
 
     .action-buttons .btn-danger {
-        background: white;
+        background: var(--bg-surface);
         border: 1px solid #E81123;
         color: #E81123;
     }
 
     .action-buttons .btn-danger:hover {
-        background: #FEE2E2;
+        background: rgba(232, 17, 35, 0.05);
     }
 </style>
 

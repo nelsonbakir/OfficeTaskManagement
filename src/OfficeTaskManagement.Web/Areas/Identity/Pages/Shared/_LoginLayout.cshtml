@@ -10,8 +10,16 @@
     <link rel="stylesheet" href="~/css/auth-styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OfficeTaskManagement.styles.css" asp-append-version="true" />
+    <!-- Theme Manager -->
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
 </head>
 <body>
+    <!-- Floating Theme Toggle -->
+    <div style="position: absolute; top: 1.5rem; right: 1.5rem; z-index: 1000;">
+        <button class="btn btn-light border theme-toggle-btn rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;" type="button" title="Toggle theme">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
     @RenderBody()
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

@@ -15,23 +15,23 @@
         <form asp-action="Index" method="get">
             <div class="row align-items-end g-3">
                 <div class="col-md-4">
-                    <label for="assigneeId" style="font-weight: 600; color: #605E5C; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Employee</label>
+                    <label for="assigneeId" style="font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Employee</label>
                     <div class="input-group">
-                        <span class="input-group-text" style="background: #F8F8F8; border: 1px solid #EDEBE9; border-right: none; color: #A19F9D;">
+                        <span class="input-group-text" style="background: var(--light-bg); border: 1px solid var(--border-color); border-right: none; color: var(--text-secondary);">
                             <i class="fas fa-user"></i>
                         </span>
-                        <select name="assigneeId" class="form-select" style="border: 1px solid #EDEBE9; border-left: none; box-shadow: none;" asp-items="Model.Assignees">
+                        <select name="assigneeId" class="form-select" style="border: 1px solid var(--border-color); border-left: none; box-shadow: none;" asp-items="Model.Assignees">
                             <option value="">-- All Employees --</option>
                         </select>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label for="projectId" style="font-weight: 600; color: #605E5C; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Project</label>
+                    <label for="projectId" style="font-weight: 600; color: var(--text-secondary); font-size: 0.85rem; text-transform: uppercase; margin-bottom: 0.5rem;" class="d-block">Filter by Project</label>
                     <div class="input-group">
-                        <span class="input-group-text" style="background: #F8F8F8; border: 1px solid #EDEBE9; border-right: none; color: #A19F9D;">
+                        <span class="input-group-text" style="background: var(--light-bg); border: 1px solid var(--border-color); border-right: none; color: var(--text-secondary);">
                             <i class="fas fa-folder"></i>
                         </span>
-                        <select name="projectId" class="form-select" style="border: 1px solid #EDEBE9; border-left: none; box-shadow: none;" asp-items="Model.Projects">
+                        <select name="projectId" class="form-select" style="border: 1px solid var(--border-color); border-left: none; box-shadow: none;" asp-items="Model.Projects">
                             <option value="">-- All Projects --</option>
                         </select>
                     </div>
@@ -132,57 +132,57 @@
         <div class="row" id="tableViewSection">
             <!-- Employee Engagement Table -->
             <div class="col-md-12 mb-4">
-                <div class="card" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
-                    <div class="card-header" style="background: #F8F8F8; border-bottom: 1px solid #EDEBE9; padding: 1rem 1.25rem;">
-                        <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;" class="d-flex align-items-center">
+                <div class="card" style="border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
+                    <div class="card-header" style="background: var(--light-bg); border-bottom: 1px solid var(--border-color); padding: 1rem 1.25rem;">
+                        <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: var(--text-primary);" class="d-flex align-items-center">
                             <i class="fas fa-users text-muted me-2"></i> Employee Engagement & Tracking
                             <button class="btn btn-link btn-sm p-0 ms-2 text-muted" data-bs-toggle="modal" data-bs-target="#infoEngagementTracking" title="Information"><i class="fas fa-info-circle"></i></button>
                         </h4>
                     </div>
                     <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-hover mb-0" style="font-size: 0.9rem;">
-                            <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-surface); z-index: 1;">
                                 <tr>
-                                    <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Assignee</th>
-                                    <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Assigned Task</th>
-                                    <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Target Date</th>
-                                    <th style="font-weight: 600; color: #605E5C; border-bottom: 2px solid #EDEBE9; border-top: none; padding: 0.75rem 1.25rem;">Allocation</th>
+                                    <th style="font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid var(--border-color); border-top: none; padding: 0.75rem 1.25rem;">Assignee</th>
+                                    <th style="font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid var(--border-color); border-top: none; padding: 0.75rem 1.25rem;">Assigned Task</th>
+                                    <th style="font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid var(--border-color); border-top: none; padding: 0.75rem 1.25rem;">Target Date</th>
+                                    <th style="font-weight: 600; color: var(--text-secondary); border-bottom: 2px solid var(--border-color); border-top: none; padding: 0.75rem 1.25rem;">Allocation</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach (var eng in Model.Engagements.OrderBy(e => e.Date).ThenBy(e => e.AssigneeName))
                                 {
-                                    <tr style="@(eng.IsToDo ? "opacity: 0.7; background-color: #FAFAFA;" : "")">
-                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1;">
+                                    <tr style="@(eng.IsToDo ? "opacity: 0.7; background-color: var(--light-bg);" : "")">
+                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid var(--border-color);">
                                             <div class="d-flex align-items-center gap-2">
-                                                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items:center; justify-content:center; font-size: 0.7rem; font-weight: 600;">
+                                                <div style="width: 28px; height: 28px; border-radius: 50%; background: var(--primary-color); color: white; display:flex; align-items:center; justify-content:center; font-size: 0.7rem; font-weight: 600;">
                                                     @(eng.AssigneeName?[0].ToString() ?? "?")
                                                 </div>
-                                                <span style="font-weight: 500; color: #252424;">@eng.AssigneeName</span>
+                                                <span style="font-weight: 500; color: var(--text-primary);">@eng.AssigneeName</span>
                                             </div>
                                         </td>
-                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1; color: #252424;">
+                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid var(--border-color); color: var(--text-primary);">
                                             @eng.TaskTitle
                                             @if (eng.IsToDo)
                                             {
-                                                <span class="badge" style="background: #EDEBE9; color: #605E5C; font-weight: 500; margin-left: 0.5rem; font-size: 0.7rem;">To Do</span>
+                                                <span class="badge" style="background: var(--light-bg); color: var(--text-secondary); font-weight: 500; margin-left: 0.5rem; font-size: 0.7rem;">To Do</span>
                                             }
                                             else
                                             {
                                                  <span class="badge" style="background: #E8F5E9; color: #2E7D32; font-weight: 500; margin-left: 0.5rem; font-size: 0.7rem;">Active</span>
                                             }
                                         </td>
-                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1; color: #605E5C;">
+                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
                                             <i class="far fa-calendar-alt me-1"></i> @eng.Date.ToString("MMM dd, yyyy")
                                         </td>
-                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid #F3F2F1;">
-                                            <span style="font-weight: 600; color: #0078D4;">@eng.Hours.ToString("0.0")</span> <span class="text-muted small">hrs</span>
+                                        <td style="padding: 0.75rem 1.25rem; vertical-align: middle; border-bottom: 1px solid var(--border-color);">
+                                            <span style="font-weight: 600; color: var(--primary-color);">@eng.Hours.ToString("0.0")</span> <span class="text-muted small">hrs</span>
                                         </td>
                                     </tr>
                                 }
                                 @if (!Model.Engagements.Any())
                                 {
-                                    <tr><td colspan="4" class="text-center py-4 text-muted" style="background: #F8F8F8;"><i class="fas fa-search me-2"></i> No active tasks found matching filters.</td></tr>
+                                    <tr><td colspan="4" class="text-center py-4 text-muted" style="background: var(--light-bg);"><i class="fas fa-search me-2"></i> No active tasks found matching filters.</td></tr>
                                 }
                             </tbody>
                         </table>
@@ -194,9 +194,9 @@
         <!-- Timetable Calendar View using FullCalendar -->
         <div class="row" id="timetableViewSection" style="display: none;">
             <div class="col-md-12 mb-4">
-                <div class="card" style="border: 1px solid #EDEBE9; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
-                    <div class="card-header d-flex justify-content-between align-items-center" style="background: #F8F8F8; border-bottom: 1px solid #EDEBE9; padding: 1rem 1.25rem;">
-                        <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: #252424;">
+                <div class="card" style="border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); overflow: hidden;">
+                    <div class="card-header d-flex justify-content-between align-items-center" style="background: var(--light-bg); border-bottom: 1px solid var(--border-color); padding: 1rem 1.25rem;">
+                        <h4 style="font-size: 1rem; margin: 0; font-weight: 600; color: var(--text-primary);">
                             <i class="fas fa-calendar-week text-muted me-2"></i> Timetable Calendar 
                         </h4>
                         <div class="btn-group shadow-sm" role="group">

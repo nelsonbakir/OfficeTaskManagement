@@ -6,19 +6,20 @@
 
 <style>
     .filter-section {
-        background: #f8f9fa;
+        background: var(--light-bg);
         padding: 1.5rem;
         border-radius: 8px;
         margin-bottom: 2rem;
-        border: 1px solid #dee2e6;
+        border: 1px solid var(--border-color);
     }
     .project-header {
-        background: #e9ecef;
+        background: var(--light-bg);
         padding: 0.75rem 1.25rem;
         margin-top: 2rem;
         margin-bottom: 1rem;
         border-radius: 6px;
-        border-left: 5px solid #0078D4;
+        border: 1px solid var(--border-color);
+        border-left: 5px solid var(--primary-color);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -27,7 +28,7 @@
         font-size: 1.25rem;
         font-weight: 700;
         margin: 0;
-        color: #212529;
+        color: var(--text-primary);
     }
 </style>
 
@@ -84,7 +85,7 @@
         <div class="card shadow-sm mb-4">
             <div class="card-body p-0">
                 <table class="table table-hover mb-0">
-                    <thead class="bg-light">
+                    <thead>
                         <tr>
                             <th>Title</th>
                             <th>Feature / Epic</th>

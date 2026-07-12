@@ -1,13 +1,18 @@
 /* Auth and Profile Shared Styles */
 
 :root {
-    --auth-primary: #0078D4;
+    --auth-primary: var(--primary-color, #0078D4);
     --auth-primary-dark: #005A9E;
     --auth-bg-gradient: radial-gradient(circle at 100% 100%, rgba(0, 120, 212, 0.08) 0%, transparent 60%),
                         radial-gradient(circle at 0% 0%, rgba(16, 124, 16, 0.05) 0%, transparent 60%);
     --auth-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-    --auth-text-muted: #605E5C;
-    --auth-border: #EDEBE9;
+    --auth-text-muted: var(--text-secondary, #605E5C);
+    --auth-border: var(--border-color, #EDEBE9);
+}
+
+[data-theme="dark"] {
+    --auth-primary-dark: #0078D4;
+    --auth-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Container for Login, Register, Forgot Password, etc. */
@@ -16,7 +21,7 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #F3F2F1;
+    background-color: var(--light-bg, #F3F2F1);
     background-image: var(--auth-bg-gradient);
     margin: 0;
     padding: 1.5rem 1rem;
@@ -25,7 +30,7 @@
 }
 
 .auth-card {
-    background: white;
+    background: var(--bg-surface, white);
     border-radius: 8px;
     box-shadow: var(--auth-card-shadow);
     padding: 2.25rem 2rem;
@@ -67,7 +72,7 @@
 .auth-form-group label {
     display: block;
     font-weight: 600;
-    color: #252424;
+    color: var(--text-primary, #252424);
     margin-bottom: 0.5rem;
     font-size: 0.9rem;
 }
@@ -78,8 +83,8 @@
     border: 1.5px solid var(--auth-border);
     border-radius: 4px;
     font-size: 0.95rem;
-    color: #252424;
-    background-color: white;
+    color: var(--text-primary, #252424);
+    background-color: var(--bg-surface, white);
     transition: all 0.2s ease;
 }
 
@@ -121,9 +126,9 @@
 }
 
 .auth-error-container {
-    background: #FFF4F4;
+    background: rgba(209, 52, 56, 0.1);
     color: #D13438;
-    border: 1px solid #FDC9C9;
+    border: 1px solid rgba(209, 52, 56, 0.2);
     padding: 0.8rem 1rem;
     border-radius: 4px;
     margin-bottom: 1.5rem;
@@ -170,7 +175,7 @@
     border: none;
     padding: 0.75rem 0.5rem;
     font-weight: 600;
-    color: #605E5C;
+    color: var(--text-secondary, #605E5C);
     cursor: pointer;
     font-size: 0.95rem;
     transition: all 0.2s ease;
@@ -200,7 +205,7 @@
 }
 
 .profile-card {
-    background: white;
+    background: var(--bg-surface, white);
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.05);
     border: 1px solid var(--auth-border);
@@ -210,7 +215,7 @@
 }
 
 .profile-card-header {
-    background: white;
+    background: var(--bg-surface, white);
     padding: 1.5rem 2rem;
     border-bottom: 1px solid var(--auth-border);
     display: flex;
@@ -220,7 +225,7 @@
 
 .profile-card-header h2 {
     font-weight: 700;
-    color: #252424;
+    color: var(--text-primary, #252424);
     margin: 0;
     font-size: 1.5rem;
 }
@@ -244,7 +249,7 @@
     width: 120px;
     height: 120px;
     border-radius: 8px;
-    background: #f3f2f1;
+    background: var(--light-bg, #f3f2f1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -280,7 +285,7 @@
 .profile-form-group label {
     display: block;
     font-weight: 600;
-    color: #252424;
+    color: var(--text-primary, #252424);
     margin-bottom: 0.4rem;
     font-size: 0.875rem;
 }
@@ -288,23 +293,23 @@
 .profile-form-control {
     width: 100%;
     padding: 0.6rem 0.8rem;
-    border: 1px solid #EDEBE9;
+    border: 1px solid var(--auth-border);
     border-radius: 4px;
     font-size: 0.95rem;
-    color: #252424;
+    color: var(--text-primary, #252424);
     transition: all 0.2s;
-    background-color: #fdfdfd;
+    background-color: var(--bg-surface, #fdfdfd);
 }
 
 .profile-form-control:focus {
     outline: none;
-    border-color: #0078D4;
+    border-color: var(--primary-color, #0078D4);
     box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
-    background-color: #fff;
+    background-color: var(--bg-surface, #fff);
 }
 
 .profile-btn-save {
-    background: #0078D4;
+    background: var(--primary-color, #0078D4);
     color: white;
     border: none;
     padding: 0.65rem 2rem;
@@ -319,7 +324,7 @@
 }
 
 .profile-btn-save:hover {
-    background: #005a9e;
+    background: var(--auth-primary-dark);
 }
 
 /* Manage Layout - Modern Horizontal Top Tabs */
@@ -329,7 +334,7 @@
 
 .profile-content-area {
     padding: 2.5rem 2rem;
-    background: white;
+    background: var(--bg-surface, white);
     flex-grow: 1;
 }
 
@@ -338,7 +343,7 @@
     flex-direction: row;
     gap: 1.5rem;
     padding: 0 2rem;
-    background: #ffffff;
+    background: var(--bg-surface, #ffffff);
     border-bottom: 1px solid var(--auth-border);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -348,7 +353,7 @@
     display: inline-flex;
     align-items: center;
     padding: 1rem 0;
-    color: #605E5C;
+    color: var(--text-secondary, #605E5C);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.95rem;

@@ -30,8 +30,8 @@
     }
 
     .stat-card {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1.5rem;
         display: flex;
@@ -43,24 +43,24 @@
     .stat-value {
         font-size: 2rem;
         font-weight: 700;
-        color: #0078D4; /* Primary standard color */
+        color: var(--primary-color);
         margin-bottom: 0.25rem;
     }
 
     .stat-label {
         font-size: 0.85rem;
         text-transform: uppercase;
-        color: #605E5C;
+        color: var(--text-secondary);
         font-weight: 600;
         letter-spacing: 0.5px;
     }
 
-    .stat-card.active .stat-value { color: #107C10; }
-    .stat-card.inactive .stat-value { color: #A4262C; }
+    .stat-card.active .stat-value { color: var(--success-color); }
+    .stat-card.inactive .stat-value { color: var(--danger-color); }
 
     .table-wrapper {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         overflow: hidden;
     }
@@ -70,9 +70,9 @@
     }
 
     .table th {
-        background: #F8F8F8;
-        border-bottom: 2px solid #EDEBE9;
-        color: #605E5C;
+        background: var(--light-bg);
+        border-bottom: 2px solid var(--border-color);
+        color: var(--text-secondary);
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.8rem;
@@ -82,12 +82,12 @@
     .table td {
         vertical-align: middle;
         padding: 1rem;
-        border-top: 1px solid #EDEBE9;
-        color: #252424;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-primary);
     }
 
     .table tr:hover {
-        background-color: #F3F2F1;
+        background-color: var(--light-bg);
     }
 
     .action-buttons {
@@ -111,17 +111,17 @@
         text-decoration: none;
     }
 
-    .btn-edit { color: #0078D4; }
-    .btn-edit:hover { background: #E5F1FB; border-color: #0078D4; }
+    .btn-edit { color: var(--primary-color); }
+    .btn-edit:hover { background: rgba(0, 120, 212, 0.1); border-color: var(--primary-color); }
 
     .btn-reset { color: #D18700; }
-    .btn-reset:hover { background: #FFF4CE; border-color: #D18700; }
+    .btn-reset:hover { background: rgba(209, 135, 0, 0.1); border-color: #D18700; }
 
-    .btn-toggle { color: #605E5C; }
-    .btn-toggle:hover { background: #EDEBE9; border-color: #605E5C; }
+    .btn-toggle { color: var(--text-secondary); }
+    .btn-toggle:hover { background: var(--light-bg); border-color: var(--border-color); }
 
-    .btn-delete { color: #A4262C; }
-    .btn-delete:hover { background: #FDE7E9; border-color: #A4262C; }
+    .btn-delete { color: var(--danger-color); }
+    .btn-delete:hover { background: rgba(232, 17, 35, 0.1); border-color: var(--danger-color); }
 
     .role-badge {
         display: inline-block;
@@ -130,15 +130,15 @@
         font-size: 0.75rem;
         font-weight: 600;
         margin: 0.1rem;
-        background: #E1DFDD;
-        color: #323130;
-        border: 1px solid #EDEBE9;
+        background: var(--light-bg);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
     }
 
-    .role-manager { background: #E5E5EA; border-color: #C8C6C4; }
-    .role-lead { background: #E3F2FD; border-color: #BBDEFB; color: #0D47A1; }
-    .role-coordinator { background: #E8F5E9; border-color: #C8E6C9; color: #1B5E20; }
-    .role-employee { background: #FFF3E0; border-color: #FFE0B2; color: #E65100; }
+    .role-manager { background: rgba(108, 117, 125, 0.1); border-color: rgba(108, 117, 125, 0.2); color: var(--text-secondary); }
+    .role-lead { background: rgba(13, 71, 161, 0.1); border-color: rgba(13, 71, 161, 0.2); color: #42a5f5; }
+    .role-coordinator { background: rgba(27, 94, 32, 0.1); border-color: rgba(27, 94, 32, 0.2); color: #81c784; }
+    .role-employee { background: rgba(230, 81, 0, 0.1); border-color: rgba(230, 81, 0, 0.2); color: #ffb74d; }
 </style>
 
 <div class="container-fluid px-0">
@@ -207,59 +207,59 @@
                     <tbody>
                         @foreach (var user in Model)
                         {
-                            <tr class="@(!user.IsActive ? "opacity-50 bg-light" : "")">
+                            <tr class="@(!user.IsActive ? "opacity-50" : "")">
                                 <td>
                                     <div class="d-flex align-items-center gap-3">
-                                        @if (!string.IsNullOrEmpty(user.AvatarPath))
-                                        {
-                                            <img src="@MediaService.GetUrl(user.AvatarPath)" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="@user.FullName" />
-                                        }
-                                        else
-                                        {
-                                            <div style="width: 40px; height: 40px; border-radius: 50%; background: #0078D4; color: white; display:flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem;">
-                                                @(string.IsNullOrWhiteSpace(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
-                                            </div>
-                                        }
-                                        <div>
-                                            <div style="font-weight: 600; color: #252424;">@user.FullName</div>
-                                            <div style="font-size: 0.85rem; color: #605E5C;">@user.Email</div>
-                                        </div>
+                                         @if (!string.IsNullOrEmpty(user.AvatarPath))
+                                         {
+                                             <img src="@MediaService.GetUrl(user.AvatarPath)" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" alt="@user.FullName" />
+                                         }
+                                         else
+                                         {
+                                             <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); color: white; display:flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.1rem;">
+                                                 @(string.IsNullOrWhiteSpace(user.FullName) ? "?" : user.FullName.Substring(0, 1).ToUpper())
+                                             </div>
+                                         }
+                                         <div>
+                                             <div style="font-weight: 600; color: var(--text-primary);">@user.FullName</div>
+                                             <div style="font-size: 0.85rem; color: var(--text-secondary);">@user.Email</div>
+                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    @if (user.Roles.Any())
-                                    {
-                                        @foreach (var role in user.Roles)
-                                        {
-                                            var roleClass = role switch
-                                            {
-                                                "Manager" => "role-manager",
-                                                "Project Lead" => "role-lead",
-                                                "Project Coordinator" => "role-coordinator",
-                                                "Employee" => "role-employee",
-                                                _ => "role-employee"
-                                            };
-                                            <span class="role-badge @roleClass">@role</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-light text-secondary border">No Role</span>
-                                    }
+                                     @if (user.Roles.Any())
+                                     {
+                                         @foreach (var role in user.Roles)
+                                         {
+                                             var roleClass = role switch
+                                             {
+                                                 "Manager" => "role-manager",
+                                                 "Project Lead" => "role-lead",
+                                                 "Project Coordinator" => "role-coordinator",
+                                                 "Employee" => "role-employee",
+                                                 _ => "role-employee"
+                                             };
+                                             <span class="role-badge @roleClass">@role</span>
+                                         }
+                                     }
+                                     else
+                                     {
+                                         <span class="badge bg-light text-secondary border">No Role</span>
+                                     }
                                 </td>
                                 <td>
-                                    @if (user.IsActive)
-                                    {
-                                        <span class="badge" style="background: #DFF6DD; color: #107C10; border: 1px solid #107C10;">
-                                            <i class="fas fa-check-circle"></i> Active
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge" style="background: #FDE7E9; color: #A4262C; border: 1px solid #A4262C;">
-                                            <i class="fas fa-ban"></i> Inactive
-                                        </span>
-                                    }
+                                     @if (user.IsActive)
+                                     {
+                                         <span class="badge" style="background: rgba(16, 124, 16, 0.1); color: #107C10; border: 1px solid rgba(16, 124, 16, 0.2);">
+                                             <i class="fas fa-check-circle"></i> Active
+                                         </span>
+                                     }
+                                     else
+                                     {
+                                         <span class="badge" style="background: rgba(164, 38, 44, 0.1); color: #A4262C; border: 1px solid rgba(164, 38, 44, 0.2);">
+                                             <i class="fas fa-ban"></i> Inactive
+                                         </span>
+                                     }
                                 </td>
                                 <td>
                                     <small class="text-muted fw-bold">

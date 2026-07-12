@@ -15,6 +15,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/OfficeTaskManagement.styles.css" asp-append-version="true" />
+    <!-- Theme Manager -->
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
     @* AI Copilot entity context — read by copilot-sidebar.js *@
     @if (ViewData["AiEntityType"] != null)
     {
@@ -216,7 +218,7 @@
     </nav>
 
     <!-- Header -->
-    <header style="min-height: 75px; padding-top: 5px; padding-bottom: 5px; border-bottom: 1px solid #EDEBE9;">
+    <header style="min-height: 75px; padding-top: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);">
         <nav class="navbar navbar-expand-lg h-100">
             <div class="container-fluid align-items-center">
                 <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target=".sidebar" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -228,7 +230,7 @@
                 {
                     <div class="d-none d-md-flex mx-auto" style="width: 400px; position: absolute; left: 50%; transform: translateX(-50%); z-index: 1060;">
                         <form asp-controller="Search" asp-action="Index" method="get" class="w-100 position-relative" id="globalSearchForm">
-                            <div class="input-group" style="box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-radius: 20px; overflow: hidden; border: 1px solid #EDEBE9; background: white;">
+                            <div class="input-group" style="box-shadow: 0 2px 4px rgba(0,0,0,0.02); border-radius: 20px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-surface);">
                                 <span class="input-group-text bg-transparent border-0" style="padding-left: 1rem;"><i class="fas fa-search text-muted"></i></span>
                                 <input type="text" name="q" id="globalSearchInput" class="form-control border-0 shadow-none bg-transparent" placeholder="Search tasks, projects, people..." aria-label="Search" style="font-size: 0.9rem;" autocomplete="off">
                                 <!-- Loading Spinner -->
@@ -244,6 +246,10 @@
 
                 <!-- User Profile & Logout -->
                 <div class="d-flex align-items-center ms-auto">
+                    <!-- Theme Toggle Button -->
+                    <button class="btn btn-link text-secondary theme-toggle-btn me-3 px-2 border-0 shadow-none" type="button" title="Toggle theme">
+                        <i class="fas fa-moon" style="font-size: 1.15rem;"></i>
+                    </button>
                     @if (User.Identity?.IsAuthenticated ?? false)
                     {
                         @await Component.InvokeAsync("NotificationBell")

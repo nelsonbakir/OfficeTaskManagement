@@ -16,8 +16,8 @@
     }
 
     .task-editor-main {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 2rem;
     }
@@ -31,12 +31,12 @@
     .task-title {
         font-size: 1.8rem;
         font-weight: 600;
-        color: #252424;
+        color: var(--text-primary);
         margin-bottom: 0.5rem;
     }
     
     .task-subtitle {
-        color: #605E5C;
+        color: var(--text-secondary);
         font-size: 0.9rem;
         margin-bottom: 2rem;
     }
@@ -48,28 +48,28 @@
     .form-section-title {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #605E5C;
+        color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 1rem;
         padding-bottom: 0.75rem;
-        border-bottom: 1px solid #EDEBE9;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .description-content {
-        color: #252424;
+        color: var(--text-primary);
         line-height: 1.6;
         white-space: pre-wrap;
-        background: #F8F8F8;
+        background: var(--light-bg);
         padding: 1.5rem;
         border-radius: 6px;
-        border: 1px solid #EDEBE9;
+        border: 1px solid var(--border-color);
     }
 
     /* Sidebar Panels */
     .sidebar-panel {
-        background: #F3F2F1;
-        border: 1px solid #EDEBE9;
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1.25rem;
     }
@@ -77,7 +77,7 @@
     .sidebar-panel-title {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #252424;
+        color: var(--text-primary);
         margin: 0 0 1rem 0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -95,18 +95,18 @@
     }
 
     .status-badge.new {
-        background: #F3F2F1;
-        color: #605E5C;
+        background: var(--light-bg);
+        color: var(--text-secondary);
     }
     .status-badge.approved {
-        background: #F3F2F1;
-        color: #0078D4;
-        border: 1px solid #0078D4;
+        background: var(--light-bg);
+        color: var(--primary-color);
+        border: 1px solid var(--primary-color);
     }
  
     .status-badge.todo {
-        background: #E1DFDD;
-        color: #323130;
+        background: var(--light-bg);
+        color: var(--text-secondary);
     }
  
     .status-badge.inprogress {
@@ -133,7 +133,7 @@
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        background: #0078D4;
+        background: var(--primary-color);
         color: white;
         display: flex;
         align-items: center;
@@ -148,20 +148,20 @@
 
     .info-label {
         font-size: 0.8rem;
-        color: #605E5C;
+        color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-bottom: 0.25rem;
     }
 
     .info-value {
-        color: #252424;
+        color: var(--text-primary);
         font-weight: 500;
     }
 
     .action-divider {
         height: 1px;
-        background: #EDEBE9;
+        background: var(--border-color);
         margin: 1rem 0;
     }
 
@@ -177,14 +177,14 @@
         display: flex;
         align-items: center;
         padding: 0.75rem;
-        border: 1px solid #EDEBE9;
+        border: 1px solid var(--border-color);
         border-radius: 4px;
-        background: #FAFAFA;
+        background: var(--light-bg);
     }
 
     .attachment-item i {
         font-size: 1.5rem;
-        color: #0078D4;
+        color: var(--primary-color);
         margin-right: 1rem;
     }
 
@@ -194,7 +194,7 @@
 
     .attachment-name {
         font-weight: 600;
-        color: #323130;
+        color: var(--text-primary);
         text-decoration: none;
     }
 
@@ -296,18 +296,18 @@
 
         @* GAP 12: DoD checklist — displayed prominently for stage Activity sub-tasks *@
         @if(Model.WorkflowStageId.HasValue && Model.WorkflowStage != null && !string.IsNullOrWhiteSpace(Model.WorkflowStage.DefinitionOfDone)) {
-            <div class="form-section" style="border: 2px solid #5C2D91; border-radius: 6px; padding: 1.25rem; background: #FAF7FF;">
-                <h3 class="form-section-title" style="color: #5C2D91; border-color: #D0BFFF;">
+            <div class="form-section" style="border: 2px solid rgba(92, 45, 145, 0.3); border-radius: 6px; padding: 1.25rem; background: rgba(92, 45, 145, 0.05);">
+                <h3 class="form-section-title" style="color: var(--primary-color); border-color: var(--border-color);">
                     <i class="fas fa-clipboard-check"></i> Definition of Done
                     <span class="badge ms-2" style="background: @(Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "#107C10" : "#8764B8"); color: white; font-size: 0.7rem; vertical-align: middle;">
                         @(Model.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done ? "✓ Gate Passed" : "Gate Pending")
                     </span>
                 </h3>
-                <div style="white-space: pre-wrap; color: #3D2060; line-height: 1.7; font-size: 0.93rem;">
+                <div style="white-space: pre-wrap; color: var(--text-primary); line-height: 1.7; font-size: 0.93rem;">
                     @Model.WorkflowStage.DefinitionOfDone
                 </div>
                 @if(Model.WorkflowStage.GateType != OfficeTaskManagement.Models.Enums.StageGateType.None) {
-                    <div class="mt-3 p-2" style="background: white; border-radius: 4px; border: 1px solid #D0BFFF; font-size: 0.85rem; color: #5C2D91;">
+                    <div class="mt-3 p-2" style="background: var(--light-bg); border-radius: 4px; border: 1px solid var(--border-color); font-size: 0.85rem; color: var(--text-secondary);">
                         <strong><i class="fas fa-lock"></i> Gate Criteria:</strong>
                         @switch(Model.WorkflowStage.GateType) {
                             case OfficeTaskManagement.Models.Enums.StageGateType.CommittedOnly:
@@ -339,17 +339,17 @@
                 var totalCount = stageSubTasks.Count;
                 var pct = totalCount > 0 ? (doneCount * 100 / totalCount) : 0;
 
-                <div class="form-section" style="border:2px solid #5C2D91; border-radius:8px; padding:1.25rem; background:#FAF7FF;">
-                    <h3 class="form-section-title" style="color:#5C2D91; border-color:#D0BFFF;">
+                <div class="form-section" style="border: 2px solid rgba(92, 45, 145, 0.3); border-radius: 8px; padding: 1.25rem; background: rgba(92, 45, 145, 0.05);">
+                    <h3 class="form-section-title" style="color: var(--primary-color); border-color: var(--border-color);">
                         <i class="fas fa-sitemap"></i> Pipeline Progress
-                        <span class="badge ms-2" style="background:@(pct == 100 ? "#107C10" : "#5C2D91"); color:white; font-size:0.7rem;">@doneCount / @totalCount stages</span>
+                        <span class="badge ms-2" style="background:@(pct == 100 ? "var(--success-color)" : "var(--primary-color)"); color:white; font-size:0.7rem;">@doneCount / @totalCount stages</span>
                         <a asp-controller="WorkflowTemplates" asp-action="WorkPackage" asp-route-id="@Model.Id"
-                           class="btn btn-sm float-end" style="background:#5C2D91; color:white; font-size:0.75rem;">
+                           class="btn btn-sm float-end btn-primary" style="font-size: 0.75rem;">
                             <i class="fas fa-external-link-alt"></i> Full Pipeline View
                         </a>
                     </h3>
-                    <div style="height:8px; background:#EDEBE9; border-radius:4px; overflow:hidden; margin-bottom:1rem;">
-                        <div style="height:100%; width:@pct%; background:@(pct == 100 ? "#107C10" : "#5C2D91"); border-radius:4px; transition:width 0.3s;"></div>
+                    <div style="height:8px; background:var(--border-color); border-radius:4px; overflow:hidden; margin-bottom:1rem;">
+                        <div style="height:100%; width:@pct%; background:@(pct == 100 ? "var(--success-color)" : "var(--primary-color)"); border-radius:4px; transition:width 0.3s;"></div>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:0.5rem;">
                         @foreach (var stage in stageSubTasks)
@@ -357,18 +357,18 @@
                             var isDone = stage.Status == OfficeTaskManagement.Models.Enums.TaskStatus.Done;
                             var isActive = !isDone && stage.Status >= OfficeTaskManagement.Models.Enums.TaskStatus.ToDo;
                             var stageColor = isDone ? "#107C10" : (isActive ? "#CA5010" : "#A19F9D");
-                            <div style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.75rem; background:white; border-radius:6px; border-left:4px solid @stageColor;">
+                            <div style="display:flex; align-items:center; gap:0.75rem; padding:0.6rem 0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:6px; border-left:4px solid @stageColor;">
                                 <span style="font-size:1rem; color:@stageColor;">
                                     <i class="fas @(isDone ? "fa-check-circle" : (isActive ? "fa-spinner" : "fa-circle"))"></i>
                                 </span>
                                 <div style="flex:1;">
                                     <div style="font-weight:600; font-size:0.88rem;">@(stage.WorkflowStage?.Name ?? stage.Title)</div>
                                     @if (stage.Assignee != null) {
-                                        <div style="font-size:0.75rem; color:#605E5C;"><i class="fas fa-user"></i> @stage.Assignee.FullName</div>
+                                        <div style="font-size:0.75rem; color:var(--text-secondary);"><i class="fas fa-user"></i> @stage.Assignee.FullName</div>
                                     }
                                 </div>
                                 <span class="badge" style="background:@stageColor; color:white; font-size:0.72rem;">@stage.Status</span>
-                                <a asp-action="Details" asp-route-id="@stage.Id" style="font-size:0.75rem; color:#0078D4; text-decoration:none;">View</a>
+                                <a asp-action="Details" asp-route-id="@stage.Id" style="font-size:0.75rem; color:var(--primary-color); text-decoration:none;">View</a>
                             </div>
                         }
                     </div>

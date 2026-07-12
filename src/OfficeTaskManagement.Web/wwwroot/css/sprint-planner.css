@@ -48,7 +48,7 @@
     padding: 0.45rem 0.75rem;
     font-size: 0.875rem;
     color: var(--text-primary);
-    background: #ffffff;
+    background: var(--light-bg);
     transition: border-color 0.2s;
     font-family: inherit;
 }
@@ -94,7 +94,7 @@
     margin-bottom: 1rem;
 }
 .sp-stat-box {
-    background: #ffffff;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0.75rem 1rem;
@@ -168,7 +168,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background: #ffffff;
+    background: var(--bg-surface);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0.65rem 1rem;
@@ -234,7 +234,7 @@
     padding: 0.42rem 0.7rem;
     font-size: 0.85rem;
     color: var(--text-primary);
-    background: #ffffff;
+    background: var(--light-bg);
     font-family: inherit;
     transition: border-color 0.2s;
 }
@@ -254,7 +254,7 @@
     border: 1px solid var(--border-color);
     border-radius: 8px;
     margin-bottom: 0.4rem;
-    background: #ffffff;
+    background: var(--bg-surface);
     transition: border-color 0.2s;
 }
 .sp-assign-row:hover { border-color: rgba(0,120,212,.3); }

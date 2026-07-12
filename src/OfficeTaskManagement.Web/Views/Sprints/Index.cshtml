@@ -23,8 +23,8 @@
     }
 
     .sprint-card {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1.5rem;
         transition: all 0.2s ease;
@@ -44,7 +44,7 @@
         left: 0;
         width: 4px;
         height: 100%;
-        background: #0078D4;
+        background: var(--primary-color);
         border-radius: 6px 0 0 6px;
     }
 
@@ -55,19 +55,19 @@
     .sprint-top {
         margin-bottom: 1rem;
         padding-bottom: 1rem;
-        border-bottom: 1px solid #EDEBE9;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .sprint-title {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #0078D4;
+        color: var(--primary-color);
         margin: 0 0 0.5rem 0;
     }
 
     .sprint-project {
         font-size: 0.85rem;
-        color: #605E5C;
+        color: var(--text-secondary);
         margin: 0;
     }
 
@@ -84,11 +84,11 @@
         align-items: center;
         gap: 0.5rem;
         font-size: 0.9rem;
-        color: #605E5C;
+        color: var(--text-secondary);
     }
 
     .meta-item i {
-        color: #0078D4;
+        color: var(--primary-color);
         width: 18px;
     }
 
@@ -107,8 +107,8 @@
     }
 
     .sprint-status.inactive {
-        background: #E8E8E8;
-        color: #605E5C;
+        background: var(--light-bg);
+        color: var(--text-secondary);
     }
 
     .sprint-footer {
@@ -121,9 +121,9 @@
         flex: 1;
         padding: 0.625rem 1rem;
         border-radius: 4px;
-        border: 1px solid #EDEBE9;
-        background: white;
-        color: #0078D4;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--primary-color);
         text-decoration: none;
         text-align: center;
         font-weight: 500;
@@ -133,7 +133,7 @@
     }
 
     .sprint-action-btn:hover {
-        background: #F3F2F1;
+        background: var(--light-bg);
     }
 
     .sprint-action-btn.danger {
@@ -141,20 +141,20 @@
     }
 
     .sprint-action-btn.danger:hover {
-        background: #FEE2E2;
+        background: rgba(232, 17, 35, 0.05);
     }
 
     .empty-state {
         text-align: center;
         padding: 3rem 2rem;
-        background: white;
-        border: 1px dashed #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px dashed var(--border-color);
         border-radius: 6px;
     }
 
     .empty-state i {
         font-size: 3rem;
-        color: #EDEBE9;
+        color: var(--border-color);
         display: block;
         margin-bottom: 1rem;
     }

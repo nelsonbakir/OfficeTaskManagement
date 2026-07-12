@@ -25,7 +25,7 @@
     <input type="hidden" asp-for="IsSystemGroup" />
     <div class="row g-4">
         <div class="col-lg-5">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                 <div class="card-header bg-transparent border-bottom py-3">
                     <h6 class="mb-0 fw-bold"><i class="fas fa-info-circle me-2 text-primary"></i>Group Details</h6>
                 </div>
@@ -47,7 +47,7 @@
             </div>
         </div>
         <div class="col-lg-7">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
                 <div class="card-header bg-transparent border-bottom py-3">
                     <h6 class="mb-0 fw-bold"><i class="fas fa-key me-2 text-primary"></i>Permission Keys</h6>
                     <div class="d-flex gap-2 mt-2">
@@ -61,7 +61,7 @@
                         {
                             <div class="col-md-6">
                                 <label class="perm-key-item d-flex align-items-center gap-2 p-2 rounded border"
-                                       style="cursor:pointer; transition:background 0.15s; @(Model.SelectedKeys.Contains(key) ? "background:#e8f0fe;border-color:#0d6efd;" : "")">
+                                style="cursor:pointer; transition:background 0.15s; @(Model.SelectedKeys.Contains(key) ? "background:rgba(0,120,212,0.08);border-color:var(--primary-color);" : "")">
                                     <input type="checkbox" name="SelectedKeys" value="@key"
                                            class="form-check-input m-0" @(Model.SelectedKeys.Contains(key) ? "checked" : "") />
                                     <span class="font-monospace small">@key</span>
@@ -76,15 +76,15 @@
 </form>
 
 <style>
-    .perm-key-item:hover { background:#f0f4ff; border-color:#0d6efd!important; }
-    .perm-key-item:has(input:checked) { background:#e8f0fe; border-color:#0d6efd!important; }
+    .perm-key-item:hover { background:var(--light-bg); border-color:var(--primary-color)!important; }
+    .perm-key-item:has(input:checked) { background:rgba(0, 120, 212, 0.08); border-color:var(--primary-color)!important; }
 </style>
 @section Scripts {
 <script>
 function selectAll(checked) {
     document.querySelectorAll('input[name="SelectedKeys"]').forEach(cb => {
         cb.checked = checked;
-        cb.closest('.perm-key-item').style.background = checked ? '#e8f0fe' : '';
+        cb.closest('.perm-key-item').style.background = checked ? 'rgba(0, 120, 212, 0.08)' : '';
     });
 }
 </script>

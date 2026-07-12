@@ -11,6 +11,7 @@
     --text-secondary: #605E5C;
     --sidebar-bg: #FAFBFC;
     --sidebar-border: #EDEBE9;
+    --bg-surface: #ffffff;
 }
 
 * {
@@ -706,7 +707,7 @@ main .container-fluid {
 
 /* Footer */
 footer {
-    background-color: white;
+    background-color: var(--bg-surface);
     border-top: 1px solid var(--border-color);
     padding: 1.5rem 2rem;
     margin-left: 260px;
@@ -887,7 +888,7 @@ footer {
 
 /* Additional Button Variants */
 .btn-outline-primary {
-    background: white;
+    background: transparent;
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
 }
@@ -899,7 +900,7 @@ footer {
 }
 
 .btn-outline-secondary {
-    background: white;
+    background: transparent;
     color: var(--text-primary);
     border: 1px solid var(--border-color);
 }
@@ -911,7 +912,7 @@ footer {
 }
 
 .btn-outline-danger {
-    background: white;
+    background: transparent;
     color: var(--danger-color);
     border: 1px solid var(--danger-color);
 }
@@ -1081,3 +1082,244 @@ a:hover {
         gap: 1rem;
     }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK THEME OVERRIDES
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+    --light-bg: #0F172A;
+    --border-color: #334155;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
+    --sidebar-bg: #1E293B;
+    --sidebar-border: #334155;
+    --bg-surface: #1E293B;
+}
+
+[data-theme="dark"] header {
+    background: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] header .navbar {
+    background: transparent !important;
+}
+
+[data-theme="dark"] .card, 
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer,
+[data-theme="dark"] .dropdown-menu,
+[data-theme="dark"] .list-group-item,
+[data-theme="dark"] .hierarchy-node,
+[data-theme="dark"] .planning-guide-step,
+[data-theme="dark"] .onboarding-step-card {
+    background: #1E293B !important;
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select,
+[data-theme="dark"] select,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] textarea {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #6366F1 !important;
+}
+
+[data-theme="dark"] .table {
+    color: #F8FAFC !important;
+    --bs-table-bg: transparent !important;
+    --bs-table-color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .table th {
+    background-color: var(--light-bg) !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .table td {
+    background-color: transparent !important;
+    border-color: #334155 !important;
+    color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.015) !important;
+}
+
+[data-theme="dark"] .btn-secondary,
+[data-theme="dark"] .btn-light {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+    color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .btn-secondary:hover,
+[data-theme="dark"] .btn-light:hover {
+    background-color: #475569 !important;
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .bg-light,
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .card-body {
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: #64748B !important;
+}
+
+[data-theme="dark"] .nav-link {
+    color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .nav-link:hover,
+[data-theme="dark"] .nav-link.active {
+    color: #6366F1 !important;
+}
+
+[data-theme="dark"] .notification-bell-dropdown {
+    background-color: #1E293B !important;
+    border-color: #334155 !important;
+}
+
+/* ── Custom Module Classes Overrides ── */
+[data-theme="dark"] .ai-panel,
+[data-theme="dark"] .ai-child-row,
+[data-theme="dark"] .copilot-sidebar,
+[data-theme="dark"] .copilot-msg--typing .copilot-msg__bubble,
+[data-theme="dark"] .copilot-mention-dropdown,
+[data-theme="dark"] .wbs-epic-block,
+[data-theme="dark"] .wbs-story-block,
+[data-theme="dark"] .budget-card,
+[data-theme="dark"] .mode-option,
+[data-theme="dark"] .sp-stat-box,
+[data-theme="dark"] .sp-gauge-row,
+[data-theme="dark"] .sp-assign-row,
+[data-theme="dark"] .chart-container,
+[data-theme="dark"] .project-card {
+    background: #1E293B !important;
+    background-color: #1E293B !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .wbs-feature-block {
+    background: #0F172A !important;
+    border-color: #334155 !important;
+    color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .copilot-sidebar__input-backdrop,
+[data-theme="dark"] .sp-field input,
+[data-theme="dark"] .sp-assignee-select {
+    background-color: #0F172A !important;
+    background: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+
+[data-theme="dark"] .sp-proposal-card,
+[data-theme="dark"] .sp-proposal-card *,
+[data-theme="dark"] .ow-status-ai,
+[data-theme="dark"] .ow-status-ai * {
+    background-color: rgba(99, 102, 241, 0.1) !important;
+    background: rgba(99, 102, 241, 0.1) !important;
+    color: #818CF8 !important;
+    border-color: #334155 !important;
+}
+
+/* Onboarding step markers */
+[data-theme="dark"] .wizard-step-circle {
+    background: #1E293B !important;
+    color: #94A3B8 !important;
+    border-color: #334155 !important;
+}
+[data-theme="dark"] .wizard-step-node.active .wizard-step-circle {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border-color: var(--primary-color) !important;
+}
+[data-theme="dark"] .wizard-step-node.done .wizard-step-circle {
+    background: var(--success-color) !important;
+    color: white !important;
+    border-color: var(--success-color) !important;
+}
+
+/* Select2 drop-downs */
+[data-theme="dark"] .select2-container--default .select2-selection--single,
+[data-theme="dark"] .select2-container--default .select2-selection--multiple,
+[data-theme="dark"] .select2-dropdown {
+    background-color: #0F172A !important;
+    color: #F8FAFC !important;
+    border-color: #334155 !important;
+}
+[data-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #F8FAFC !important;
+}
+[data-theme="dark"] .select2-results__option {
+    background-color: #0F172A !important;
+    color: #94A3B8 !important;
+}
+[data-theme="dark"] .select2-results__option--highlighted[aria-selected] {
+    background-color: #4F46E5 !important;
+    color: #FFFFFF !important;
+}
+
+/* Onboarding Wizard Token variables */
+[data-theme="dark"] {
+    --ow-card-bg: #1E293B !important;
+    --ow-card-border: #334155 !important;
+    --ow-status-ai: rgba(99, 102, 241, 0.1) !important;
+    --ow-status-ai-txt: #818CF8 !important;
+    --ow-status-saved: rgba(16, 185, 129, 0.1) !important;
+    --ow-status-saved-txt: #34D399 !important;
+    --ow-status-skip: #334155 !important;
+    --ow-status-skip-txt: #94A3B8 !important;
+    --ow-track-empty: #334155 !important;
+    --ow-step-pending: #475569 !important;
+}
+
+/* progress bar in capacity dashboard */
+[data-theme="dark"] .progress {
+    background-color: #334155 !important;
+    border-color: #475569 !important;
+}
+

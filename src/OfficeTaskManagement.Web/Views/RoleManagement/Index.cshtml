@@ -36,7 +36,7 @@
 }
 
 <!-- Hierarchy Legend -->
-<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.01), rgba(102, 16, 242, 0.01)); border: 1px solid rgba(0, 0, 0, 0.04) !important; border-radius: 24px;">
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.01), rgba(102, 16, 242, 0.01)); border: 1px solid var(--border-color) !important; border-radius: 24px;">
     <div class="card-body py-4 px-4">
         <div class="d-flex align-items-center mb-3">
             <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary-subtle me-2" style="width: 24px; height: 24px;">
@@ -57,7 +57,7 @@
                 var group = groupedRoles[idx];
                 
                 <!-- Level Card (Horizontal Stack Item) -->
-                <div class="card border-0 shadow-sm tree-level-card flex-shrink-0" style="width: 170px; border-radius: 16px; background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(10px); border: 1px solid rgba(0, 0, 0, 0.05) !important;">
+                <div class="card border-0 shadow-sm tree-level-card flex-shrink-0" style="width: 170px; border-radius: 16px; background: var(--bg-surface); backdrop-filter: blur(10px); border: 1px solid var(--border-color) !important;">
                     <div class="card-body text-center p-3 d-flex flex-column justify-content-between">
                         <div class="mb-2">
                             <span class="badge bg-light text-secondary border border-secondary-subtle text-uppercase fw-bold" style="font-size: 0.55rem; letter-spacing: 0.8px; padding: 4px 8px; border-radius: 6px;">
@@ -194,7 +194,7 @@
     .tree-level-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06) !important;
-        background: rgba(255, 255, 255, 0.85) !important;
+        background: var(--bg-surface) !important;
     }
 
     .tree-legend-role-badge:hover {

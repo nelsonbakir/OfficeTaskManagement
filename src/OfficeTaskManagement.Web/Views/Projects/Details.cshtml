@@ -13,8 +13,8 @@
 
 <style>
     .project-header {
-        background: white;
-        border-bottom: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border-color);
         padding: 2rem;
         margin: -2rem -2rem 2rem -2rem;
         border-radius: 6px 6px 0 0;
@@ -37,10 +37,10 @@
         width: 64px;
         height: 64px;
         object-fit: contain;
-        border: 1px solid #EDEBE9;
+        border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 4px;
-        background: white;
+        background: var(--bg-surface);
     }
 
     .project-title-section h1 {
@@ -68,7 +68,7 @@
     }
 
     .info-label {
-        color: #605E5C;
+        color: var(--text-secondary);
         font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -76,21 +76,21 @@
     }
 
     .info-value {
-        color: #252424;
+        color: var(--text-primary);
         font-weight: 500;
     }
 
     /* Tabs */
     .nav-tabs {
-        border-bottom: 1px solid #EDEBE9;
-        background: white;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-surface);
         padding: 0 2rem;
         margin: 0 -2rem 0 -2rem;
         border-radius: 0;
     }
 
     .nav-tabs .nav-link {
-        color: #605E5C;
+        color: var(--text-secondary);
         border: none;
         border-bottom: 2px solid transparent;
         padding: 1rem 1.5rem;
@@ -99,13 +99,13 @@
     }
 
     .nav-tabs .nav-link:hover {
-        color: #0078D4;
-        border-bottom-color: #0078D4;
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
     }
 
     .nav-tabs .nav-link.active {
-        color: #0078D4;
-        border-bottom-color: #0078D4;
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
         background: transparent;
     }
 
@@ -130,8 +130,8 @@
 
     /* Sprint Card */
     .sprint-card {
-        background: white;
-        border: 1px solid #EDEBE9;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
@@ -152,7 +152,7 @@
     .sprint-name {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #0078D4;
+        color: var(--primary-color);
         margin: 0;
     }
 
@@ -186,10 +186,10 @@
     }
 
     .task-item {
-        background: #F3F2F1;
+        background: var(--light-bg);
         padding: 0.75rem 1rem;
         border-radius: 4px;
-        border-left: 3px solid #0078D4;
+        border-left: 3px solid var(--primary-color);
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -197,7 +197,7 @@
     }
 
     .task-item:hover {
-        background: #EDEBE9;
+        background: var(--border-color);
     }
 
     .task-info {
@@ -206,13 +206,13 @@
 
     .task-title {
         font-weight: 500;
-        color: #252424;
+        color: var(--text-primary);
         margin-bottom: 0.25rem;
     }
 
     .task-meta {
         font-size: 0.8rem;
-        color: #605E5C;
+        color: var(--text-secondary);
     }
 
     .task-actions {
@@ -224,9 +224,9 @@
         width: 28px;
         height: 28px;
         border-radius: 4px;
-        border: 1px solid #EDEBE9;
-        background: white;
-        color: #605E5C;
+        border: 1px solid var(--border-color);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -237,29 +237,29 @@
     }
 
     .quick-action-btn:hover {
-        background: white;
-        color: #0078D4;
+        background: var(--light-bg);
+        color: var(--primary-color);
     }
 
     .empty-list {
         text-align: center;
         padding: 2rem;
-        color: #605E5C;
-        background: white;
-        border: 1px dashed #EDEBE9;
+        color: var(--text-secondary);
+        background: var(--bg-surface);
+        border: 1px dashed var(--border-color);
         border-radius: 6px;
     }
 
     .empty-list i {
         font-size: 2rem;
-        color: #EDEBE9;
+        color: var(--border-color);
         display: block;
         margin-bottom: 0.5rem;
     }
 
     .inline-form {
-        background: #F3F2F1;
-        border: 1px solid #EDEBE9;
+        background: var(--light-bg);
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
@@ -277,7 +277,9 @@
     }
 
     .form-control-inline {
-        border: 1px solid #EDEBE9;
+        border: 1px solid var(--border-color);
+        background-color: var(--bg-surface);
+        color: var(--text-primary);
         padding: 0.625rem 0.875rem;
         border-radius: 4px;
         font-size: 0.9rem;
@@ -285,7 +287,7 @@
 
     .form-control-inline:focus {
         outline: none;
-        border-color: #0078D4;
+        border-color: var(--primary-color);
         box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
     }
 
@@ -299,29 +301,29 @@
     }
 
     .btn-inline-primary {
-        background: #0078D4;
+        background: var(--primary-color);
         color: white;
     }
 
     .btn-inline-primary:hover {
-        background: #005A9E;
+        background: var(--primary-dark);
     }
 
     .btn-inline-secondary {
-        background: white;
-        border: 1px solid #EDEBE9;
-        color: #252424;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
     }
 
     .btn-inline-secondary:hover {
-        background: #F3F2F1;
+        background: var(--light-bg);
     }
 
     .attachment-card {
         display: flex;
         align-items: center;
         padding: 1rem;
-        border: 1px solid #EDEBE9;
+        border: 1px solid var(--border-color);
         border-radius: 6px;
         margin-bottom: 0.75rem;
         transition: all 0.2s ease;
@@ -330,13 +332,13 @@
     }
 
     .attachment-card:hover {
-        background: #F3F2F1;
-        border-color: #0078D4;
+        background: var(--light-bg);
+        border-color: var(--primary-color);
     }
 
     .attachment-icon {
         font-size: 1.5rem;
-        color: #0078D4;
+        color: var(--primary-color);
         margin-right: 1.25rem;
     }
 
@@ -429,8 +431,8 @@
 }
 
 @if(!string.IsNullOrEmpty(Model.Description)) {
-    <div style="background: white; padding: 1.5rem; border-radius: 6px; margin-bottom: 2rem; border: 1px solid #EDEBE9;">
-        <p style="margin: 0; color: #605E5C; line-height: 1.6;">@Model.Description</p>
+    <div style="background: var(--bg-surface); padding: 1.5rem; border-radius: 6px; margin-bottom: 2rem; border: 1px solid var(--border-color);">
+        <p style="margin: 0; color: var(--text-secondary); line-height: 1.6;">@Model.Description</p>
     </div>
 }
 
@@ -475,7 +477,7 @@
     }
 </ul>
 
-<div class="tab-content" style="background: white; padding: 2rem;">
+<div class="tab-content" style="background: var(--bg-surface); padding: 2rem; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 6px 6px;">
     <!-- Resource Allocations Tab -->
     <div id="allocations" class="tab-pane fade" data-loaded="false" data-project-id="@Model.Id">
         <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
@@ -534,11 +536,11 @@
         @if (Model.Epics != null && Model.Epics.Any()) {
             <div class="project-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
                 @foreach (var epic in Model.Epics) {
-                    <div class="project-card" style="background: white; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.5rem; transition: all 0.2s ease; position: relative;">
-                        <a asp-controller="Epics" asp-action="Details" asp-route-id="@epic.Id" class="project-name" style="font-size: 1.1rem; font-weight: 600; color: #0078D4; text-decoration: none; display: block; margin-bottom: 0.5rem;">
+                    <div class="project-card" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 6px; padding: 1.5rem; transition: all 0.2s ease; position: relative;">
+                        <a asp-controller="Epics" asp-action="Details" asp-route-id="@epic.Id" class="project-name" style="font-size: 1.1rem; font-weight: 600; color: var(--primary-color); text-decoration: none; display: block; margin-bottom: 0.5rem;">
                             @epic.Name
                         </a>
-                        <p class="project-description" style="font-size: 0.9rem; color: #605E5C; margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        <p class="project-description" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0 0 1rem 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                             @epic.Description
                         </p>
                         <div class="project-actions" style="position: absolute; top: 1rem; right: 1rem; display: flex; gap: 0.5rem;">
@@ -550,7 +552,7 @@
                 }
             </div>
         } else {
-            <div class="empty-list" style="margin-top: 1.5rem; text-align: center; padding: 2rem; color: #605E5C; border: 1px dashed #EDEBE9; border-radius: 6px;">
+            <div class="empty-list" style="margin-top: 1.5rem; text-align: center; padding: 2rem; color: var(--text-secondary); border: 1px dashed var(--border-color); border-radius: 6px; background: var(--bg-surface);">
                 <i class="fas fa-layer-group" style="font-size: 2rem; color: #EDEBE9; display: block; margin-bottom: 0.5rem;"></i>
                 No epics yet
                 @if(await PermSvc.HasPermissionAsync(User, Permissions.ProjectsManage)) {
@@ -716,22 +718,22 @@
         <div style="display: grid; grid-template-columns: 1fr 300px; gap: 2rem; margin-top: 1.5rem;">
             <!-- Main Content -->
             <div>
-                <div style="background: #F3F2F1; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.5rem; margin-bottom: 1.5rem;">
-                    <h3 style="font-size: 1rem; font-weight: 600; margin-top: 0; margin-bottom: 1rem; color: #252424;">
+                <div style="background: var(--light-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-top: 0; margin-bottom: 1rem; color: var(--text-primary);">
                         <i class="fas fa-folder-open text-primary"></i> Repository Configuration
                     </h3>
                     <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.75rem 1.5rem; font-size: 0.9rem;">
-                        <span style="font-weight: 600; color: #605E5C;">Local Path:</span>
+                        <span style="font-weight: 600; color: var(--text-secondary);">Local Path:</span>
                         <span>@(string.IsNullOrEmpty(Model.RepositoryPath) ? "(Not configured)" : Model.RepositoryPath)</span>
 
-                        <span style="font-weight: 600; color: #605E5C;">Git URL:</span>
+                        <span style="font-weight: 600; color: var(--text-secondary);">Git URL:</span>
                         <span>@(string.IsNullOrEmpty(Model.RepositoryUrl) ? "(Not configured)" : Model.RepositoryUrl)</span>
                     </div>
                 </div>
 
-                <div id="codebase-status-card" style="border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.5rem; background: white;">
+                <div id="codebase-status-card" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 1.5rem; background: var(--bg-surface);">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
-                        <h3 style="font-size: 1.1rem; font-weight: 600; margin: 0; color: #252424;">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; margin: 0; color: var(--text-primary);">
                             <i class="fas fa-code text-primary"></i> Index Status
                         </h3>
                         <span id="codebase-sync-badge" class="badge" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">Loading...</span>
@@ -742,21 +744,21 @@
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
-                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Indexed Chunks</span>
-                            <span id="codebase-chunks" style="font-size: 1.5rem; font-weight: 600; color: #252424;">-</span>
+                        <div style="background: var(--light-bg); padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Indexed Chunks</span>
+                            <span id="codebase-chunks" style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);">-</span>
                         </div>
-                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
-                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Tokens Used</span>
-                            <span id="codebase-tokens" style="font-size: 1.25rem; font-weight: 600; color: #252424; display: block; margin-top: 0.2rem;">-</span>
+                        <div style="background: var(--light-bg); padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Tokens Used</span>
+                            <span id="codebase-tokens" style="font-size: 1.25rem; font-weight: 600; color: var(--text-primary); display: block; margin-top: 0.2rem;">-</span>
                         </div>
-                        <div style="background: #F3F2F1; padding: 1rem; border-radius: 4px; text-align: center;">
-                            <span style="display: block; font-size: 0.8rem; color: #605E5C; text-transform: uppercase;">Estimated Cost</span>
-                            <span id="codebase-cost" style="font-size: 1.5rem; font-weight: 600; color: #252424;">-</span>
+                        <div style="background: var(--light-bg); padding: 1rem; border-radius: 4px; text-align: center;">
+                            <span style="display: block; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Estimated Cost</span>
+                            <span id="codebase-cost" style="font-size: 1.5rem; font-weight: 600; color: var(--text-primary);">-</span>
                         </div>
                     </div>
 
-                    <div style="font-size: 0.85rem; color: #605E5C;">
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
                         <strong>Last Sync Date:</strong> <span id="codebase-last-sync">-</span>
                     </div>
                 </div>
@@ -764,8 +766,8 @@
 
             <!-- Sidebar Actions -->
             <div>
-                <div style="background: #F3F2F1; border: 1px solid #EDEBE9; border-radius: 6px; padding: 1.25rem;">
-                    <h3 style="font-size: 0.9rem; font-weight: 600; color: #252424; margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.5px;">Actions</h3>
+                <div style="background: var(--light-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 1.25rem;">
+                    <h3 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0 0 1rem 0; text-transform: uppercase; letter-spacing: 0.5px;">Actions</h3>
                     
                     @if (string.IsNullOrEmpty(Model.RepositoryPath) && string.IsNullOrEmpty(Model.RepositoryUrl))
                     {

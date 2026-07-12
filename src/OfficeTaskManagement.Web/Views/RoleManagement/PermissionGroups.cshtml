@@ -35,7 +35,7 @@
 }
 
 <!-- All known keys legend -->
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
     <div class="card-header bg-transparent py-3 d-flex align-items-center justify-content-between" 
          data-bs-toggle="collapse" data-bs-target="#keysLegend" style="cursor:pointer;">
         <h6 class="mb-0 fw-bold"><i class="fas fa-list me-2 text-muted"></i>All Known Permission Keys (@Model.AllKnownKeys.Count)</h6>
@@ -54,11 +54,11 @@
 </div>
 
 <!-- Groups Table -->
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
-                <thead style="background:#f8f9fa; border-bottom:2px solid #dee2e6;">
+                <thead style="background: var(--light-bg); border-bottom: 2px solid var(--border-color);">
                     <tr>
                         <th class="ps-4 py-3">Group Name</th>
                         <th class="py-3">Permission Keys</th>

@@ -21,8 +21,8 @@
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white">
+        <div class="card shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent">
                 <h5 class="mb-0">Description</h5>
             </div>
             <div class="card-body">
@@ -30,8 +30,8 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white">
+        <div class="card shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent">
                 <h5 class="mb-0">Acceptance Criteria</h5>
             </div>
             <div class="card-body">
@@ -40,8 +40,8 @@
         </div>
 
         <!-- Attachments Section -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white">
+        <div class="card shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent">
                 <h5 class="mb-0">Attachments (@(Model.Attachments?.Count ?? 0))</h5>
             </div>
             <div class="card-body">
@@ -68,8 +68,8 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="card shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Test Cases</h5>
                 <a asp-controller="TestCases" asp-action="Create" asp-route-userStoryId="@Model.Id" class="btn btn-sm btn-outline-primary">Add Test Case</a>
             </div>
@@ -105,8 +105,8 @@
             </div>
         </div>
         
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-white">
+        <div class="card shadow-sm mb-4" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent">
                 <h5 class="mb-0">Linked Tasks</h5>
             </div>
             <div class="card-body p-0">
@@ -141,8 +141,8 @@
     </div>
 
     <div class="col-md-4">
-        <div class="card shadow-sm">
-            <div class="card-header bg-white">
+        <div class="card shadow-sm" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+            <div class="card-header bg-transparent">
                 <h5 class="mb-0">Details</h5>
             </div>
             <div class="card-body">
